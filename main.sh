@@ -16,7 +16,7 @@ show_menu() {
     read -p "请输入选项编号: " choice
     case $choice in
         1)
-             bash <(curl -fsSL https://github.com/dahuangying/dahuangying-toolbox/blob/main/modules/system.sh)
+             bash modules/system.sh
             ;;
         2)
             bash modules/network.sh
