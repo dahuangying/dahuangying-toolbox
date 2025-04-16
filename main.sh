@@ -19,7 +19,7 @@ echo -e "脚本链接： https://github.com/dahuangying/dahuangying-toolbox"
 show_menu() {
     echo -e "${GREEN}  大黄鹰-Linux服务器运维工具箱${NC}"
     echo -e "欢迎使用本脚本，请根据菜单选择操作："
-    echo -e "${GREEN}--------------------------${NC}"
+    echo -e "${GREEN}----------------------------------${NC}"
     echo "1. 系统信息查询"
     echo "2. 系统更新"
     echo "3. 系统清理"
