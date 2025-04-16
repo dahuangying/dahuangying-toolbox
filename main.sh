@@ -12,17 +12,17 @@ pause() {
 }
 
 # 欢迎信息
-echo -e "${GREEN}  大黄鹰-Linux服务器运维工具箱${NC}"
-echo -e "脚本链接： bash <(curl -fsSL https://raw.githubusercontent.com/dahuangying/dahuangying-toolbox/main/main.sh)"
+echo -e "${GREEN}🦅 大黄鹰-Linux服务器运维工具箱${NC}"
 echo -e "欢迎使用，请根据菜单选择操作："
+echo -e "脚本链接： https://github.com/dahuangying/dahuangying-toolbox"
 
 # 快速启动显示 dhy 字母标识
 quick_start() {
     echo -e "${GREEN}dhy 字母标识：${NC}"
-    echo -e "${GREEN}dhy${NC}"
+    echo -e "${GREEN}D   H   Y${NC}"
     echo -e "${GREEN}大黄鹰-Linux服务器运维工具箱 快速启动！${NC}"
     echo -e "正在执行快速启动脚本..."
-    echo -e "脚本链接： # bash <(curl -fsSL https://raw.githubusercontent.com/dahuangying/dahuangying-toolbox/main/main.sh)
+    # 在这里你可以添加快速启动的功能脚本内容
     echo -e "快速启动完成！"
     pause
 }
@@ -87,7 +87,7 @@ system_cleanup() {
 
 # 显示菜单
 show_menu() {
-    echo -e "${GREEN}大黄鹰-Linux服务器运维工具箱${NC}"
+    echo -e "${GREEN}欢迎使用大黄鹰工具箱${NC}"
     echo "1. 系统信息查询"
     echo "2. 系统更新"
     echo "3. 系统清理"
@@ -138,7 +138,7 @@ show_menu() {
             quick_start  # 调用快速启动脚本
             ;;
         0)
-            echo "感谢使用大黄鹰-Linux服务器运维工具箱！"
+            echo "感谢使用大黄鹰工具箱！"
             exit 0
             ;;
         *)
@@ -151,6 +151,7 @@ show_menu() {
 while true; do
     show_menu
 done
+
 
 
 
