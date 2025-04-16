@@ -87,6 +87,54 @@ system_cleanup() {
     pause
 }
 
+# 删除模块
+delete_module() {
+    echo -e "${GREEN}正在删除模块：$1${NC}"
+    if [ -f "modules/$1" ]; then
+        rm -f "modules/$1"
+        echo -e "${GREEN}模块 $1 已删除。${NC}"
+    else
+        echo -e "${GREEN}模块 $1 不存在。${NC}"
+    fi
+}
+
+# 删除所有模块
+delete_all_modules() {
+    echo -e "${GREEN}正在删除所有模块...${NC}"
+    rm -rf modules/*
+    echo -e "${GREEN}所有模块已删除。${NC}"
+}
+
+# 删除主程序
+delete_main_script() {
+    echo -e "${GREEN}正在删除主程序 main.sh...${NC}"
+    rm -f main.sh
+    echo -e "${GREEN}主程序已删除！${NC}"
+    echo -e "${GREEN}请手动删除此工具箱文件夹。${NC}"
+}
+
+# 删除工具箱目录
+delete_toolbox() {
+    echo -e "${GREEN}正在删除整个工具箱目录...${NC}"
+    rm -rf /path/to/dahuangying-toolbox  # 替换为你工具箱的实际路径
+    echo -e "${GREEN}工具箱已删除。${NC}"
+}
+
+# 删除所有内容
+full_uninstall() {
+    echo -e "${GREEN}确定要删除所有模块和主程序吗？（y/n）${NC}"
+    read confirmation
+    if [[ $confirmation == "y" || $confirmation == "Y" ]]; then
+        delete_all_modules
+        delete_main_script
+        delete_toolbox
+        echo -e "${GREEN}所有内容已删除。${NC}"
+        exit 0
+    else
+        echo -e "${GREEN}取消删除操作。${NC}"
+    fi
+}
+
 # 显示菜单
 show_menu() {
     echo -e "${GREEN}欢迎使用大黄鹰-Linux服务器运维工具箱${NC}"
