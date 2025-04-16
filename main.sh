@@ -175,23 +175,6 @@ full_uninstall() {
     fi
 }
 
-# 下载模块
-download_module() {
-    mkdir -p modules
-    if [ ! -f modules/$1 ]; then
-        echo -e "${GREEN}正在下载模块: $1${NC}"
-        curl -fsSL https://raw.githubusercontent.com/${GITHUB_USER}/${REPO_NAME}/${BRANCH}/modules/$1 -o modules/$1
-        chmod +x modules/$1
-    fi
-}
-
-# 下载所有模块
-download_all_modules() {
-    download_module system.sh
-    download_module network.sh
-    download_module docker.sh
-}
-
 # 主程序入口
 while true; do
     show_menu
