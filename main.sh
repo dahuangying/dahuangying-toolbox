@@ -41,13 +41,13 @@ show_menu() {
             system_cleanup
             ;;
         4)
-            bash modules/system.sh  # 确保有对应模块文件
+            bash modules/system.sh
             ;;
         5)
-            echo "应用脚本功能（示例）"
+            bash modules/network.sh
             ;;
         6)
-            bash modules/docker.sh  # 确保有 Docker 管理模块
+            bash modules/docker.sh
             ;;
         7)
             echo "请输入模块名删除（例如：system.sh）："
