@@ -14,7 +14,7 @@ pause() {
 # 欢迎信息
 echo -e "${GREEN}🦅 大黄鹰-Linux服务器运维工具箱${NC}"
 echo -e "欢迎使用，请根据菜单选择操作："
-echo -e "脚本链接： https://github.com/dahuangying/dahuangying-toolbox"
+echo -e "脚本链接： bash <(curl -fsSL https://raw.githubusercontent.com/dahuangying/dahuangying-toolbox/main/main.sh)"
 
 # 快速启动显示 dhy 字母标识
 quick_start() {
