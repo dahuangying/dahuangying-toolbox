@@ -19,7 +19,7 @@ echo -e "脚本链接： https://github.com/dahuangying/dahuangying-toolbox"
 show_menu() {
     echo -e "${GREEN}   大黄鹰-Linux服务器运维工具箱 ${NC}"
     echo -e "欢迎使用本脚本，请根据菜单选择操作："
-    echo -e "${GREEN} ------------------------------------------ ${NC}"
+    echo -e "${GREEN} ----------------------------------- ${NC}"
     echo "1. 系统信息查询"
     echo "2. 系统更新"
     echo "3. 系统清理"
@@ -101,6 +101,55 @@ case "$1" in
         main
         ;;
 esac
+#!/bin/bash
+
+# 快速启动函数
+quick_start() {
+    echo "快速启动中..."
+    bash <(curl -fsSL https://raw.githubusercontent.com/dahuangying/dahuangying-toolbox/main/main.sh)
+}
+
+# 主程序
+main() {
+    echo "主程序运行中..."
+    # 这里放置你原来的主程序代码
+    echo "执行主程序功能..."
+}
+
+# 参数处理
+case "$1" in
+    "dhy")
+        quick_start
+        ;;
+    *)
+        main
+        ;;
+esac
+#!/bin/bash
+
+# 快速启动函数
+quick_start() {
+    echo "快速启动中..."
+    bash <(curl -fsSL https://raw.githubusercontent.com/dahuangying/dahuangying-toolbox/main/main.sh)
+}
+
+# 主程序
+main() {
+    echo "主程序运行中..."
+    # 这里放置你原来的主程序代码
+    echo "执行主程序功能..."
+}
+
+# 参数处理
+case "$1" in
+    "dhy")
+        quick_start
+        ;;
+    *)
+        main
+        ;;
+esac
+}
 
 # 显示系统信息
 show_system_info() {
