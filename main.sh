@@ -12,7 +12,7 @@ echo -e "脚本链接： https://github.com/dahuangying/dahuangying-toolbox"
 # 快速启动显示 dhy 字母标识
 quick_start() {
     echo -e "${GREEN}dhy 字母标识：${NC}"
-    echo -e "${GREEN}D   H   Y${NC}"
+    echo -e "${GREEN}dhy${NC}"
     echo -e "${GREEN}大黄鹰-Linux服务器运维工具箱 快速启动！${NC}"
     echo -e "正在执行快速启动脚本..."
     # 在这里你可以添加快速启动的功能脚本内容
