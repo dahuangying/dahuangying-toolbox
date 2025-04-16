@@ -11,6 +11,29 @@ pause() {
     echo
 }
 
+# 快速启动函数
+quick_start() {
+    echo "快速启动中..."
+    bash <(curl -fsSL https://raw.githubusercontent.com/dahuangying/dahuangying-toolbox/main/main.sh)
+}
+
+# 主程序
+main() {
+    echo "主程序运行中..."
+    # 这里放置你原来的主程序代码
+    echo "执行主程序功能..."
+}
+
+# 参数处理
+case "$1" in
+    "dhy")
+        quick_start
+        ;;
+    *)
+        main
+        ;;
+esac
+
 # 欢迎信息
 echo -e "${GREEN} "大黄鹰-Linux服务器运维工具箱，是一款部署在github上开源的脚本工具，旨在为你提供简便的运维解决方案。"${NC}"
 echo -e "脚本链接： https://github.com/dahuangying/dahuangying-toolbox"
@@ -77,78 +100,6 @@ show_menu() {
             echo "无效输入，请重试。"
             ;;
     esac
-}
-
-# 快速启动函数
-quick_start() {
-    echo "快速启动中..."
-    bash <(curl -fsSL https://raw.githubusercontent.com/dahuangying/dahuangying-toolbox/main/main.sh)
-}
-
-# 主程序
-main() {
-    echo "主程序运行中..."
-    # 这里放置你原来的主程序代码
-    echo "执行主程序功能..."
-}
-
-# 参数处理
-case "$1" in
-    "dhy")
-        quick_start
-        ;;
-    *)
-        main
-        ;;
-esac
-#!/bin/bash
-
-# 快速启动函数
-quick_start() {
-    echo "快速启动中..."
-    bash <(curl -fsSL https://raw.githubusercontent.com/dahuangying/dahuangying-toolbox/main/main.sh)
-}
-
-# 主程序
-main() {
-    echo "主程序运行中..."
-    # 这里放置你原来的主程序代码
-    echo "执行主程序功能..."
-}
-
-# 参数处理
-case "$1" in
-    "dhy")
-        quick_start
-        ;;
-    *)
-        main
-        ;;
-esac
-#!/bin/bash
-
-# 快速启动函数
-quick_start() {
-    echo "快速启动中..."
-    bash <(curl -fsSL https://raw.githubusercontent.com/dahuangying/dahuangying-toolbox/main/main.sh)
-}
-
-# 主程序
-main() {
-    echo "主程序运行中..."
-    # 这里放置你原来的主程序代码
-    echo "执行主程序功能..."
-}
-
-# 参数处理
-case "$1" in
-    "dhy")
-        quick_start
-        ;;
-    *)
-        main
-        ;;
-esac
 }
 
 # 显示系统信息
