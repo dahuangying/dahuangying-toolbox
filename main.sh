@@ -4,7 +4,7 @@
 GREEN='\033[0;32m'
 NC='\033[0m' # 无色
 
-# 欢迎信息
+# 欢迎信息（不修改）
 echo -e "${GREEN}🦅 大黄鹰-Linux服务器运维工具箱${NC}"
 echo -e "欢迎使用大黄鹰-Linux服务器运维工具箱。请根据菜单选择操作。"
 echo -e "脚本链接： https://github.com/dahuangying/dahuangying-toolbox"
@@ -18,6 +18,7 @@ quick_start() {
     # 在这里你可以添加快速启动的功能脚本内容
     echo -e "快速启动完成！"
 }
+
 # 显示系统信息
 show_system_info() {
     echo -e "${GREEN}系统信息查询${NC}"
@@ -78,6 +79,7 @@ show_menu() {
     echo "6. Docker 管理"
     echo "7. 卸载模块"
     echo "8. 删除工具箱及卸载所有模块"
+    echo "9. 快速启动脚本"
     echo "0. 退出"
     read -p "请输入选项编号: " choice
     case $choice in
@@ -115,6 +117,9 @@ show_menu() {
                 echo "取消删除操作。"
             fi
             ;;
+        9)
+            quick_start  # 调用快速启动脚本
+            ;;
         0)
             echo "感谢使用大黄鹰工具箱！"
             exit 0
@@ -129,4 +134,5 @@ show_menu() {
 while true; do
     show_menu
 done
+
 
