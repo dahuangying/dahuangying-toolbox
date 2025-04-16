@@ -12,9 +12,9 @@ pause() {
 }
 
 # 欢迎信息
-echo -e "${GREEN}🦅 大黄鹰-Linux服务器运维工具箱${NC}"
+echo -e "${GREEN}  大黄鹰-Linux服务器运维工具箱${NC}"
 echo -e "欢迎使用，请根据菜单选择操作："
-echo -e "脚本链接： https://raw.githubusercontent.com/dahuangying/dahuangying-toolbox"
+echo -e "脚本链接： https://github.com/dahuangying/dahuangying-toolbox"
 
 # 快速启动显示 dhy 字母标识
 quick_start() {
@@ -26,17 +26,13 @@ quick_start() {
     # 显示脚本链接
     echo -e "${GREEN}脚本链接：${NC} bash <(curl -fsSL https://raw.githubusercontent.com/dahuangying/dahuangying-toolbox/main/main.sh)"
     
+    # 执行链接
+    bash <(curl -fsSL https://raw.githubusercontent.com/dahuangying/dahuangying-toolbox/main/main.sh)
+    
     echo -e "快速启动完成！"
     
     # 调用暂停函数，等待用户按任意键继续
     pause
-}
-
-
-# dhy 快捷命令，执行远程脚本
-dhy() {
-    echo -e "${GREEN}执行 dhy 快捷命令，下载并运行主脚本...${NC}"
-    bash <(curl -fsSL https://raw.githubusercontent.com/dahuangying/dahuangying-toolbox/main/main.sh)
 }
 
 # 显示系统信息
@@ -157,6 +153,7 @@ show_menu() {
 while true; do
     show_menu
 done
+
 
 
 
