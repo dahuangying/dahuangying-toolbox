@@ -28,7 +28,6 @@ show_menu() {
     echo "6. Docker 管理"
     echo "7. 卸载模块"
     echo "8. 删除工具箱及卸载所有模块"
-    echo "9. 快速启动脚本"
     echo "0. 退出"
     read -p "请输入选项编号: " choice
     case $choice in
@@ -65,9 +64,6 @@ show_menu() {
             else
                 echo "取消删除操作。"
             fi
-            ;;
-        9)
-            quick_start  # 调用快速启动脚本
             ;;
         0)
             echo "感谢使用大黄鹰-Linux服务器运维工具箱！"
