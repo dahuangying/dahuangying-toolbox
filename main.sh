@@ -145,7 +145,7 @@ full_uninstall() {
 
 # 显示菜单
 show_menu() {
-    echo -e "${GREEN}-----------------------------------------------${NC}"
+    echo -e "${GREEN}欢迎使用大黄鹰-Linux服务器运维工具箱${NC}"
     echo "1. 系统信息查询"
     echo "2. 系统更新"
     echo "3. 系统清理"
