@@ -24,7 +24,7 @@ quick_start() {
     echo -e "正在执行快速启动脚本..."
     
     # 显示脚本链接
-    echo -e "${GREEN}脚本链接：${NC} bash <(curl -fsSL https://raw.githubusercontent.com/dahuangying/dahuangying-toolbox/main/main.sh)"
+    echo -e "${GREEN}脚本链接：${NC} https://raw.githubusercontent.com/dahuangying/dahuangying-toolbox/main/main.sh"
     
     # 执行链接
     bash <(curl -fsSL https://raw.githubusercontent.com/dahuangying/dahuangying-toolbox/main/main.sh)
