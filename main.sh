@@ -4,16 +4,16 @@
 GREEN='\033[0;32m'
 NC='\033[0m' # 无色
 
-# 显示暂停，按任意键继续
+# 显示暂停，按任意键继续，字体设置为绿色
 pause() {
-    read -n 1 -s -r -p ""操作完成，按任意键继续..."
+    echo -e "${GREEN}操作完成，按任意键继续...${NC}"
+    read -n 1 -s -r  # 等待用户按下任意键
     echo
 }
 
-# 欢迎信息
-echo -e "${GREEN} 大黄鹰-Linux服务器运维工具箱${NC}"
-
-echo -e "欢迎使用，请根据菜单选择操作 "
+# 欢迎信息（不修改）
+echo -e "${GREEN}  大黄鹰-Linux服务器运维工具箱${NC}"
+echo -e "请根据菜单选择操作。"
 echo -e "脚本链接： bash <(curl -fsSL https://raw.githubusercontent.com/dahuangying/dahuangying-toolbox/main/main.sh)"
 
 # 快速启动显示 dhy 字母标识
@@ -22,9 +22,15 @@ quick_start() {
     echo -e "${GREEN}D   H   Y${NC}"
     echo -e "${GREEN}大黄鹰-Linux服务器运维工具箱 快速启动！${NC}"
     echo -e "正在执行快速启动脚本..."
-    # 在这里你可以添加快速启动的功能脚本内容
+    # bash <(curl -fsSL https://raw.githubusercontent.com/dahuangying/dahuangying-toolbox/main/main.sh)
     echo -e "快速启动完成！"
     pause
+}
+
+# dhy 快捷命令，执行远程脚本
+dhy() {
+    echo -e "${GREEN}执行 dhy 快捷命令，下载并运行主脚本...${NC}"
+    bash <(curl -fsSL https://raw.githubusercontent.com/dahuangying/dahuangying-toolbox/main/main.sh)
 }
 
 # 显示系统信息
@@ -145,6 +151,7 @@ show_menu() {
 while true; do
     show_menu
 done
+
 
 
 
