@@ -6,12 +6,13 @@ NC='\033[0m' # 无色
 
 # 显示暂停，按任意键继续
 pause() {
-    read -n 1 -s -r -p "${GREEN}操作完成，按任意键继续...${NC} "
+    read -n 1 -s -r -p "操作完成，按任意键继续... "
     echo
 }
 
 # 欢迎信息
 echo -e "${GREEN} 大黄鹰-Linux服务器运维工具箱${NC}"
+
 echo -e "欢迎使用，请根据菜单选择操作 "
 echo -e "脚本链接： bash <(curl -fsSL https://raw.githubusercontent.com/dahuangying/dahuangying-toolbox/main/main.sh)"
 
