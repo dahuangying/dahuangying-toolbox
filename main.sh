@@ -135,6 +135,38 @@ full_uninstall() {
     fi
 }
 
+# 获取系统运行时长
+get_uptime() {
+    # 使用 uptime 命令获取系统运行时间
+    uptime_str=$(uptime -p)
+    
+    # 使用正则表达式提取天数、小时数和分钟数
+    days=$(echo "$uptime_str" | grep -oP '\d+(?=\sdays?)')
+    hours=$(echo "$uptime_str" | grep -oP '\d+(?=\shours?)')
+    minutes=$(echo "$uptime_str" | grep -oP '\d+(?=\sminutes?)')
+
+    # 如果没有找到天数，将其设置为 0
+    if [ -z "$days" ]; then
+        days=0
+    fi
+
+    # 如果没有找到小时数，将其设置为 0
+    if [ -z "$hours" ]; then
+        hours=0
+    fi
+
+    # 如果没有找到分钟数，将其设置为 0
+    if [ -z "$minutes" ]; then
+        minutes=0
+    fi
+
+    # 显示运行时长
+    echo "运行时长: $days天 $hours时 $minutes分"
+}
+
+# 调用函数并显示结果
+get_uptime
+
 # 显示菜单
 show_menu() {
     echo -e "${GREEN}欢迎使用大黄鹰-Linux服务器运维工具箱${NC}"
