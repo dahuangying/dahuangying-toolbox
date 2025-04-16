@@ -12,8 +12,71 @@ pause() {
 }
 
 # 欢迎信息
-echo -e "${GREEN}  大黄鹰-Linux服务器运维工具箱${NC}"
+echo -e "${GREEN} "大黄鹰-Linux服务器运维工具箱，是一款部署在github上开源的脚本工具，该工具为您提供便捷的服务器运维解决方案。"${NC}"
 echo -e "脚本链接： https://github.com/dahuangying/dahuangying-toolbox"
+
+# 显示菜单
+show_menu() {
+    echo -e "${GREEN}大黄鹰-Linux服务器运维工具箱${NC}"
+    echo -e "欢迎使用本脚本，请根据菜单选择操作："
+    echo "1. 系统信息查询"
+    echo "2. 系统更新"
+    echo "3. 系统清理"
+    echo "4. 系统工具"
+    echo "5. 应用脚本"
+    echo "6. Docker 管理"
+    echo "7. 卸载模块"
+    echo "8. 删除工具箱及卸载所有模块"
+    echo "9. 快速启动脚本"
+    echo "0. 退出"
+    read -p "请输入选项编号: " choice
+    case $choice in
+        1)
+            show_system_info
+            ;;
+        2)
+            system_update
+            ;;
+        3)
+            system_cleanup
+            ;;
+        4)
+            bash modules/system.sh  # 确保有对应模块文件
+            ;;
+        5)
+            echo "应用脚本功能（示例）"
+            ;;
+        6)
+            bash modules/docker.sh  # 确保有 Docker 管理模块
+            ;;
+        7)
+            echo "请输入模块名删除（例如：system.sh）："
+            read module_name
+            delete_module $module_name
+            ;;
+        8)
+            echo "确定要删除所有模块和主程序吗？（y/n）"
+            read confirmation
+            if [[ $confirmation == "y" || $confirmation == "Y" ]]; then
+                delete_all_modules
+                delete_main_script
+                exit 0
+            else
+                echo "取消删除操作。"
+            fi
+            ;;
+        9)
+            quick_start  # 调用快速启动脚本
+            ;;
+        0)
+            echo "感谢使用大黄鹰-Linux服务器运维工具箱！"
+            exit 0
+            ;;
+        *)
+            echo "无效输入，请重试。"
+            ;;
+    esac
+}
 
 # 快速启动显示 dhy 字母标识
 quick_start() {
@@ -142,68 +205,7 @@ full_uninstall() {
     fi
 }
 
-# 显示菜单
-show_menu() {
-    echo -e "${GREEN}大黄鹰-Linux服务器运维工具箱${NC}"
-    echo -e "欢迎使用本脚本，请根据菜单选择操作："
-    echo "1. 系统信息查询"
-    echo "2. 系统更新"
-    echo "3. 系统清理"
-    echo "4. 系统工具"
-    echo "5. 应用脚本"
-    echo "6. Docker 管理"
-    echo "7. 卸载模块"
-    echo "8. 删除工具箱及卸载所有模块"
-    echo "9. 快速启动脚本"
-    echo "0. 退出"
-    read -p "请输入选项编号: " choice
-    case $choice in
-        1)
-            show_system_info
-            ;;
-        2)
-            system_update
-            ;;
-        3)
-            system_cleanup
-            ;;
-        4)
-            bash modules/system.sh  # 确保有对应模块文件
-            ;;
-        5)
-            echo "应用脚本功能（示例）"
-            ;;
-        6)
-            bash modules/docker.sh  # 确保有 Docker 管理模块
-            ;;
-        7)
-            echo "请输入模块名删除（例如：system.sh）："
-            read module_name
-            delete_module $module_name
-            ;;
-        8)
-            echo "确定要删除所有模块和主程序吗？（y/n）"
-            read confirmation
-            if [[ $confirmation == "y" || $confirmation == "Y" ]]; then
-                delete_all_modules
-                delete_main_script
-                exit 0
-            else
-                echo "取消删除操作。"
-            fi
-            ;;
-        9)
-            quick_start  # 调用快速启动脚本
-            ;;
-        0)
-            echo "感谢使用大黄鹰-Linux服务器运维工具箱！"
-            exit 0
-            ;;
-        *)
-            echo "无效输入，请重试。"
-            ;;
-    esac
-}
+
 
 # 主程序入口
 while true; do
