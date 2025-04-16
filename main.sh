@@ -161,12 +161,13 @@ get_uptime() {
         minutes=0
     fi
 
-    # 显示格式化后的运行时长
-    echo "运行时长: ${total_days}天 ${hours}时 ${minutes}分
+    # 显示运行时长
+    echo "运行时长: $days天 $hours时 $minutes分"
 }
 
 # 调用函数并显示结果
 get_uptime
+
 
 # 显示菜单
 show_menu() {
