@@ -65,7 +65,7 @@ show_system_info() {
     echo "地理位置: $(curl -s ipinfo.io/loc)"
     echo "系统时间: $(date)"
     echo "---------------------------"
-    echo "运行时长: $(uptime -p | sed -E 's/up //; s/,//g; s/days?/天/; s/hours?/时/; s/minutes?/分/')"
+    echo "运行时长: $(uptime -p)"
 
     echo -e "${GREEN}---------------------------${NC}"
     pause
@@ -136,37 +136,41 @@ full_uninstall() {
     fi
 }
 
-# 获取系统运行时长
-get_uptime() {
-    # 使用 uptime 命令获取系统运行时间
-    uptime_str=$(uptime -p)
-    
-    # 使用正则表达式提取天数、小时数和分钟数
-    days=$(echo "$uptime_str" | grep -oP '\d+(?=\sdays?)')
-    hours=$(echo "$uptime_str" | grep -oP '\d+(?=\shours?)')
-    minutes=$(echo "$uptime_str" | grep -oP '\d+(?=\sminutes?)')
+# 获取系统运行时长并格式化输出
+uptime_str=$(uptime -p)
 
-    # 如果没有找到天数，将其设置为 0
-    if [ -z "$days" ]; then
-        days=0
-    fi
+# 提取周数、天数、小时数和分钟数
+weeks=$(echo "$uptime_str" | grep -oP '\d+(?=\sweek)')  # 提取周数
+days=$(echo "$uptime_str" | grep -oP '\d+(?=\sday)')   # 提取天数
+hours=$(echo "$uptime_str" | grep -oP '\d+(?=\shour)')  # 提取小时数
+minutes=$(echo "$uptime_str" | grep -oP '\d+(?=\sminute)')  # 提取分钟数
 
-    # 如果没有找到小时数，将其设置为 0
-    if [ -z "$hours" ]; then
-        hours=0
-    fi
+# 如果没有找到周数，将其设置为 0
+if [ -z "$weeks" ]; then
+    weeks=0
+fi
 
-    # 如果没有找到分钟数，将其设置为 0
-    if [ -z "$minutes" ]; then
-        minutes=0
-    fi
+# 如果没有找到天数，将其设置为 0
+if [ -z "$days" ]; then
+    days=0
+fi
 
-    # 显示运行时长
-    echo "运行时长: $days天 $hours时 $minutes分"
+# 如果没有找到小时数，将其设置为 0
+if [ -z "$hours" ]; then
+    hours=0
+fi
+
+# 如果没有找到分钟数，将其设置为 0
+if [ -z "$minutes" ]; then
+    minutes=0
+fi
+
+# 将周数转换为天数
+total_days=$((weeks * 7 + days))
+
+# 显示格式化后的运行时长
+echo "运行时长: ${total_days}天 ${hours}时 ${minutes}分"
 }
-
-# 调用函数并显示结果
-get_uptime
 
 # 显示菜单
 show_menu() {
