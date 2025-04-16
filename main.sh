@@ -17,9 +17,9 @@ echo -e "脚本链接： https://github.com/dahuangying/dahuangying-toolbox"
 
 # 显示菜单
 show_menu() {
-    echo -e "${GREEN} 大黄鹰-Linux服务器运维工具箱 ${NC}"
+    echo -e "${GREEN}   大黄鹰-Linux服务器运维工具箱 ${NC}"
     echo -e "欢迎使用本脚本，请根据菜单选择操作："
-    echo -e "${GREEN} --------------------------------- ${NC}"
+    echo -e "${GREEN} ------------------------------------------ ${NC}"
     echo "1. 系统信息查询"
     echo "2. 系统更新"
     echo "3. 系统清理"
@@ -79,32 +79,28 @@ show_menu() {
     esac
 }
 
-# 快速启动显示 dhy 字母标识
+# 快速启动函数
 quick_start() {
-    # 显示 dhy 字母标识
-    echo -e "${GREEN}dhy 字母标识：${NC}"
-    echo -e "${GREEN}dhy${NC}"
-    echo -e "${GREEN}大黄鹰-Linux服务器运维工具箱 快速启动！${NC}"
-    echo -e "正在执行快速启动脚本..."
-
-    # 显示脚本链接
-    echo -e "${GREEN}脚本链接：${NC} https://raw.githubusercontent.com/dahuangying/dahuangying-toolbox/main/main.sh"
-    
-    # 检查curl命令是否可用
-    if command -v curl &> /dev/null; then
-        echo -e "${GREEN}curl命令已找到，开始执行下载和脚本运行！${NC}"
-        
-        # 执行脚本链接
-        bash <(curl -fsSL https://raw.githubusercontent.com/dahuangying/dahuangying-toolbox/main/main.sh)
-
-        echo -e "快速启动完成！"
-    else
-        echo -e "${RED}curl 命令未找到，请安装 curl。${NC}"
-    fi
-    
-    # 调用暂停函数，等待用户按任意键继续
-    pause
+    echo "快速启动中..."
+    bash <(curl -fsSL https://raw.githubusercontent.com/dahuangying/dahuangying-toolbox/main/main.sh)
 }
+
+# 主程序
+main() {
+    echo "主程序运行中..."
+    # 这里放置你原来的主程序代码
+    echo "执行主程序功能..."
+}
+
+# 参数处理
+case "$1" in
+    "dhy")
+        quick_start
+        ;;
+    *)
+        main
+        ;;
+esac
 
 # 显示系统信息
 show_system_info() {
