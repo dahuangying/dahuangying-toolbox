@@ -12,14 +12,14 @@ pause() {
 }
 
 # 欢迎信息
-echo -e "${GREEN} "大黄鹰-Linux服务器运维工具箱，是一款部署在github上开源的脚本工具，旨在为你提供简便的运维解决方案。"${NC}"
+echo -e "${GREEN}  "大黄鹰-Linux服务器运维工具箱，是一款部署在github上开源的脚本工具，旨在为你提供简便的运维解决方案。"${NC}"
 echo -e "脚本链接： https://github.com/dahuangying/dahuangying-toolbox"
 
 # 显示菜单
 show_menu() {
-    echo -e "${GREEN}   大黄鹰-Linux服务器运维工具箱 ${NC}"
+    echo -e "${GREEN}  大黄鹰-Linux服务器运维工具箱${NC}"
     echo -e "欢迎使用本脚本，请根据菜单选择操作："
-    echo -e "${GREEN} ----------------------------------- ${NC}"
+    echo -e "${GREEN}--------------------------${NC}"
     echo "1. 系统信息查询"
     echo "2. 系统更新"
     echo "3. 系统清理"
@@ -178,8 +178,6 @@ full_uninstall() {
         echo -e "${GREEN}取消删除操作。${NC}"
     fi
 }
-
-
 
 # 主程序入口
 while true; do
