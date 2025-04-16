@@ -175,6 +175,45 @@ full_uninstall() {
     fi
 }
 
+# 模块下载目录
+MODULES_DIR="./modules"
+
+# 确保模块目录存在
+mkdir -p "$MODULES_DIR"
+
+# 自动下载模块
+download_module() {
+    MODULE_NAME=$1
+    MODULE_URL=$2
+
+    echo -e "${GREEN}正在下载模块: $MODULE_NAME${NC}"
+
+    # 使用 curl 下载模块文件
+    curl -fsSL "$MODULE_URL" -o "$MODULES_DIR/$MODULE_NAME"
+
+    # 检查下载是否成功
+    if [ -f "$MODULES_DIR/$MODULE_NAME" ]; then
+        echo -e "${GREEN}模块 $MODULE_NAME 下载成功！${NC}"
+    else
+        echo -e "${RED}模块 $MODULE_NAME 下载失败，请检查 URL 或网络连接！${NC}"
+    fi
+}
+
+# 下载所需模块（可以根据实际需要扩展更多模块）
+download_module "system.sh" "https://raw.githubusercontent.com/dahuangying/dahuangying-toolbox/main/modules/system.sh"
+download_module "docker.sh" "https://raw.githubusercontent.com/dahuangying/dahuangying-toolbox/main/modules/docker.sh"
+download_module "network.sh" "https://raw.githubusercontent.com/dahuangying/dahuangying-toolbox/main/modules/network.sh"
+
+# 为下载的模块赋予执行权限
+chmod +x "$MODULES_DIR"/*
+
+# 显示暂停，按任意键继续，字体设置为绿色
+pause() {
+    echo -e "${GREEN}操作完成，按任意键继续...${NC}"
+    read -n 1 -s -r  # 等待用户按下任意键
+    echo
+}
+
 # 主程序入口
 while true; do
     show_menu
