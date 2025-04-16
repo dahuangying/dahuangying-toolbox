@@ -65,7 +65,8 @@ show_system_info() {
     echo "地理位置: $(curl -s ipinfo.io/loc)"
     echo "系统时间: $(date)"
     echo "---------------------------"
-    echo "运行时长: $(uptime -p)"
+    echo "运行时长: $(uptime -p | sed -E 's/up //; s/,//g; s/days?/天/; s/hours?/时/; s/minutes?/分/')"
+
     echo -e "${GREEN}---------------------------${NC}"
     pause
 }
