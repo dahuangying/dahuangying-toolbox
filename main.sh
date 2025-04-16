@@ -4,19 +4,26 @@
 GREEN='\033[0;32m'
 NC='\033[0m' # 无色
 
+# 显示暂停，按任意键继续
+pause() {
+    read -n 1 -s -r -p "操作完成，按任意键继续..."
+    echo
+}
+
 # 欢迎信息（不修改）
 echo -e "${GREEN}🦅 大黄鹰-Linux服务器运维工具箱${NC}"
 echo -e "欢迎使用大黄鹰-Linux服务器运维工具箱。请根据菜单选择操作。"
-echo -e "脚本链接： https://github.com/dahuangying/dahuangying-toolbox"
+echo -e "脚本链接： bash <(curl -fsSL https://raw.githubusercontent.com/dahuangying/dahuangying-toolbox/main/main.sh)"
 
 # 快速启动显示 dhy 字母标识
 quick_start() {
     echo -e "${GREEN}dhy 字母标识：${NC}"
-    echo -e "${GREEN}dhy${NC}"
+    echo -e "${GREEN}D   H   Y${NC}"
     echo -e "${GREEN}大黄鹰-Linux服务器运维工具箱 快速启动！${NC}"
     echo -e "正在执行快速启动脚本..."
     # 在这里你可以添加快速启动的功能脚本内容
     echo -e "快速启动完成！"
+    pause
 }
 
 # 显示系统信息
@@ -51,6 +58,7 @@ show_system_info() {
     echo "---------------------------"
     echo "运行时长: $(uptime -p)"
     echo -e "${GREEN}---------------------------${NC}"
+    pause
 }
 
 # 系统更新
@@ -58,6 +66,7 @@ system_update() {
     echo -e "${GREEN}正在进行系统更新...${NC}"
     sudo apt-get update && sudo apt-get upgrade -y
     echo -e "${GREEN}系统更新完成。${NC}"
+    pause
 }
 
 # 系统清理
@@ -66,6 +75,7 @@ system_cleanup() {
     sudo apt-get autoremove -y
     sudo apt-get autoclean -y
     echo -e "${GREEN}系统清理完成。${NC}"
+    pause
 }
 
 # 显示菜单
@@ -134,5 +144,6 @@ show_menu() {
 while true; do
     show_menu
 done
+
 
 
