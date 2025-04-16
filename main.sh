@@ -185,6 +185,13 @@ download_module() {
     fi
 }
 
+# 下载所有模块
+download_all_modules() {
+    download_module system.sh
+    download_module network.sh
+    download_module docker.sh
+}
+
 # 主程序入口
 while true; do
     show_menu
