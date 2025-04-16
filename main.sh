@@ -19,13 +19,19 @@ echo -e "脚本链接： https://raw.githubusercontent.com/dahuangying/dahuangyi
 # 快速启动显示 dhy 字母标识
 quick_start() {
     echo -e "${GREEN}dhy 字母标识：${NC}"
-    echo -e "${GREEN}D   H   Y${NC}"
+    echo -e "${GREEN}dhy${NC}"
     echo -e "${GREEN}大黄鹰-Linux服务器运维工具箱 快速启动！${NC}"
     echo -e "正在执行快速启动脚本..."
-    echo -e "脚本链接： bash <(curl -fsSL https://raw.githubusercontent.com/dahuangying/dahuangying-toolbox/main/main.sh)"
+    
+    # 显示脚本链接
+    echo -e "${GREEN}脚本链接：${NC} bash <(curl -fsSL https://raw.githubusercontent.com/dahuangying/dahuangying-toolbox/main/main.sh)"
+    
     echo -e "快速启动完成！"
+    
+    # 调用暂停函数，等待用户按任意键继续
     pause
 }
+
 
 # dhy 快捷命令，执行远程脚本
 dhy() {
