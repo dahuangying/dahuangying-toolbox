@@ -33,6 +33,7 @@ case "$1" in
         main
         ;;
 esac
+}
 
 # 欢迎信息
 echo -e "${GREEN} "大黄鹰-Linux服务器运维工具箱，是一款部署在github上开源的脚本工具，旨在为你提供简便的运维解决方案。"${NC}"
