@@ -79,30 +79,6 @@ show_menu() {
     esac
 }
 
-# 快速启动函数
-quick_start() {
-    echo "快速启动中..."
-    bash <(curl -fsSL https://raw.githubusercontent.com/dahuangying/dahuangying-toolbox/main/main.sh)
-}
-
-# 主程序
-main() {
-    echo "主程序运行中..."
-    # dhy
-    echo "执行主程序功能..."
-}
-
-# 参数处理
-case "$1" in
-    "dhy")
-        quick_start
-        ;;
-    *)
-        main
-        ;;
-esac
-}
-
 # 显示系统信息
 show_system_info() {
     echo -e "${GREEN}系统信息查询${NC}"
