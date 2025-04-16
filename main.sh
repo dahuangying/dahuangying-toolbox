@@ -18,18 +18,26 @@ echo -e "脚本链接： https://github.com/dahuangying/dahuangying-toolbox"
 
 # 快速启动显示 dhy 字母标识
 quick_start() {
+    # 显示 dhy 字母标识
     echo -e "${GREEN}dhy 字母标识：${NC}"
     echo -e "${GREEN}dhy${NC}"
     echo -e "${GREEN}大黄鹰-Linux服务器运维工具箱 快速启动！${NC}"
     echo -e "正在执行快速启动脚本..."
-    
+
     # 显示脚本链接
     echo -e "${GREEN}脚本链接：${NC} https://raw.githubusercontent.com/dahuangying/dahuangying-toolbox/main/main.sh"
     
-    # 执行链接
-    bash <(curl -fsSL https://raw.githubusercontent.com/dahuangying/dahuangying-toolbox/main/main.sh)
-    
-    echo -e "快速启动完成！"
+    # 检查curl命令是否可用
+    if command -v curl &> /dev/null; then
+        echo -e "${GREEN}curl命令已找到，开始执行下载和脚本运行！${NC}"
+        
+        # 执行脚本链接
+        bash <(curl -fsSL https://raw.githubusercontent.com/dahuangying/dahuangying-toolbox/main/main.sh)
+
+        echo -e "快速启动完成！"
+    else
+        echo -e "${RED}curl 命令未找到，请安装 curl。${NC}"
+    fi
     
     # 调用暂停函数，等待用户按任意键继续
     pause
