@@ -170,6 +170,7 @@ total_days=$((weeks * 7 + days))
 
 # 显示格式化后的运行时长
 echo "运行时长: ${total_days}天 ${hours}时 ${minutes}分"
+}
 
 # 显示菜单
 show_menu() {
