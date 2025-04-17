@@ -19,10 +19,20 @@ show_intro() {
     echo -e "${GREEN}------------------------${NC}"
 }
 
+# 用户确认
+confirm_action() {
+    echo -e "${RED}你确定要继续吗？（y/n）${NC}"
+    read confirmation
+    if [[ $confirmation != "y" && $confirmation != "Y" ]]; then
+        echo -e "${GREEN}操作已取消。${NC}"
+        return 1
+    fi
+    return 0
+}
+
 # 安装 Alist
 install_alist() {
     echo -e "${GREEN}开始安装 Alist...${NC}"
-    if ! confirm_action; then return; fi
     # 下载并安装 Alist
     wget https://github.com/Xhofe/alist/releases/download/v2.0.0/alist-linux-amd64.tar.gz -O /tmp/alist.tar.gz
     tar -xvzf /tmp/alist.tar.gz -C /tmp
@@ -35,7 +45,6 @@ install_alist() {
 # 更新 Alist
 update_alist() {
     echo -e "${GREEN}开始更新 Alist...${NC}"
-    if ! confirm_action; then return; fi
     # 更新 Alist
     wget https://github.com/Xhofe/alist/releases/latest/download/alist-linux-amd64.tar.gz -O /tmp/alist.tar.gz
     tar -xvzf /tmp/alist.tar.gz -C /tmp
@@ -47,10 +56,14 @@ update_alist() {
 # 卸载 Alist
 uninstall_alist() {
     echo -e "${RED}你确定要卸载 Alist 吗？（y/n）${NC}"
-    if ! confirm_action; then return; fi
-    sudo rm -f /usr/local/bin/alist
-    sudo rm -rf /etc/alist
-    echo -e "${GREEN}Alist 已卸载。${NC}"
+    read confirmation
+    if [[ $confirmation == "y" || $confirmation == "Y" ]]; then
+        sudo rm -f /usr/local/bin/alist
+        sudo rm -rf /etc/alist
+        echo -e "${GREEN}Alist 已卸载。${NC}"
+    else
+        echo -e "${GREEN}取消卸载操作。${NC}"
+    fi
     pause
 }
 
