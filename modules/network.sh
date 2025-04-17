@@ -109,50 +109,6 @@ install_ubuntu_rdp() {
 
 # 主菜单
 show_menu() {
-    echo -e "${GREEN}Nginx Proxy Manager 管理菜单${NC}"
-    echo "1. 安装"
-    echo "2. 更新"
-    echo "3. 卸载"
-    echo "4. 添加域名访问"
-    echo "5. 删除域名访问"
-    echo "6. 允许IP+端口访问"
-    echo "7. 阻止IP+端口访问"
-    echo "0. 返回上一级选单"
-    read -p "请输入选项编号: " choice
-    case $choice in
-        1)
-            install_nginx_proxy_manager
-            ;;
-        2)
-            update_nginx_proxy_manager
-            ;;
-        3)
-            uninstall_nginx_proxy_manager
-            ;;
-        4)
-            add_domain_access
-            ;;
-        5)
-            delete_domain_access
-            ;;
-        6)
-            allow_ip_port_access
-            ;;
-        7)
-            block_ip_port_access
-            ;;
-        0)
-            echo "返回上一级选单"
-            return
-            ;;
-        *)
-            echo "无效输入，请重试。"
-            ;;
-    esac
-}
-
-# 主菜单
-show_menu() {
     echo -e "${GREEN}网络相关工具菜单${NC}"
     echo "1. 开启自带BBR加速"
     echo "2. 查询 TCP 拥塞控制算法"
@@ -192,7 +148,7 @@ show_menu() {
             install_1pane_panel
             ;;
         8)
-            install_nginx_proxy_manager
+            bash modules/nginx-proxy-manager.sh
             ;;
         9)
             install_alist
