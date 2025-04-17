@@ -19,6 +19,17 @@ show_intro() {
     echo -e "${GREEN}------------------------${NC}"
 }
 
+# 用户确认
+confirm_action() {
+    echo -e "${RED}你确定要继续吗？（y/n）${NC}"
+    read confirmation
+    if [[ $confirmation != "y" && $confirmation != "Y" ]]; then
+        echo -e "${GREEN}操作已取消。${NC}"
+        return 1
+    fi
+    return 0
+}
+
 # 安装 Alist
 install_alist() {
     echo -e "${GREEN}开始安装 Alist...${NC}"
@@ -59,7 +70,7 @@ add_domain_access() {
     echo -e "${GREEN}请输入要添加的域名：${NC}"
     read domain
     echo -e "${GREEN}添加域名访问：$domain${NC}"
-    # 这里可以添加实际配置域名的命令（例如 Nginx 或 Apache 配置）
+    # 这里可以添加实际配置域名的命令（例如 Nginx 配置）
     pause
 }
 
@@ -68,7 +79,7 @@ delete_domain_access() {
     echo -e "${GREEN}请输入要删除的域名：${NC}"
     read domain
     echo -e "${GREEN}删除域名访问：$domain${NC}"
-    # 这里可以添加实际删除域名配置的命令（例如 Nginx 或 Apache 配置）
+    # 这里可以添加实际删除域名配置的命令（例如 Nginx 配置）
     pause
 }
 
@@ -94,51 +105,48 @@ block_ip_port_access() {
     pause
 }
 
-# Alist 管理菜单
-alist_menu() {
-    while true; do
-        echo -e "${GREEN}大黄鹰-Linux服务器运维工具箱菜单-Alist${NC}"
-        echo -e "欢迎使用本脚本，请根据菜单选择操作："
-        echo -e "${GREEN}==================================${NC}"
-        echo "1. 安装"
-        echo "2. 更新"
-        echo "3. 卸载"
-        echo "4. 添加域名访问"
-        echo "5. 删除域名访问"
-        echo "6. 允许IP+端口访问"
-        echo "7. 阻止IP+端口访问"
-        echo "0. 退出"
-        read -p "请输入选项编号: " choice
-        case $choice in
-            1)
-                install_alist
-                ;;
-            2)
-                update_alist
-                ;;
-            3)
-                uninstall_alist
-                ;;
-            4)
-                add_domain_access
-                ;;
-            5)
-                delete_domain_access
-                ;;
-            6)
-                allow_ip_port_access
-                ;;
-            7)
-                block_ip_port_access
-                ;;
-            0)
-                echo "感谢使用工具箱！"
-                exit 0
-                ;;
-            *)
-                echo "无效输入，请重试。"
-                ;;
-        esac
+# 脚本功能菜单
+show_menu() {
+    echo -e "${GREEN}Alist 管理菜单${NC}"
+    echo "1. 安装"
+    echo "2. 更新"
+    echo "3. 卸载"
+    echo "4. 添加域名访问"
+    echo "5. 删除域名访问"
+    echo "6. 允许IP+端口访问"
+    echo "7. 阻止IP+端口访问"
+    echo "0. 退出"
+    read -p "请输入选项编号: " choice
+    case $choice in
+        1)
+            install_alist
+            ;;
+        2)
+            update_alist
+            ;;
+        3)
+            uninstall_alist
+            ;;
+        4)
+            add_domain_access
+            ;;
+        5)
+            delete_domain_access
+            ;;
+        6)
+            allow_ip_port_access
+            ;;
+        7)
+            block_ip_port_access
+            ;;
+        0)
+            echo "感谢使用 Alist 管理工具！"
+            exit 0
+            ;;
+        *)
+            echo "无效输入，请重试。"
+            ;;
+    esac
 }
 
 # 欢迎信息
@@ -146,5 +154,6 @@ show_intro
 
 # 主程序入口
 while true; do
-    show_menu
+    show_menu  # 显示菜单
 done
+
