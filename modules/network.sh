@@ -68,7 +68,7 @@ install_1pane_panel() {
 # 8. NginxProxyManager 可视化面板
 install_nginx_proxy_manager() {
     echo -e "${GREEN}安装 Nginx Proxy Manager 可视化面板...${NC}"
-    # bash modules/nginx-proxy-manager.sh
+    # 填入对应的安装命令
     pause
 }
 
@@ -142,7 +142,7 @@ show_menu() {
             install_1pane_panel
             ;;
         8)
-            install_nginx_proxy_manager
+            bash modules/nginx-proxy-manager.sh
             ;;
         9)
             bash modules/alist.sh
