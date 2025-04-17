@@ -147,8 +147,8 @@ show_menu() {
             block_ip_port_access
             ;;
         0)
-            echo "返回上一级选单"
-            return
+            echo "感谢使用工具箱！"
+            exit 0
             ;;
         *)
             echo "无效输入，请重试。"
