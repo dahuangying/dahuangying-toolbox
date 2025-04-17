@@ -25,6 +25,17 @@ uninstall_advice() {
     pause
 }
 
+# 用户确认
+confirm_action() {
+    echo -e "${RED}你确定要继续吗？（y/n）${NC}"
+    read confirmation
+    if [[ $confirmation != "y" && $confirmation != "Y" ]]; then
+        echo -e "${GREEN}操作已取消。${NC}"
+        return 1
+    fi
+    return 0
+}
+
 # 安装 Nginx Proxy Manager
 install_nginx_proxy_manager() {
     uninstall_advice
