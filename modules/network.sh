@@ -110,8 +110,8 @@ install_ubuntu_rdp() {
 # 主菜单
 show_menu() {
     echo -e "${GREEN}大黄鹰-Linux服务器运维工具箱菜单-应用脚本${NC}"
-    欢迎使用本脚本，请根据菜单选择操作：
-    echo -e "${GREEN}==========================${NC}"
+    echo -e "欢迎使用本脚本，请根据菜单选择操作："
+    echo -e "${GREEN}==============================${NC}"
     echo "1. 开启自带BBR加速"
     echo "2. 查询 TCP 拥塞控制算法"
     echo "3. BBRplus 加速"
