@@ -39,6 +39,7 @@ confirm_action() {
 # 安装 Nginx Proxy Manager
 install_nginx_proxy_manager() {
     uninstall_advice
+    if ! confirm_action; then return; fi
     echo -e "${GREEN}开始安装 Nginx Proxy Manager...${NC}"
     # 安装命令：使用 docker 安装 Nginx Proxy Manager
     sudo apt-get update
@@ -58,6 +59,7 @@ install_nginx_proxy_manager() {
 # 更新 Nginx Proxy Manager
 update_nginx_proxy_manager() {
     echo -e "${GREEN}开始更新 Nginx Proxy Manager...${NC}"
+    if ! confirm_action; then return; fi
     sudo docker pull jc21/nginx-proxy-manager:latest
     sudo docker stop nginx-proxy-manager
     sudo docker rm nginx-proxy-manager
@@ -70,6 +72,7 @@ update_nginx_proxy_manager() {
 
 # 卸载 Nginx Proxy Manager
 uninstall_nginx_proxy_manager() {
+    if ! confirm_action; then return; fi
     echo -e "${RED}你确定要卸载 Nginx Proxy Manager 吗？（y/n）${NC}"
     read confirmation
     if [[ $confirmation == "y" || $confirmation == "Y" ]]; then
@@ -174,3 +177,4 @@ show_intro
 while true; do
     show_menu
 done
+
