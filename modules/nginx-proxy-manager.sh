@@ -122,7 +122,7 @@ show_menu() {
     echo "5. 删除域名访问"
     echo "6. 允许IP+端口访问"
     echo "7. 阻止IP+端口访问"
-    echo "0. 返回上一级选单"
+    echo "0. 退出"
     read -p "请输入选项编号: " choice
     case $choice in
         1)
