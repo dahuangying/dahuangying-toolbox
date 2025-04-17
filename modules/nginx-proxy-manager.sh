@@ -25,21 +25,9 @@ uninstall_advice() {
     pause
 }
 
-# 用户确认
-confirm_action() {
-    echo -e "${RED}你确定要继续吗？（y/n）${NC}"
-    read confirmation
-    if [[ $confirmation != "y" && $confirmation != "Y" ]]; then
-        echo -e "${GREEN}操作已取消。${NC}"
-        return 1
-    fi
-    return 0
-}
-
 # 安装 Nginx Proxy Manager
 install_nginx_proxy_manager() {
     uninstall_advice
-    if ! confirm_action; then return; fi
     echo -e "${GREEN}开始安装 Nginx Proxy Manager...${NC}"
     # 安装命令：使用 docker 安装 Nginx Proxy Manager
     sudo apt-get update
@@ -53,15 +41,12 @@ install_nginx_proxy_manager() {
     -v nginx-proxy-manager:/config \
     --restart=unless-stopped jc21/nginx-proxy-manager:latest
     echo -e "${GREEN}Nginx Proxy Manager 安装完成！访问： http://<你的服务器IP>:81${NC}"
-    echo -e "Email: admin@example.com"
-    echo -e "Password: changeme"
     pause
 }
 
 # 更新 Nginx Proxy Manager
 update_nginx_proxy_manager() {
     echo -e "${GREEN}开始更新 Nginx Proxy Manager...${NC}"
-    if ! confirm_action; then return; fi
     sudo docker pull jc21/nginx-proxy-manager:latest
     sudo docker stop nginx-proxy-manager
     sudo docker rm nginx-proxy-manager
@@ -74,7 +59,6 @@ update_nginx_proxy_manager() {
 
 # 卸载 Nginx Proxy Manager
 uninstall_nginx_proxy_manager() {
-    if ! confirm_action; then return; fi
     echo -e "${RED}你确定要卸载 Nginx Proxy Manager 吗？（y/n）${NC}"
     read confirmation
     if [[ $confirmation == "y" || $confirmation == "Y" ]]; then
@@ -128,77 +112,55 @@ block_ip_port_access() {
     pause
 }
 
-# 网络工具菜单
-network_menu() {
-    while true; do
-        echo -e "${GREEN}网络相关工具菜单${NC}"
-        echo "1. 安装"
-        echo "2. 更新"
-        echo "3. 卸载"
-        echo "4. 添加域名访问"
-        echo "5. 删除域名访问"
-        echo "6. 允许IP+端口访问"
-        echo "7. 阻止IP+端口访问"
-        echo "0. 返回上一级选单"
-        read -p "请输入选项编号: " choice
-        case $choice in
-            1)
-                install_nginx_proxy_manager
-                ;;
-            2)
-                update_nginx_proxy_manager
-                ;;
-            3)
-                uninstall_nginx_proxy_manager
-                ;;
-            4)
-                add_domain_access
-                ;;
-            5)
-                delete_domain_access
-                ;;
-            6)
-                allow_ip_port_access
-                ;;
-            7)
-                block_ip_port_access
-                ;;
-            0)
-                return  # 返回到主菜单
-                ;;
-            *)
-                echo "无效输入，请重试。"
-                ;;
-        esac
-    done
-}
-
 # 主菜单
 show_menu() {
-    while true; do
-        echo -e "${GREEN}主菜单${NC}"
-        echo "1. 网络工具管理"
-        echo "0. 退出"
-        read -p "请输入选项编号: " choice
-        case $choice in
-            1)
-                network_menu  # 调用网络工具管理菜单
-                ;;
-            0)
-                echo "退出"
-                exit 0
-                ;;
-            *)
-                echo "无效输入，请重试。"
-                ;;
-        esac
-    done
+    echo -e "${GREEN}Nginx Proxy Manager 管理菜单${NC}"
+    echo "1. 安装"
+    echo "2. 更新"
+    echo "3. 卸载"
+    echo "4. 添加域名访问"
+    echo "5. 删除域名访问"
+    echo "6. 允许IP+端口访问"
+    echo "7. 阻止IP+端口访问"
+    echo "0. 返回上一级选单"
+    read -p "请输入选项编号: " choice
+    case $choice in
+        1)
+            install_nginx_proxy_manager
+            ;;
+        2)
+            update_nginx_proxy_manager
+            ;;
+        3)
+            uninstall_nginx_proxy_manager
+            ;;
+        4)
+            add_domain_access
+            ;;
+        5)
+            delete_domain_access
+            ;;
+        6)
+            allow_ip_port_access
+            ;;
+        7)
+            block_ip_port_access
+            ;;
+        0)
+            echo "返回上一级选单"
+            return
+            ;;
+        *)
+            echo "无效输入，请重试。"
+            ;;
+    esac
 }
 
 # 欢迎信息
 show_intro
 
 # 主程序入口
-show_menu  # 显示主菜单
-
+while true; do
+    show_menu
+done
 
