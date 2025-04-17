@@ -41,6 +41,8 @@ install_nginx_proxy_manager() {
     -v nginx-proxy-manager:/config \
     --restart=unless-stopped jc21/nginx-proxy-manager:latest
     echo -e "${GREEN}Nginx Proxy Manager 安装完成！访问： http://<你的服务器IP>:81${NC}"
+    echo -e "Email: admin@example.com"
+    echo -e "Password: changeme"
     pause
 }
 
