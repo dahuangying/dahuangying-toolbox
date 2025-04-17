@@ -153,7 +153,7 @@ show_menu() {
             bash modules/nginx-proxy-manager.sh
             ;;
         9)
-            install_alist
+            bash modules/alist.sh
             ;;
         10)
             install_oracle_keep_alive
