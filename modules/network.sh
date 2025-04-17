@@ -86,21 +86,14 @@ install_oracle_keep_alive() {
     pause
 }
 
-# 11. 哪吒探针
-install_nezha_probe() {
-    echo -e "${GREEN}安装哪吒探针...${NC}"
-    # 填入对应的安装命令
-    pause
-}
-
-# 12. 青龙面板定时任务
+# 11. 青龙面板定时任务
 install_qinglong_cron() {
     echo -e "${GREEN}安装青龙面板定时任务...${NC}"
     # 填入对应的安装命令
     pause
 }
 
-# 13. Ubuntu远程桌面
+# 12. Ubuntu远程桌面
 install_ubuntu_rdp() {
     echo -e "${GREEN}安装 Ubuntu 远程桌面...${NC}"
     # 填入对应的安装命令
@@ -122,9 +115,8 @@ show_menu() {
     echo "8. 安装 Nginx Proxy Manager 可视化面板"
     echo "9. 安装 AList 网盘"
     echo "10. 安装 甲骨文保活脚本"
-    echo "11. 安装 哪吒探针"
-    echo "12. 安装 青龙面板定时任务"
-    echo "13. 安装 Ubuntu 远程桌面"
+    echo "11. 安装 青龙面板定时任务"
+    echo "12. 安装 Ubuntu 远程桌面"
     echo "0. 退出"
     read -p "请输入选项编号: " choice
     case $choice in
@@ -159,12 +151,9 @@ show_menu() {
             install_oracle_keep_alive
             ;;
         11)
-            install_nezha_probe
-            ;;
-        12)
             install_qinglong_cron
             ;;
-        13)
+        12)
             install_ubuntu_rdp
             ;;
         0)
