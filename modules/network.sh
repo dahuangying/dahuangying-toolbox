@@ -107,10 +107,24 @@ install_ubuntu_rdp() {
     pause
 }
 
+# 官网介绍
+show_intro() {
+    echo -e "${GREEN}Nginx Proxy Manager - 简易安装与管理面板${NC}"
+    echo -e "官网介绍: https://nginxproxymanager.com/"
+    echo -e "${GREEN}------------------------${NC}"
+}
+
+# 提示卸载已有环境
+uninstall_advice() {
+    echo -e "${RED}如果您已经安装了其他面板或者LDNMP建站环境，建议先卸载，再安装 npm！${NC}"
+    pause
+}
+
 # 安装 Nginx Proxy Manager
 install_nginx_proxy_manager() {
-    echo -e "${RED}如果您已经安装了其他面板或者LDNMP建站环境，建议先卸载，再安装 npm！${NC}"
+    uninstall_advice
     echo -e "${GREEN}开始安装 Nginx Proxy Manager...${NC}"
+    # 安装命令：使用 docker 安装 Nginx Proxy Manager
     sudo apt-get update
     sudo apt-get install -y curl wget git
     curl -fsSL https://get.docker.com -o get-docker.sh
@@ -191,6 +205,50 @@ block_ip_port_access() {
     echo -e "${GREEN}阻止IP：$ip 访问端口：$port${NC}"
     # 这里可以添加阻止IP和端口访问的具体命令
     pause
+}
+
+# 主菜单
+show_menu() {
+    echo -e "${GREEN}Nginx Proxy Manager 管理菜单${NC}"
+    echo "1. 安装"
+    echo "2. 更新"
+    echo "3. 卸载"
+    echo "4. 添加域名访问"
+    echo "5. 删除域名访问"
+    echo "6. 允许IP+端口访问"
+    echo "7. 阻止IP+端口访问"
+    echo "0. 返回上一级选单"
+    read -p "请输入选项编号: " choice
+    case $choice in
+        1)
+            install_nginx_proxy_manager
+            ;;
+        2)
+            update_nginx_proxy_manager
+            ;;
+        3)
+            uninstall_nginx_proxy_manager
+            ;;
+        4)
+            add_domain_access
+            ;;
+        5)
+            delete_domain_access
+            ;;
+        6)
+            allow_ip_port_access
+            ;;
+        7)
+            block_ip_port_access
+            ;;
+        0)
+            echo "返回上一级选单"
+            return
+            ;;
+        *)
+            echo "无效输入，请重试。"
+            ;;
+    esac
 }
 
 # 主菜单
