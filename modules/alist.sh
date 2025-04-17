@@ -19,17 +19,6 @@ show_intro() {
     echo -e "${GREEN}------------------------${NC}"
 }
 
-# 用户确认
-confirm_action() {
-    echo -e "${RED}你确定要继续吗？（y/n）${NC}"
-    read confirmation
-    if [[ $confirmation != "y" && $confirmation != "Y" ]]; then
-        echo -e "${GREEN}操作已取消。${NC}"
-        return 1
-    fi
-    return 0
-}
-
 # 安装 Alist
 install_alist() {
     echo -e "${GREEN}开始安装 Alist...${NC}"
