@@ -97,7 +97,9 @@ block_ip_port_access() {
 # Alist 管理菜单
 alist_menu() {
     while true; do
-        echo -e "${GREEN}Alist 管理菜单${NC}"
+        echo -e "${GREEN}大黄鹰-Linux服务器运维工具箱菜单-Alist${NC}"
+        echo -e "欢迎使用本脚本，请根据菜单选择操作："
+        echo -e "${GREEN}==================================${NC}"
         echo "1. 安装"
         echo "2. 更新"
         echo "3. 卸载"
