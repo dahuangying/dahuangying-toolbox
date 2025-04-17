@@ -53,8 +53,8 @@ install_nginx_proxy_manager() {
     -v nginx-proxy-manager:/config \
     --restart=unless-stopped jc21/nginx-proxy-manager:latest
     echo -e "${GREEN}Nginx Proxy Manager 安装完成！访问： http://<你的服务器IP>:81${NC}"
-    Email:    admin@example.com
-    Password: changeme
+    echo -e "Email: admin@example.com"
+    echo -e "Password: changeme"
     pause
 }
 
@@ -128,55 +128,77 @@ block_ip_port_access() {
     pause
 }
 
+# 网络工具菜单
+network_menu() {
+    while true; do
+        echo -e "${GREEN}网络相关工具菜单${NC}"
+        echo "1. 安装"
+        echo "2. 更新"
+        echo "3. 卸载"
+        echo "4. 添加域名访问"
+        echo "5. 删除域名访问"
+        echo "6. 允许IP+端口访问"
+        echo "7. 阻止IP+端口访问"
+        echo "0. 返回上一级选单"
+        read -p "请输入选项编号: " choice
+        case $choice in
+            1)
+                install_nginx_proxy_manager
+                ;;
+            2)
+                update_nginx_proxy_manager
+                ;;
+            3)
+                uninstall_nginx_proxy_manager
+                ;;
+            4)
+                add_domain_access
+                ;;
+            5)
+                delete_domain_access
+                ;;
+            6)
+                allow_ip_port_access
+                ;;
+            7)
+                block_ip_port_access
+                ;;
+            0)
+                return  # 返回到主菜单
+                ;;
+            *)
+                echo "无效输入，请重试。"
+                ;;
+        esac
+    done
+}
+
 # 主菜单
 show_menu() {
-    echo -e "${GREEN}Nginx Proxy Manager 管理菜单${NC}"
-    echo "1. 安装"
-    echo "2. 更新"
-    echo "3. 卸载"
-    echo "4. 添加域名访问"
-    echo "5. 删除域名访问"
-    echo "6. 允许IP+端口访问"
-    echo "7. 阻止IP+端口访问"
-    echo "0. 返回上一级选单"
-    read -p "请输入选项编号: " choice
-    case $choice in
-        1)
-            install_nginx_proxy_manager
-            ;;
-        2)
-            update_nginx_proxy_manager
-            ;;
-        3)
-            uninstall_nginx_proxy_manager
-            ;;
-        4)
-            add_domain_access
-            ;;
-        5)
-            delete_domain_access
-            ;;
-        6)
-            allow_ip_port_access
-            ;;
-        7)
-            block_ip_port_access
-            ;;
-        0)
-            echo "返回上一级选单"
-            return
-            ;;
-        *)
-            echo "无效输入，请重试。"
-            ;;
-    esac
+    while true; do
+        echo -e "${GREEN}主菜单${NC}"
+        echo "1. 网络工具管理"
+        echo "0. 退出"
+        read -p "请输入选项编号: " choice
+        case $choice in
+            1)
+                network_menu  # 调用网络工具管理菜单
+                ;;
+            0)
+                echo "退出"
+                exit 0
+                ;;
+            *)
+                echo "无效输入，请重试。"
+                ;;
+        esac
+    done
 }
 
 # 欢迎信息
 show_intro
 
 # 主程序入口
-while true; do
-    show_menu
-done
+show_menu  # 显示主菜单
+
 
