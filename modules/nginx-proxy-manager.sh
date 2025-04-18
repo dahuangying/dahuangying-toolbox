@@ -122,27 +122,34 @@ update_nginx_proxy_manager() {
 
 # 卸载 Nginx Proxy Manager
 uninstall_nginx_proxy_manager() {
-    echo "正在卸载 Nginx Proxy Manager..."
+    echo -e "${RED}你确定要卸载 Nginx Proxy Manager 吗？此操作将删除所有相关数据！（y/n）${NC}"
+    read -p "请输入(y/n): " confirm
 
-    # 停止并删除容器
-    if docker ps -a | grep -q 'npm'; then
-        docker-compose down
-        echo "已停止并删除 Nginx Proxy Manager 容器。"
+    if [[ "$confirm" =~ ^[Yy]$ ]]; then
+        echo "正在卸载 Nginx Proxy Manager..."
+
+        # 停止并删除容器
+        if docker ps -a | grep -q 'npm'; then
+            docker-compose down
+            echo "已停止并删除 Nginx Proxy Manager 容器。"
+        else
+            echo "未找到 Nginx Proxy Manager 容器，跳过删除。"
+        fi
+
+        # 删除镜像
+        if docker images | grep -q 'jc21/nginx-proxy-manager'; then
+            docker rmi jc21/nginx-proxy-manager:latest
+            echo "已删除 Nginx Proxy Manager 镜像。"
+        else
+            echo "未找到 Nginx Proxy Manager 镜像，跳过删除。"
+        fi
+
+        # 删除配置文件
+        rm -rf /opt/nginx-proxy-manager
+        echo "卸载完成！"
     else
-        echo "未找到 Nginx Proxy Manager 容器，跳过删除。"
+        echo "卸载操作已取消！"
     fi
-
-    # 删除镜像
-    if docker images | grep -q 'jc21/nginx-proxy-manager'; then
-        docker rmi jc21/nginx-proxy-manager:latest
-        echo "已删除 Nginx Proxy Manager 镜像。"
-    else
-        echo "未找到 Nginx Proxy Manager 镜像，跳过删除。"
-    fi
-
-    # 删除配置文件
-    rm -rf /opt/nginx-proxy-manager
-    echo "卸载完成！"
     sleep 2
     show_menu
 }
