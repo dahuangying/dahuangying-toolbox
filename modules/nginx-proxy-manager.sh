@@ -192,7 +192,6 @@ block_ip_port_access() {
 }
 
 # 欢迎信息
-show_intro
 
 # 主程序入口
 while true; do
