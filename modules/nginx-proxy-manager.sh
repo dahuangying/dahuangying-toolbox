@@ -65,7 +65,7 @@ install_nginx_proxy_manager() {
     # 设置防火墙
     ufw allow 80
     ufw allow 443
-    read -p "${GREEN}请输入应用对外服务端口，回车默认使用81端口: ${NC}" port
+    echo -e "${GREEN}请输入应用对外服务端口，回车默认使用81端口: ${NC}"
     port=${port:-81}
     ufw allow $port
     ufw reload
@@ -104,9 +104,9 @@ EOL
     docker-compose up -d
 
     # 输出安装完成的提示
-    echo "${GREEN}安装完成，访问地址：http://【你的服务器IP】:81${NC}"
-    echo "初始用户名: admin@example.com"
-    echo "初始密码: changeme"
+    echo -e "${GREEN}安装完成，访问地址：http://【你的服务器IP】:81${NC}"
+    echo -e "初始用户名: admin@example.com"
+    echo -e "初始密码: changeme"
     sleep 2
     show_menu
 }
