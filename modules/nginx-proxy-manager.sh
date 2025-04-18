@@ -154,6 +154,7 @@ uninstall_nginx_proxy_manager() {
     show_menu
 }
 
+
 # 添加域名访问
 add_domain_access() {
     read -p "请输入要添加的域名: " domain
