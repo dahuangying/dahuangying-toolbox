@@ -32,7 +32,7 @@ show_menu() {
     else
         echo "Nginx Proxy Manager 未安装"
     fi
-    echo "============================================="
+    echo "=================================="
     echo -e "欢迎使用本脚本，请根据菜单选择操作："
     echo -e "${GREEN}==================================${NC}"
     echo "1. 安装"
@@ -104,7 +104,7 @@ EOL
     docker-compose up -d
 
     # 输出安装完成的提示
-    echo "安装完成，访问地址：http://$(hostname -I | awk '{print $1}'):81"
+    echo "${GREEN}安装完成，访问地址：http://$(hostname -I | awk '{print $1}'):81${NC}"
     echo "初始用户名: admin@example.com"
     echo "初始密码: changeme"
     sleep 2
