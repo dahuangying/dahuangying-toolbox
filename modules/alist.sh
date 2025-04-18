@@ -46,18 +46,16 @@ install_alist() {
     mkdir -p /etc/alist
     echo -e "${GREEN}Alist 安装完成！启动 Alist：${NC} alist -conf /etc/alist"
     
-    # 配置 UFW 防火墙
-    ufw allow 80
-    ufw allow 443
-    read -p "${GREEN}请输入应用对外服务端口，回车默认使用80端口: ${NC}" port
-    port=${port:-80}
+    # 设置防火墙
+    read -p "请输入应用对外服务端口，回车默认使用5244端口: " port
+    port=${port:-5244}
     ufw allow $port
     ufw reload
 
     # 启动 Alist
     nohup alist -conf /etc/alist > /dev/null 2>&1 &
 
-    echo -e "${GREEN}Alist 启动完成，访问地址：http://$(hostname -I | awk '{print $1}'):80${NC}"
+    echo -e "${GREEN}Alist 启动完成，访问地址：http://(你服务器的IP):5244${NC}"
     echo "初始用户名: admin@example.com"
     echo "初始密码: changeme"
     pause
