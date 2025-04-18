@@ -22,7 +22,7 @@ check_nginx_installed() {
 
 }
 
-# 显示主菜单
+# Nginx菜单
 show_menu() {
     echo -e "${GREEN}大黄鹰-Linux服务器运维工具箱菜单-Nginx${NC}"
      clear
@@ -32,9 +32,9 @@ show_menu() {
     else
         echo "Nginx Proxy Manager 未安装"
     fi
-    echo "=================================="
-    echo -e "欢迎使用本脚本，请根据菜单选择操作："
     echo -e "${GREEN}==================================${NC}"
+    echo -e "欢迎使用本脚本，请根据菜单选择操作："
+    echo "=================================="
     echo "1. 安装"
     echo "2. 更新"
     echo "3. 卸载"
@@ -65,7 +65,7 @@ install_nginx_proxy_manager() {
     # 设置防火墙
     ufw allow 80
     ufw allow 443
-    read -p "请输入应用对外服务端口，回车默认使用81端口: " port
+    read -p "${GREEN}请输入应用对外服务端口，回车默认使用81端口: ${NC}" port
     port=${port:-81}
     ufw allow $port
     ufw reload
@@ -104,7 +104,7 @@ EOL
     docker-compose up -d
 
     # 输出安装完成的提示
-    echo "${GREEN}安装完成，访问地址：http://$(hostname -I | awk '{print $1}'):81${NC}"
+    echo "${GREEN}安装完成，访问地址：http://【你的服务器IP】:81${NC}"
     echo "初始用户名: admin@example.com"
     echo "初始密码: changeme"
     sleep 2
