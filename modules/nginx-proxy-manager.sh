@@ -63,8 +63,8 @@ install_nginx_proxy_manager() {
     echo "正在安装 Nginx Proxy Manager..."
 
     # 设置防火墙
-    echo -e "\033[0;32m请输入应用对外服务端口，回车默认使用81端口: \033[0m"
-    port=${port:-81}  # 如果用户没有输入，使用默认的81端口
+    read -p "请输入应用对外服务端口，回车默认使用81端口: " port
+    port=${port:-81}
     ufw allow $port
     ufw reload
 
