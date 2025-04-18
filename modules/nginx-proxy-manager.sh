@@ -19,28 +19,22 @@ check_nginx_installed() {
     else
         return 1  # 未安装
     fi
-}
 
-# 获取公共IP地址
-get_public_ip() {
-    local ip=$(hostname -I | awk '{print $1}')
-    # 如果获取不到内部IP，尝试通过外部服务获取
-    if [ -z "$ip" ]; then
-        ip=$(curl -s http://checkip.amazonaws.com)
-    fi
-    echo "$ip"
 }
 
 # 显示主菜单
 show_menu() {
-    clear
-    echo "========================"
+    echo -e "${GREEN}大黄鹰-Linux服务器运维工具箱菜单-Nginx${NC}"
+     clear
+    echo -e "${GREEN}==================================${NC}"
     if check_nginx_installed; then
         echo "Nginx Proxy Manager 已安装"
     else
         echo "Nginx Proxy Manager 未安装"
     fi
-    echo "========================"
+    echo "============================================="
+    echo -e "欢迎使用本脚本，请根据菜单选择操作："
+    echo -e "${GREEN}==================================${NC}"
     echo "1. 安装"
     echo "2. 更新"
     echo "3. 卸载"
@@ -109,11 +103,8 @@ EOL
     cd /opt/nginx-proxy-manager
     docker-compose up -d
 
-    # 获取公共 IP 地址
-    public_ip=$(get_public_ip)
-
     # 输出安装完成的提示
-    echo "安装完成，访问地址：http://$public_ip:$port"
+    echo "安装完成，访问地址：http://$(hostname -I | awk '{print $1}'):81"
     echo "初始用户名: admin@example.com"
     echo "初始密码: changeme"
     sleep 2
