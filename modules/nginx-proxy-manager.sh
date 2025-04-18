@@ -192,6 +192,9 @@ block_ip_port_access() {
 }
 
 # 欢迎信息
+show_intro() {
+    echo -e "${GREEN}欢迎使用 Nginx Proxy Manager 反代脚本${NC}"
+}
 
 # 主程序入口
 while true; do
