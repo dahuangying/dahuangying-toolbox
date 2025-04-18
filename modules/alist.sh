@@ -38,7 +38,12 @@ install_alist() {
     tar -xvzf /tmp/alist.tar.gz -C /tmp
     mv /tmp/alist /usr/local/bin/
     mkdir -p /etc/alist
-    echo -e "${GREEN}Alist 安装完成！启动 Alist：${NC} alist -conf /etc/alist"
+    echo -e "${GREEN}Alist 安装完成！${NC}"
+
+    # 启动 Alist 并让它在后台运行
+    alist -conf /etc/alist &
+
+    echo -e "${GREEN}Alist 启动完成！访问地址：http://$(hostname -I | awk '{print $1}'):5244${NC}"
     pause
 }
 
@@ -49,7 +54,12 @@ update_alist() {
     wget https://github.com/Xhofe/alist/releases/latest/download/alist-linux-amd64.tar.gz -O /tmp/alist.tar.gz
     tar -xvzf /tmp/alist.tar.gz -C /tmp
     mv /tmp/alist /usr/local/bin/
+    
+    # 启动 Alist 并让它在后台运行
+    alist -conf /etc/alist &
+
     echo -e "${GREEN}Alist 更新完成！${NC}"
+    echo -e "${GREEN}Alist 启动完成！访问地址：http://$(hostname -I | awk '{print $1}'):5244${NC}"
     pause
 }
 
