@@ -25,11 +25,25 @@ uninstall_advice() {
     pause
 }
 
+# 判断 Nginx Proxy Manager 是否已安装
+check_nginx_installed() {
+    if [ -d "/opt/nginx-proxy-manager" ]; then
+        return 0  # 已安装
+    else
+        return 1  # 未安装
+    fi
+
+}
+
 # 显示主菜单
 show_menu() {
     clear
     echo "========================"
-    echo " Nginx Proxy Manager 管理工具"
+    if check_nginx_installed; then
+        echo "Nginx Proxy Manager 已安装"
+    else
+        echo "Nginx Proxy Manager 未安装"
+    fi
     echo "========================"
     echo "1. 安装"
     echo "2. 更新"
@@ -38,7 +52,7 @@ show_menu() {
     echo "6. 删除域名访问"
     echo "7. 允许IP+端口访问"
     echo "8. 阻止IP+端口访问"
-    echo "0. 返回上一级选单"
+    echo "0. 退出"
     echo "========================"
     read -p "请输入选项: " option
     case $option in
@@ -57,29 +71,28 @@ show_menu() {
 # 安装 Nginx Proxy Manager
 install_nginx_proxy_manager() {
     echo "正在安装 Nginx Proxy Manager..."
-    apt update && apt upgrade -y
-    apt install -y curl ufw sudo
 
-    # 设置 UFW 防火墙
+    # 设置防火墙
     ufw allow 80
-    ufw allow 81
     ufw allow 443
+    read -p "请输入应用对外服务端口，回车默认使用81端口: " port
+    port=${port:-81}
+    ufw allow $port
     ufw reload
 
-    # 安装 Docker
+    # 安装 Docker 和 Docker Compose
+    apt update && apt upgrade -y
+    apt install -y curl ufw sudo
     curl -fsSL https://get.docker.com | bash
-    systemctl start docker  # 启动 Docker 服务
-    systemctl enable docker # Docker 开机自启
+    systemctl start docker
+    systemctl enable docker
 
-    # 安装 Docker Compose
     curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
     chmod +x /usr/local/bin/docker-compose
 
-    # 创建 Nginx Proxy Manager 目录
+    # 创建目录并配置 Docker Compose
     mkdir -p /opt/nginx-proxy-manager/data
     mkdir -p /opt/nginx-proxy-manager/letsencrypt
-
-    # 创建 docker-compose.yml 文件
     cat > /opt/nginx-proxy-manager/docker-compose.yml <<EOL
 version: '3'
 
@@ -88,23 +101,22 @@ services:
     image: 'docker.io/jc21/nginx-proxy-manager:latest'
     restart: unless-stopped
     ports:
-      - '80:80'
-      - '81:81'
-      - '443:443'
+      - "80:80"
+      - "$port:$port"
+      - "443:443"
     volumes:
       - ./data:/data
       - ./letsencrypt:/etc/letsencrypt
 EOL
 
-    # 启动 Nginx Proxy Manager
+    # 启动服务
     cd /opt/nginx-proxy-manager
     docker-compose up -d
 
-    # 输出默认访问地址
-    echo "安装完成，访问地址： http://127.0.0.1:81"
-    echo "默认管理员账号："
-    echo "Email: admin@example.com"
-    echo "Password: changeme"
+    # 输出安装完成的提示
+    echo "安装完成，访问地址：http://$(hostname -I | awk '{print $1}'):81"
+    echo "初始用户名: admin@example.com"
+    echo "初始密码: changeme"
     sleep 2
     show_menu
 }
@@ -115,7 +127,6 @@ update_nginx_proxy_manager() {
     cd /opt/nginx-proxy-manager
     docker-compose pull
     docker-compose up -d
-
     echo "更新完成！"
     sleep 2
     show_menu
@@ -125,7 +136,7 @@ update_nginx_proxy_manager() {
 uninstall_nginx_proxy_manager() {
     echo "正在卸载 Nginx Proxy Manager..."
 
-    # 检查并停止容器
+    # 停止并删除容器
     if docker ps -a | grep -q 'npm'; then
         docker-compose down
         echo "已停止并删除 Nginx Proxy Manager 容器。"
@@ -152,7 +163,6 @@ uninstall_nginx_proxy_manager() {
 add_domain_access() {
     read -p "请输入要添加的域名: " domain
     echo "正在为 $domain 添加域名访问..."
-    # 配置域名访问相关操作（具体根据实际情况添加）
     echo "已为 $domain 添加域名访问。"
     sleep 2
     show_menu
@@ -162,7 +172,6 @@ add_domain_access() {
 remove_domain_access() {
     read -p "请输入要删除的域名: " domain
     echo "正在删除 $domain 的域名访问..."
-    # 配置删除域名访问相关操作（具体根据实际情况删除）
     echo "$domain 的域名访问已删除。"
     sleep 2
     show_menu
