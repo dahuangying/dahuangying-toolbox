@@ -33,17 +33,33 @@ confirm_action() {
 # 安装 Alist
 install_alist() {
     echo -e "${GREEN}开始安装 Alist...${NC}"
+
+    # 安装依赖
+    apt update && apt install -y wget curl ufw
+
     # 下载并安装 Alist
     wget https://github.com/Xhofe/alist/releases/download/v2.0.0/alist-linux-amd64.tar.gz -O /tmp/alist.tar.gz
     tar -xvzf /tmp/alist.tar.gz -C /tmp
     mv /tmp/alist /usr/local/bin/
+
+    # 配置文件目录
     mkdir -p /etc/alist
-    echo -e "${GREEN}Alist 安装完成！${NC}"
+    echo -e "${GREEN}Alist 安装完成！启动 Alist：${NC} alist -conf /etc/alist"
+    
+    # 配置 UFW 防火墙
+    ufw allow 80
+    ufw allow 443
+    read -p "${GREEN}请输入应用对外服务端口，回车默认使用80端口: ${NC}" port
+    port=${port:-80}
+    ufw allow $port
+    ufw reload
 
-    # 启动 Alist 并让它在后台运行
-    alist -conf /etc/alist &
+    # 启动 Alist
+    nohup alist -conf /etc/alist > /dev/null 2>&1 &
 
-    echo -e "${GREEN}Alist 启动完成！访问地址：http://$(hostname -I | awk '{print $1}'):5244${NC}"
+    echo -e "${GREEN}Alist 启动完成，访问地址：http://$(hostname -I | awk '{print $1}'):80${NC}"
+    echo "初始用户名: admin@example.com"
+    echo "初始密码: changeme"
     pause
 }
 
@@ -54,12 +70,7 @@ update_alist() {
     wget https://github.com/Xhofe/alist/releases/latest/download/alist-linux-amd64.tar.gz -O /tmp/alist.tar.gz
     tar -xvzf /tmp/alist.tar.gz -C /tmp
     mv /tmp/alist /usr/local/bin/
-    
-    # 启动 Alist 并让它在后台运行
-    alist -conf /etc/alist &
-
     echo -e "${GREEN}Alist 更新完成！${NC}"
-    echo -e "${GREEN}Alist 启动完成！访问地址：http://$(hostname -I | awk '{print $1}'):5244${NC}"
     pause
 }
 
