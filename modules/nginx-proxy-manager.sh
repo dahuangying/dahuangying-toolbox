@@ -102,7 +102,7 @@ EOL
     docker-compose up -d
 
     # 输出安装完成的提示
-    echo -e "${GREEN}安装完成，请访问地址：http://$(hostname -I | awk '{print $1}'):81${port}${NC}"
+    echo -e "${GREEN}安装完成，请访问地址：http://【你的服务器IP】:${port}${NC}"
     echo -e "${GREEN}初始用户名: admin@example.com${NC}"
     echo -e "${GREEN}初始密码: changeme${NC}"
     sleep 2
