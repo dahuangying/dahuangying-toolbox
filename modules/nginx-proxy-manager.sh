@@ -12,19 +12,6 @@ pause() {
     echo
 }
 
-# 官网介绍
-show_intro() {
-    echo -e "${GREEN}Nginx Proxy Manager - 简易安装与管理面板${NC}"
-    echo -e "官网介绍: https://nginxproxymanager.com/"
-    echo -e "${GREEN}------------------------${NC}"
-}
-
-# 提示卸载已有环境
-uninstall_advice() {
-    echo -e "${RED}如果您已经安装了其他面板或者LDNMP建站环境，建议先卸载，再安装 npm！${NC}"
-    pause
-}
-
 # 判断 Nginx Proxy Manager 是否已安装
 check_nginx_installed() {
     if [ -d "/opt/nginx-proxy-manager" ]; then
@@ -32,7 +19,16 @@ check_nginx_installed() {
     else
         return 1  # 未安装
     fi
+}
 
+# 获取公共IP地址
+get_public_ip() {
+    local ip=$(hostname -I | awk '{print $1}')
+    # 如果获取不到内部IP，尝试通过外部服务获取
+    if [ -z "$ip" ]; then
+        ip=$(curl -s http://checkip.amazonaws.com)
+    fi
+    echo "$ip"
 }
 
 # 显示主菜单
@@ -113,8 +109,11 @@ EOL
     cd /opt/nginx-proxy-manager
     docker-compose up -d
 
+    # 获取公共 IP 地址
+    public_ip=$(get_public_ip)
+
     # 输出安装完成的提示
-    echo "安装完成，访问地址：http://$(hostname -I | awk '{print $1}'):81"
+    echo "安装完成，访问地址：http://$public_ip:$port"
     echo "初始用户名: admin@example.com"
     echo "初始密码: changeme"
     sleep 2
