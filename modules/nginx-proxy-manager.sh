@@ -121,39 +121,70 @@ update_nginx_proxy_manager() {
 }
 
 # 卸载 Nginx Proxy Manager
-uninstall_nginx_proxy_manager() {
-    echo -e "${RED}你确定要卸载 Nginx Proxy Manager 吗？此操作将删除所有相关数据！（y/n）${NC}"
-    read -p "请输入(y/n): " confirm
-
-    if [[ "$confirm" =~ ^[Yy]$ ]]; then
-        echo "正在卸载 Nginx Proxy Manager..."
-
-        # 停止并删除容器
-        if docker ps -a | grep -q 'npm'; then
-            docker-compose down
-            echo "已停止并删除 Nginx Proxy Manager 容器。"
-        else
-            echo "未找到 Nginx Proxy Manager 容器，跳过删除。"
-        fi
-
-        # 删除镜像
-        if docker images | grep -q 'jc21/nginx-proxy-manager'; then
-            docker rmi jc21/nginx-proxy-manager:latest
-            echo "已删除 Nginx Proxy Manager 镜像。"
-        else
-            echo "未找到 Nginx Proxy Manager 镜像，跳过删除。"
-        fi
-
-        # 删除配置文件
-        rm -rf /opt/nginx-proxy-manager
-        echo "卸载完成！"
-    else
-        echo "卸载操作已取消！"
+# 用户确认
+confirm_action() {
+    echo -e "${RED}你确定要卸载 Nginx Proxy Manager 吗？（y/n）${NC}"
+    read confirmation
+    if [[ $confirmation != "y" && $confirmation != "Y" ]]; then
+        echo -e "${GREEN}操作已取消。${NC}"
+        return 1
     fi
-    sleep 2
-    show_menu
+    return 0
 }
 
+# 停止并删除容器
+remove_container() {
+    container_id=$(docker ps -a -q --filter "name=npm")
+    if [ -n "$container_id" ]; then
+        echo -e "${GREEN}正在停止并删除容器...${NC}"
+        docker stop $container_id
+        docker rm $container_id
+    else
+        echo -e "${GREEN}未找到 Nginx Proxy Manager 容器，无需删除。${NC}"
+    fi
+}
+
+# 删除镜像
+remove_image() {
+    image_id=$(docker images -q "jc21/nginx-proxy-manager:latest")
+    if [ -n "$image_id" ]; then
+        echo -e "${GREEN}正在删除镜像...${NC}"
+        docker rmi -f $image_id
+    else
+        echo -e "${GREEN}未找到 Nginx Proxy Manager 镜像，无需删除。${NC}"
+    fi
+}
+
+# 删除 Docker Compose 配置和数据
+remove_files() {
+    echo -e "${GREEN}正在删除 Docker Compose 配置和数据文件...${NC}"
+    rm -rf /opt/nginx-proxy-manager
+    echo -e "${GREEN}配置和数据文件已删除。${NC}"
+}
+
+# 清理防火墙规则
+remove_firewall_rules() {
+    echo -e "${GREEN}正在移除防火墙规则...${NC}"
+    ufw delete allow 80
+    ufw delete allow 443
+    ufw delete allow 81
+    ufw reload
+    echo -e "${GREEN}防火墙规则已移除。${NC}"
+}
+
+# 卸载 Nginx Proxy Manager
+uninstall_nginx_proxy_manager() {
+    confirm_action
+    if [ $? -eq 0 ]; then
+        remove_container
+        remove_image
+        remove_files
+        remove_firewall_rules
+        echo -e "${GREEN}Nginx Proxy Manager 已成功卸载。${NC}"
+    else
+        echo -e "${GREEN}卸载操作已取消。${NC}"
+    fi
+}
 
 # 添加域名访问
 add_domain_access() {
