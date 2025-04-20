@@ -61,7 +61,7 @@ install_aurora_panel() {
 # 7. 1Pane管理面板
 install_1pane_panel() {
     echo -e "${GREEN}安装1Pane管理面板...${NC}"
-   bash <(curl -sSL https://resource.1panel.pro/quick_start.sh -o quick_start.sh && bash quick_start.sh)
+    curl -sSL https://resource.1panel.pro/quick_start.sh -o quick_start.sh && bash quick_start.sh
     pause
 }
 
