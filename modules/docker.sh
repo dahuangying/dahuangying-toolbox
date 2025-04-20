@@ -12,34 +12,22 @@ show_menu() {
     echo -e "${GREEN}==================================${NC}"
     echo "1. 查看 Docker 容器、镜像、卷和网络状态"
     echo "2. 安装/更新 Docker 环境"
-    echo "3. 启动容器"
-    echo "4. 停止容器"
-    echo "5. 停止所有容器"
-    echo "6. 启动所有容器"
-    echo "7. 删除指定容器"
-    echo "8. 删除指定镜像"
-    echo "9. 创建新容器"
-    echo "10. 创建新镜像"
-    echo "11. Docker 网络管理"
-    echo "12. Docker 卷管理"
-    echo "13. 清理所有未使用的资源"
+    echo "3. Docker 容器管理"
+    echo "4. Docker 镜像管理"
+    echo "5. Docker 网络管理"
+    echo "6. Docker 卷管理"
+    echo "7. 清理所有未使用的资源"
     echo "0. 退出"
     echo -e "${GREEN}==================================${NC}"
     read -p "请输入选项: " option
     case $option in
         1) show_docker_status ;;
         2) install_update_docker ;;
-        3) start_container ;;
-        4) stop_container ;;
-        5) stop_all_containers ;;
-        6) start_all_containers ;;
-        7) remove_specified_container ;;
-        8) remove_specified_image ;;
-        9) create_new_container ;;
-        10) create_new_image ;;
-        11) manage_docker_network ;;
-        12) manage_docker_volumes ;;
-        13) clean_unused_resources ;;
+        3) docker_container_management ;;
+        4) docker_image_management ;;
+        5) docker_network_management ;;
+        6) docker_volume_management ;;
+        7) clean_unused_resources ;;
         0) exit 0 ;;
         *) echo "无效的选项，请重新选择！" && sleep 2 && show_menu ;;
     esac
@@ -48,43 +36,26 @@ show_menu() {
 # 查看 Docker 容器、镜像、卷和网络状态
 show_docker_status() {
     echo -e "${GREEN}==============================${NC}"
-    echo -e "${GREEN}查看所有容器状态（ID、名称、状态、内存、CPU、端口映射、资源使用情况）：${NC}"
-    
-    # 获取容器状态并显示
-    docker ps -a --format "table {{.ID}}\t{{.Names}}\t{{.Status}}\t{{.Ports}}\t{{.CreatedAt}}" | column -t
+    echo -e "${GREEN}Docker版本${NC}"
+    docker --version
+    echo -e "\n${GREEN}Docker Compose版本${NC}"
+    docker-compose --version
 
-    # 获取容器的详细资源使用情况（内存、CPU）
     echo -e "\n${GREEN}==============================${NC}"
-    echo -e "${GREEN}容器的详细资源使用情况（内存、CPU、端口映射）：${NC}"
+    echo -e "${GREEN}Docker镜像: $(docker images -q | wc -l)${NC}"
+    docker images --format "table {{.Repository}}\t{{.Tag}}\t{{.ID}}\t{{.CreatedAt}}\t{{.Size}}"
 
-    # 显示每个容器的详细状态
-    for container in $(docker ps -q); do
-        container_id=$(docker inspect --format '{{.Id}}' $container)
-        container_name=$(docker inspect --format '{{.Name}}' $container | sed 's/\///g')
-        container_status=$(docker inspect --format '{{.State.Status}}' $container)
-        container_ports=$(docker inspect --format '{{.NetworkSettings.Ports}}' $container)
-        container_memory=$(docker stats --no-stream --format "{{.MemUsage}}" $container)
-        container_cpu=$(docker stats --no-stream --format "{{.CPUPerc}}" $container)
-
-        # 直接显示容器详细信息
-        echo -e "$container_id\t$container_name\t$container_status\t$container_ports\t$container_memory\t$container_cpu"
-        echo -e "${GREEN}==============================${NC}"
-    done
-
-    # 显示镜像信息
     echo -e "\n${GREEN}==============================${NC}"
-    echo -e "${GREEN}查看所有镜像状态（ID、名称、标签、创建时间、大小）：${NC}"
-    docker images --format "table {{.ID}}\t{{.Repository}}\t{{.Tag}}\t{{.CreatedAt}}\t{{.Size}}" | column -t
+    echo -e "${GREEN}Docker容器: $(docker ps -a -q | wc -l)${NC}"
+    docker ps -a --format "table {{.ID}}\t{{.Image}}\t{{.Command}}\t{{.CreatedAt}}\t{{.Status}}\t{{.Ports}}\t{{.Names}}"
 
-    # 显示卷信息
     echo -e "\n${GREEN}==============================${NC}"
-    echo -e "${GREEN}查看 Docker 卷（驱动、名称）：${NC}"
-    docker volume ls --format "table {{.Driver}}\t{{.Name}}" | column -t
+    echo -e "${GREEN}Docker卷: $(docker volume ls -q | wc -l)${NC}"
+    docker volume ls --format "table {{.Driver}}\t{{.Name}}"
 
-    # 显示网络信息
     echo -e "\n${GREEN}==============================${NC}"
-    echo -e "${GREEN}查看 Docker 网络（ID、名称、驱动、范围）：${NC}"
-    docker network ls --format "table {{.ID}}\t{{.Name}}\t{{.Driver}}\t{{.Scope}}" | column -t
+    echo -e "${GREEN}Docker网络: $(docker network ls -q | wc -l)${NC}"
+    docker network ls --format "table {{.ID}}\t{{.Name}}\t{{.Driver}}\t{{.Scope}}"
 
     pause
     show_menu
@@ -112,6 +83,31 @@ install_update_docker() {
     show_menu
 }
 
+# Docker 容器管理
+docker_container_management() {
+    echo -e "${GREEN}==============================${NC}"
+    echo -e "${GREEN}Docker容器管理${NC}"
+    echo "1. 启动容器"
+    echo "2. 停止容器"
+    echo "3. 启动所有容器"
+    echo "4. 停止所有容器"
+    echo "5. 创建指定容器"
+    echo "6. 删除指定容器"
+    echo "0. 返回"
+    echo -e "${GREEN}==============================${NC}"
+    read -p "请输入选项: " container_option
+    case $container_option in
+        1) start_container ;;
+        2) stop_container ;;
+        3) start_all_containers ;;
+        4) stop_all_containers ;;
+        5) create_new_container ;;
+        6) remove_specified_container ;;
+        0) show_menu ;;
+        *) echo "无效选项，请重新选择" && docker_container_management ;;
+    esac
+}
+
 # 启动容器
 start_container() {
     read -p "请输入要启动的容器 ID 或名称: " container_id
@@ -130,14 +126,6 @@ stop_container() {
     show_menu
 }
 
-# 停止所有容器
-stop_all_containers() {
-    docker stop $(docker ps -q)
-    echo -e "${GREEN}所有容器已停止！${NC}"
-    pause
-    show_menu
-}
-
 # 启动所有容器
 start_all_containers() {
     docker start $(docker ps -a -q)
@@ -146,25 +134,15 @@ start_all_containers() {
     show_menu
 }
 
-# 删除指定容器
-remove_specified_container() {
-    read -p "请输入要删除的容器 ID 或名称: " container_id
-    docker rm -f $container_id
-    echo -e "${GREEN}容器 $container_id 已删除！${NC}"
+# 停止所有容器
+stop_all_containers() {
+    docker stop $(docker ps -q)
+    echo -e "${GREEN}所有容器已停止！${NC}"
     pause
     show_menu
 }
 
-# 删除指定镜像
-remove_specified_image() {
-    read -p "请输入要删除的镜像 ID 或名称: " image_id
-    docker rmi -f $image_id
-    echo -e "${GREEN}镜像 $image_id 已删除！${NC}"
-    pause
-    show_menu
-}
-
-# 创建新容器
+# 创建指定容器
 create_new_container() {
     read -p "请输入新容器的镜像名称: " image_name
     read -p "请输入新容器的名称（可选）: " container_name
@@ -178,34 +156,69 @@ create_new_container() {
     show_menu
 }
 
-# 创建新镜像
-create_new_image() {
-    read -p "请输入要创建镜像的容器 ID 或名称: " container_id
-    read -p "请输入镜像标签（可选）: " image_tag
-    if [[ -z "$container_id" ]]; then
-        echo "容器 ID 不能为空！"
-        return
-    fi
-    docker commit $container_id $image_tag
-    echo -e "${GREEN}新镜像已创建！${NC}"
+# 删除指定容器
+remove_specified_container() {
+    read -p "请输入要删除的容器 ID 或名称: " container_id
+    docker rm -f $container_id
+    echo -e "${GREEN}容器 $container_id 已删除！${NC}"
+    pause
+    show_menu
+}
+
+# Docker 镜像管理
+docker_image_management() {
+    echo -e "${GREEN}==============================${NC}"
+    echo -e "${GREEN}Docker镜像管理${NC}"
+    echo "1. 删除指定镜像"
+    echo "2. 创建指定容器"
+    echo "3. 删除所有镜像"
+    echo "0. 返回"
+    echo -e "${GREEN}==============================${NC}"
+    read -p "请输入选项: " image_option
+    case $image_option in
+        1) remove_specified_image ;;
+        2) create_new_container ;;
+        3) remove_all_images ;;
+        0) show_menu ;;
+        *) echo "无效选项，请重新选择" && docker_image_management ;;
+    esac
+}
+
+# 删除指定镜像
+remove_specified_image() {
+    read -p "请输入要删除的镜像 ID 或名称: " image_id
+    docker rmi -f $image_id
+    echo -e "${GREEN}镜像 $image_id 已删除！${NC}"
+    pause
+    show_menu
+}
+
+# 删除所有镜像
+remove_all_images() {
+    docker rmi -f $(docker images -q)
+    echo -e "${GREEN}所有镜像已删除！${NC}"
     pause
     show_menu
 }
 
 # Docker 网络管理
-manage_docker_network() {
+docker_network_management() {
     echo -e "${GREEN}==============================${NC}"
-    echo -e "${GREEN}1. 创建新网络${NC}"
-    echo -e "${GREEN}2. 加入网络${NC}"
-    echo -e "${GREEN}3. 退出网络${NC}"
-    echo -e "${GREEN}4. 删除网络${NC}"
+    echo -e "${GREEN}Docker网络管理${NC}"
+    echo "1. 创建网络"
+    echo "2. 加入网络"
+    echo "3. 退出网络"
+    echo "4. 删除网络"
+    echo "0. 返回"
+    echo -e "${GREEN}==============================${NC}"
     read -p "请输入选项: " network_option
     case $network_option in
         1) create_network ;;
         2) join_network ;;
         3) leave_network ;;
         4) delete_network ;;
-        *) echo "无效选项，请重新选择" && manage_docker_network ;;
+        0) show_menu ;;
+        *) echo "无效选项，请重新选择" && docker_network_management ;;
     esac
 }
 
@@ -248,17 +261,21 @@ delete_network() {
 }
 
 # Docker 卷管理
-manage_docker_volumes() {
+docker_volume_management() {
     echo -e "${GREEN}==============================${NC}"
-    echo -e "${GREEN}1. 创建新卷${NC}"
-    echo -e "${GREEN}2. 删除指定卷${NC}"
-    echo -e "${GREEN}3. 删除所有卷${NC}"
+    echo -e "${GREEN}Docker卷管理${NC}"
+    echo "1. 创建新卷"
+    echo "2. 删除指定卷"
+    echo "3. 删除所有卷"
+    echo "0. 返回"
+    echo -e "${GREEN}==============================${NC}"
     read -p "请输入选项: " volume_option
     case $volume_option in
         1) create_volume ;;
         2) delete_specified_volume ;;
         3) delete_all_volumes ;;
-        *) echo "无效选项，请重新选择" && manage_docker_volumes ;;
+        0) show_menu ;;
+        *) echo "无效选项，请重新选择" && docker_volume_management ;;
     esac
 }
 
@@ -319,6 +336,8 @@ pause() {
 
 # 启动脚本
 show_menu
+
+
 
 
 
