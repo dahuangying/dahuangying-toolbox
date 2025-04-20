@@ -1,104 +1,70 @@
 #!/bin/bash
 
-# 1Panel 安装管理脚本
-# Version: 1.0
-# Author: ChatGPT
+# =======================================
+# 1Panel 新一代管理面板 安装脚本
+# =======================================
 
-# 配置项
-PANEL_INSTALL_DIR="/root/1panel_installation"  # 1Panel 安装目录
-PANEL_CONFIG_FILE="/root/1panel_config.txt"    # 配置文件路径
+# 设置一些变量
+PANEL_VERSION="v1.10.29-lts-linux-amd64"
+INSTALL_DIR="/opt/1panel"
+INSTALL_TAR="/root/1panel-${PANEL_VERSION}.tar.gz"
+INSTALL_URL="https://github.com/kejilion/sh/releases/download/${PANEL_VERSION}/1panel-${PANEL_VERSION}.tar.gz"
 
-# 函数：显示菜单
-show_menu() {
-    clear
-    echo "========================="
-    echo " 1Panel 安装管理脚本"
-    echo "========================="
-    echo "1. 安装 1Panel"
-    echo "2. 查看面板信息"
-    echo "3. 卸载 1Panel"
-    echo "0. 退出"
-    echo "========================="
-    read -p "请输入选项: " option
-    case $option in
-        1) install_panel ;;
-        2) view_panel_info ;;
-        3) uninstall_panel ;;
-        0) exit 0 ;;
-        *) echo "无效的选项，请重新选择！" && sleep 2 && show_menu ;;
-    esac
-}
+# 更新系统
+echo "更新系统..."
+sudo apt-get update -y
+sudo apt-get upgrade -y
 
-# 函数：检查并删除旧的安装目录
-cleanup_old_installation() {
-    if [ -d "$PANEL_INSTALL_DIR" ]; then
-        echo "检测到旧的安装目录，正在删除..."
-        rm -rf "$PANEL_INSTALL_DIR"
-    fi
+# 安装必要的依赖
+echo "安装依赖..."
+sudo apt-get install -y curl wget tar unzip systemd
 
-    if [ -f "$PANEL_CONFIG_FILE" ]; then
-        echo "检测到旧的配置文件，正在删除..."
-        rm -f "$PANEL_CONFIG_FILE"
-    fi
+# 下载 1Panel 安装包
+echo "下载 1Panel 安装包..."
+wget -q ${INSTALL_URL} -O ${INSTALL_TAR}
 
-    echo "旧的安装文件已删除。"
-}
+# 解压安装包
+echo "解压安装包..."
+sudo mkdir -p ${INSTALL_DIR}
+sudo tar -zxvf ${INSTALL_TAR} -C ${INSTALL_DIR}
 
-# 函数：安装 1Panel
-install_panel() {
-    echo "开始安装 1Panel..."
-    
-    # 检查并删除旧的安装文件
-    cleanup_old_installation
+# 删除安装包
+rm -f ${INSTALL_TAR}
 
-    # 执行安装
-    curl -sSL https://resource.1panel.pro/quick_start.sh -o quick_start.sh && bash quick_start.sh
+# 创建系统服务文件
+echo "创建 1Panel 服务文件..."
+SERVICE_FILE="/etc/systemd/system/1panel.service"
+sudo tee ${SERVICE_FILE} > /dev/null <<EOF
+[Unit]
+Description=1Panel Service
+After=network.target
 
-    echo "1Panel 安装完成！"
-    echo "请使用以下命令查看面板地址："
-    echo "您可以通过 1pctl user-info 查看面板信息"
-    sleep 2
-    show_menu
-}
+[Service]
+Type=simple
+ExecStart=${INSTALL_DIR}/1panel
+WorkingDirectory=${INSTALL_DIR}
+Restart=always
+User=root
 
-# 函数：查看面板信息
-view_panel_info() {
-    echo "正在获取面板信息..."
-    1pctl user-info
-    sleep 2
-    show_menu
-}
+[Install]
+WantedBy=multi-user.target
+EOF
 
-# 函数：卸载 1Panel
-uninstall_panel() {
-    read -p "您确定要卸载 1Panel 并删除所有相关文件吗？[y/n]: " confirm
-    if [[ "$confirm" == "y" || "$confirm" == "Y" ]]; then
-        echo "正在卸载 1Panel..."
+# 重载 systemd 配置并启动服务
+echo "重载 systemd 并启动服务..."
+sudo systemctl daemon-reload
+sudo systemctl enable 1panel
+sudo systemctl start 1panel
 
-        # 停止服务并禁用启动
-        systemctl stop 1panel
-        systemctl disable 1panel
+# 安装完成提示
+echo "1Panel 安装完成！"
+echo "------------------------------------------------"
+echo "1Panel 服务已启动，访问地址：http://<你的服务器IP>:8888"
+echo "默认用户名：admin"
+echo "默认密码：123456"
+echo "------------------------------------------------"
+echo "安装日志可以查看: ${INSTALL_DIR}/install.log"
 
-        # 删除 1Panel 安装目录
-        echo "删除安装目录..."
-        rm -rf "$PANEL_INSTALL_DIR"
-        echo "已删除安装目录 $PANEL_INSTALL_DIR"
-
-        # 删除配置文件
-        echo "删除配置文件..."
-        rm -f "$PANEL_CONFIG_FILE"
-        echo "已删除配置文件 $PANEL_CONFIG_FILE"
-
-        echo "1Panel 卸载完成！"
-    else
-        echo "取消卸载。"
-    fi
-    sleep 2
-    show_menu
-}
-
-# 启动脚本
-show_menu
 
 
 
