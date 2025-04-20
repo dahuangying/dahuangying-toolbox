@@ -21,14 +21,16 @@ show_menu() {
         INSTALL_STATUS="未安装"
     fi
 
- # 显示安装状态和安装目录（绿色）
+  # 显示安装状态和安装目录（绿色）
     echo -e "${GREEN}1Panel 安装状态: $INSTALL_STATUS${NC}"
     echo -e "${GREEN}安装目录: $PANEL_INSTALL_DIR${NC}"
     echo -e "${GREEN}========================================${NC}"
+    
     # 显示菜单头部
     echo -e "${GREEN}大黄鹰-Linux服务器运维工具箱菜单-1Panel${NC}"
     echo -e "欢迎使用本脚本，请根据菜单选择操作："
     echo -e "${GREEN}========================================${NC}"
+    
     # 主菜单选项
     echo "1. 安装 1Panel"
     echo "2. 查看面板信息"
@@ -86,22 +88,26 @@ uninstall_panel() {
     if [[ "$confirm" == "y" || "$confirm" == "Y" ]]; then
         echo "正在卸载 1Panel..."
 
-        # 查找并删除 1Panel 相关文件
+        # 停止并禁用服务
+        sudo systemctl stop 1panel
+        sudo systemctl disable 1panel
+
+        # 删除 1Panel 相关文件
         echo "查找并删除 1Panel 相关文件..."
-        sudo find / -name "1panel*" -exec sudo rm -f {} \;
+        sudo find / -name "1panel*" -exec sudo rm -rf {} \;
 
         # 删除服务文件
         echo "检查并删除服务文件..."
         sudo rm -f /root/1panel-v1.10.29-lts-linux-amd64/1panel.service
-
-        # 检查并禁用服务
-        echo "检查并禁用服务..."
-        sudo systemctl list-units --type=service | grep 1panel
-        sudo systemctl stop 1panel
-        sudo systemctl disable 1panel
         sudo rm -f /etc/systemd/system/1panel.service
 
-        # 确认删除所有文件
+        # 确保 1Panel 安装目录被删除
+        if [ -d "$PANEL_INSTALL_DIR" ]; then
+            echo "删除安装目录..."
+            sudo rm -rf "$PANEL_INSTALL_DIR"
+        fi
+
+        # 确认所有相关文件已删除
         echo "确认所有相关文件已删除..."
         sudo find / -name "1panel*"
 
@@ -120,3 +126,4 @@ uninstall_panel() {
 
 # 启动脚本
 show_menu
+
