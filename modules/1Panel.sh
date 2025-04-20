@@ -46,22 +46,23 @@ view_panel_info() {
     1pctl user-info
 
     # 询问用户是否需要修改密码
-    read -p "是否修改面板密码？[y/n]: " modify_password
-    if [[ "$modify_password" == "y" || "$modify_password" == "Y" ]]; then
-        # 用户输入新密码
-        read -sp "请输入新密码: " new_password
-        echo
-        read -sp "请再次输入新密码确认: " confirm_password
-        echo
+    echo ""
+    echo "============================="
+    echo "如果您需要修改面板密码，请直接输入新密码并确认："
+    echo "1pctl update password"
+    echo "============================="
+    read -sp "请输入新密码: " new_password
+    echo
+    read -sp "请再次输入新密码确认: " confirm_password
+    echo
 
-        # 判断两次密码是否一致
-        if [[ "$new_password" == "$confirm_password" ]]; then
-            # 修改密码
-            echo "$new_password" | 1pctl update password
-            echo "密码修改成功！"
-        else
-            echo "密码确认不一致，请重新尝试。"
-        fi
+    # 判断两次密码是否一致
+    if [[ "$new_password" == "$confirm_password" ]]; then
+        # 修改密码
+        echo "$new_password" | 1pctl update password
+        echo "密码修改成功！"
+    else
+        echo "密码确认不一致，请重新尝试。"
     fi
 
     sleep 2
@@ -86,5 +87,6 @@ uninstall_panel() {
 
 # 启动脚本
 show_menu
+
 
 
