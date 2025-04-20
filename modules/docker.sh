@@ -9,7 +9,7 @@ show_menu() {
     clear
     echo -e "${GREEN}大黄鹰-Linux服务器运维工具箱菜单-Docker 管理脚本${NC}"
     echo -e "欢迎使用本脚本，请根据菜单选择操作："
-    echo -e "${GREEN}==========================================${NC}"
+    echo -e "${GREEN}=====================================================${NC}"
     echo "1. 查看 Docker 容器和镜像状态"
     echo "2. 停止所有运行中的容器"
     echo "3. 删除所有容器"
@@ -20,7 +20,6 @@ show_menu() {
     echo "8. 删除指定容器"
     echo "9. 删除指定镜像"
     echo "0. 退出"
-    echo -e "${GREEN}==================================${NC}"
     read -p "请输入选项: " option
     case $option in
         1) show_docker_status ;;
