@@ -1,6 +1,8 @@
 #!/bin/bash
 
 # 1Panel 安装管理脚本
+# Version: 1.1
+# Author: ChatGPT
 
 # 配置项
 PANEL_INSTALL_DIR="/opt/1panel"  # 1Panel 安装目录
@@ -20,29 +22,30 @@ show_menu() {
     else
         INSTALL_STATUS="未安装"
     fi
-    
- # 显示安装状态和安装目录（绿色）
+
+    # 显示安装状态和安装目录（绿色）
     echo -e "${GREEN}1Panel 安装状态: $INSTALL_STATUS${NC}"
     echo -e "${GREEN}安装目录: $PANEL_INSTALL_DIR${NC}"
     echo -e "${GREEN}==================================${NC}"
-
     # 显示菜单头部
     echo -e "${GREEN}大黄鹰-Linux服务器运维工具箱菜单-1Panel${NC}"
     echo -e "欢迎使用本脚本，请根据菜单选择操作："
     echo -e "${GREEN}==================================${NC}"
+
     # 主菜单选项
     echo "1. 安装 1Panel"
     echo "2. 查看面板信息"
     echo "3. 修改密码"
     echo "4. 卸载 1Panel"
-    echo "-------------------------"
+    echo "0. 退出"
+    echo -e "${GREEN}==================================${NC}"
     read -p "请输入选项: " option
     case $option in
         1) install_panel ;;
         2) view_panel_info ;;
         3) update_password ;;
         4) uninstall_panel ;;
-        0) exit 0 ;;
+        0) exit 0 ;;  # 退出选项
         *) echo "无效的选项，请重新选择！" && sleep 2 && show_menu ;;
     esac
 }
@@ -121,5 +124,6 @@ uninstall_panel() {
 
 # 启动脚本
 show_menu
+
 
 
