@@ -1,16 +1,8 @@
 #!/bin/bash
 
-# 设置颜色
-GREEN='\033[0;32m'
-NC='\033[0m' # 无色
-RED='\033[0;31m'
-
-# 显示暂停，按任意键继续
-pause() {
-    echo -e "${GREEN}操作完成，按任意键继续...${NC}"
-    read -n 1 -s -r  # 等待用户按下任意键
-    echo
-}
+# Docker 管理脚本
+# Version: 1.0
+# Author: ChatGPT
 
 # 显示主菜单
 show_menu() {
@@ -53,35 +45,35 @@ show_docker_status() {
     echo "=============================="
     echo "查看所有镜像状态"
     docker images
-    sleep 3
+    pause
     show_menu
 }
 
 # 停止所有运行中的容器
 stop_all_containers() {
     confirm_action "停止所有运行中的容器" "docker stop $(docker ps -q)"
-    sleep 2
+    pause
     show_menu
 }
 
 # 删除所有容器
 remove_all_containers() {
     confirm_action "删除所有容器" "docker rm $(docker ps -a -q)"
-    sleep 2
+    pause
     show_menu
 }
 
 # 删除所有镜像
 remove_all_images() {
     confirm_action "删除所有镜像" "docker rmi $(docker images -q)"
-    sleep 2
+    pause
     show_menu
 }
 
 # 清理所有未使用的资源
 clean_unused_resources() {
     confirm_action "清理所有未使用的资源" "docker system prune -a --volumes"
-    sleep 2
+    pause
     show_menu
 }
 
@@ -89,7 +81,7 @@ clean_unused_resources() {
 remove_specified_container() {
     read -p "请输入要删除的容器 ID 或名称: " container_id
     confirm_action "删除容器 $container_id" "docker rm -f $container_id"
-    sleep 2
+    pause
     show_menu
 }
 
@@ -97,7 +89,7 @@ remove_specified_container() {
 remove_specified_image() {
     read -p "请输入要删除的镜像 ID 或名称: " image_id
     confirm_action "删除镜像 $image_id" "docker rmi -f $image_id"
-    sleep 2
+    pause
     show_menu
 }
 
@@ -106,7 +98,7 @@ create_new_container() {
     read -p "请输入新容器的镜像名称: " image_name
     read -p "请输入新容器的名称（可选）: " container_name
     confirm_action "创建新容器" "docker run -d --name $container_name $image_name"
-    sleep 2
+    pause
     show_menu
 }
 
@@ -115,7 +107,7 @@ create_new_image() {
     read -p "请输入要创建镜像的容器 ID 或名称: " container_id
     read -p "请输入镜像标签（可选）: " image_tag
     confirm_action "创建镜像 $image_tag" "docker commit $container_id $image_tag"
-    sleep 2
+    pause
     show_menu
 }
 
@@ -134,7 +126,11 @@ confirm_action() {
     fi
 }
 
-# 主程序入口
-while true; do
-    show_menu
-done
+# 暂停，按任意键继续
+pause() {
+    read -n 1 -s -r -p "操作完成，按任意键继续..."
+}
+
+# 启动脚本
+show_menu
+
