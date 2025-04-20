@@ -1,8 +1,8 @@
 #!/bin/bash
 
-# Docker 管理脚本
-# Version: 1.0
-# Author: ChatGPT
+# 设置颜色
+GREEN="\033[0;32m"  # 绿色
+NC="\033[0m"        # 重置颜色
 
 # 显示主菜单
 show_menu() {
@@ -20,7 +20,7 @@ show_menu() {
     echo "8. 删除指定容器"
     echo "9. 删除指定镜像"
     echo "0. 退出"
-    echo "========================="
+    echo -e "${GREEN}==================================${NC}"
     read -p "请输入选项: " option
     case $option in
         1) show_docker_status ;;
@@ -135,5 +135,6 @@ pause() {
 
 # 启动脚本
 show_menu
+
 
 
