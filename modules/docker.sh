@@ -121,7 +121,7 @@ docker_container_management() {
 start_container() {
     read -p "请输入要启动的容器 ID 或名称: " container_id
     if [ -z "$container_id" ]; then
-        show_menu
+        docker_container_management
     fi
     docker start $container_id
     echo -e "${GREEN}容器 $container_id 已启动！${NC}"
@@ -133,7 +133,7 @@ start_container() {
 stop_container() {
     read -p "请输入要停止的容器 ID 或名称: " container_id
     if [ -z "$container_id" ]; then
-        show_menu
+        docker_container_management
     fi
     docker stop $container_id
     echo -e "${GREEN}容器 $container_id 已停止！${NC}"
@@ -161,11 +161,11 @@ stop_all_containers() {
 create_new_container() {
     read -p "请输入新容器的镜像名称: " image_name
     if [ -z "$image_name" ]; then
-        show_menu
+        docker_container_management
     fi
     read -p "请输入新容器的名称（可选）: " container_name
     if [ -z "$container_name" ]; then
-        show_menu
+        docker_container_management
     fi
     docker run -d --name $container_name $image_name
     echo -e "${GREEN}新容器已创建！${NC}"
@@ -177,7 +177,7 @@ create_new_container() {
 remove_specified_container() {
     read -p "请输入要删除的容器 ID 或名称: " container_id
     if [ -z "$container_id" ]; then
-        show_menu
+        docker_container_management
     fi
     docker rm -f $container_id
     echo -e "${GREEN}容器 $container_id 已删除！${NC}"
@@ -208,7 +208,7 @@ docker_image_management() {
 remove_specified_image() {
     read -p "请输入要删除的镜像 ID 或名称: " image_id
     if [ -z "$image_id" ]; then
-        show_menu
+        docker_image_management
     fi
     docker rmi -f $image_id
     echo -e "${GREEN}镜像 $image_id 已删除！${NC}"
@@ -249,7 +249,7 @@ docker_network_management() {
 create_network() {
     read -p "请输入要创建的网络名称: " network_name
     if [ -z "$network_name" ]; then
-        show_menu
+        docker_network_management
     fi
     docker network create $network_name
     echo -e "${GREEN}网络 $network_name 已创建！${NC}"
@@ -261,11 +261,11 @@ create_network() {
 join_network() {
     read -p "请输入要加入的容器 ID 或名称: " container_id
     if [ -z "$container_id" ]; then
-        show_menu
+        docker_network_management
     fi
     read -p "请输入要加入的网络名称: " network_name
     if [ -z "$network_name" ]; then
-        show_menu
+        docker_network_management
     fi
     docker network connect $network_name $container_id
     echo -e "${GREEN}容器 $container_id 已加入网络 $network_name！${NC}"
@@ -277,11 +277,11 @@ join_network() {
 leave_network() {
     read -p "请输入要退出的容器 ID 或名称: " container_id
     if [ -z "$container_id" ]; then
-        show_menu
+        docker_network_management
     fi
     read -p "请输入要退出的网络名称: " network_name
     if [ -z "$network_name" ]; then
-        show_menu
+        docker_network_management
     fi
     docker network disconnect $network_name $container_id
     echo -e "${GREEN}容器 $container_id 已退出网络 $network_name！${NC}"
@@ -293,7 +293,7 @@ leave_network() {
 delete_network() {
     read -p "请输入要删除的网络名称: " network_name
     if [ -z "$network_name" ]; then
-        show_menu
+        docker_network_management
     fi
     docker network rm $network_name
     echo -e "${GREEN}网络 $network_name 已删除！${NC}"
@@ -324,7 +324,7 @@ docker_volume_management() {
 create_volume() {
     read -p "请输入要创建的新卷名称: " volume_name
     if [ -z "$volume_name" ]; then
-        show_menu
+        docker_volume_management
     fi
     docker volume create $volume_name
     echo -e "${GREEN}新卷 $volume_name 已创建！${NC}"
@@ -336,7 +336,7 @@ create_volume() {
 delete_specified_volume() {
     read -p "请输入要删除的卷名称: " volume_name
     if [ -z "$volume_name" ]; then
-        show_menu
+        docker_volume_management
     fi
     docker volume rm $volume_name
     echo -e "${GREEN}卷 $volume_name 已删除！${NC}"
@@ -383,6 +383,7 @@ pause() {
 
 # 启动脚本
 show_menu
+
 
 
 
