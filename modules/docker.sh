@@ -1,22 +1,15 @@
 #!/bin/bash
 
-# 设置颜色
-GREEN='\033[0;32m'
-NC='\033[0m' # 无色
-RED='\033[0;31m'
-
-# 显示暂停，按任意键继续
-pause() {
-    echo -e "${GREEN}操作完成，按任意键继续...${NC}"
-    read -n 1 -s -r  # 等待用户按下任意键
-    echo
-}
+# Docker 管理脚本
+# Version: 1.0
+# Author: ChatGPT
 
 # 显示主菜单
 show_menu() {
-    echo -e "${GREEN}大黄鹰-Linux服务器运维工具箱菜单-Docker 管理脚本${NC}"
-    echo -e "欢迎使用本脚本，请根据菜单选择操作："
-    echo -e "${GREEN}==================================${NC}"
+    clear
+    echo "========================="
+    echo " Docker 管理脚本"
+    echo "========================="
     echo "1. 查看 Docker 容器和镜像状态"
     echo "2. 停止所有运行中的容器"
     echo "3. 删除所有容器"
@@ -133,6 +126,14 @@ confirm_action() {
     fi
 }
 
+# 暂停，按任意键继续
+pause() {
+    # 设置绿色文本颜色
+    echo -e "\033[0;32m操作完成，按任意键继续...\033[0m"
+    read -n 1 -s -r
+}
+
 # 启动脚本
 show_menu
+
 
