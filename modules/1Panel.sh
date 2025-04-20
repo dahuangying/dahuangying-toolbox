@@ -48,21 +48,39 @@ view_panel_info() {
     show_menu
 }
 
-# 函数：卸载 1Panel
-uninstall_panel() {
-    read -p "您确定要卸载 1Panel 吗？[y/n]: " confirm
-    if [[ "$confirm" == "y" || "$confirm" == "Y" ]]; then
-        echo "正在卸载 1Panel..."
-        
-        # 使用 1pctl 卸载 1Panel
-        1pctl uninstall
-        
-        echo "1Panel 卸载完成！"
-    else
-        echo "取消卸载。"
-    fi
-    sleep 2
-    show_menu
+# 停止服务
+echo "正在停止 1Panel 服务..."
+systemctl stop 1panel
+systemctl disable 1panel  # 禁用开机启动
+
+# 删除 1Panel 安装目录
+INSTALL_DIR="/root/1panel_installation"
+CONFIG_FILE="/root/1panel_config.txt"
+LOG_DIR="/var/log/1panel"
+SERVICE_FILE="/etc/systemd/system/1panel.service"
+PANEL_CLI="/usr/local/bin/1pctl"
+
+echo "正在删除安装目录..."
+rm -rf "$INSTALL_DIR"
+echo "已删除安装目录 $INSTALL_DIR"
+
+echo "正在删除配置文件..."
+rm -f "$CONFIG_FILE"
+echo "已删除配置文件 $CONFIG_FILE"
+
+echo "正在删除日志文件..."
+rm -rf "$LOG_DIR"
+echo "已删除日志文件 $LOG_DIR"
+
+echo "正在删除服务文件..."
+rm -f "$SERVICE_FILE"
+echo "已删除服务文件 $SERVICE_FILE"
+
+echo "正在删除 1pctl 工具..."
+rm -f "$PANEL_CLI"
+echo "已删除 1pctl 工具 $PANEL_CLI"
+
+echo "1Panel 卸载完成！"
 }
 
 # 启动脚本
