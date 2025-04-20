@@ -125,6 +125,10 @@ remove_specified_image() {
 create_new_container() {
     read -p "请输入新容器的镜像名称: " image_name
     read -p "请输入新容器的名称（可选）: " container_name
+    if [[ -z "$image_name" ]]; then
+        echo "镜像名称不能为空！"
+        return
+    fi
     confirm_action "创建新容器" "docker run -d --name $container_name $image_name"
     pause
     show_menu
@@ -134,6 +138,10 @@ create_new_container() {
 create_new_image() {
     read -p "请输入要创建镜像的容器 ID 或名称: " container_id
     read -p "请输入镜像标签（可选）: " image_tag
+    if [[ -z "$container_id" ]]; then
+        echo "容器 ID 不能为空！"
+        return
+    fi
     confirm_action "创建镜像 $image_tag" "docker commit $container_id $image_tag"
     pause
     show_menu
@@ -163,6 +171,7 @@ pause() {
 
 # 启动脚本
 show_menu
+
 
 
 
