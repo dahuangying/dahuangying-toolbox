@@ -40,24 +40,37 @@ show_menu() {
 # 查看 Docker 容器和镜像状态
 show_docker_status() {
     echo -e "${GREEN}==============================${NC}"
-    echo "查看所有容器状态："
-    docker ps -a --format "table {{.ID}}\t{{.Names}}\t{{.Status}}\t{{.Ports}}\t{{.CreatedAt}}"
+    echo -e "${GREEN}查看所有容器状态（ID、名称、状态、端口映射、资源使用情况）：${NC}"
     
-    echo -e "${GREEN}==============================${NC}"
-    echo "查看每个容器的详细信息："
+    # 获取容器状态
+    docker ps -a --format "table {{.ID}}\t{{.Names}}\t{{.Status}}\t{{.Ports}}\t{{.CreatedAt}}" | column -t
+
+    # 获取每个容器的详细信息
+    echo -e "\n${GREEN}==============================${NC}"
+    echo -e "${GREEN}容器的详细信息（ID、状态、端口、内存、CPU）${NC}"
     for container in $(docker ps -q); do
-        echo -e "${GREEN}容器 $container 的详细信息：${NC}"
-        docker inspect $container | jq '.[0] | {ID: .Id, Name: .Name, Status: .State.Status, StartedAt: .State.StartedAt, Ports: .NetworkSettings.Ports, Memory: .HostConfig.Memory, CPU: .HostConfig.CpuShares}'
+        # 获取容器的资源使用情况
+        container_status=$(docker inspect --format '{{.State.Status}}' $container)
+        container_name=$(docker inspect --format '{{.Name}}' $container | sed 's/\///g')
+        container_ports=$(docker inspect --format '{{.NetworkSettings.Ports}}' $container)
+        container_memory=$(docker stats --no-stream --format "{{.MemUsage}}" $container)
+        container_cpu=$(docker stats --no-stream --format "{{.CPUPerc}}" $container)
+
+        # 显示表格
+        echo -e "${GREEN}容器 $container_name 的详细信息：${NC}"
+        echo -e "容器ID: $container"
+        echo -e "状态: $container_status"
+        echo -e "端口映射: $container_ports"
+        echo -e "内存使用情况: $container_memory"
+        echo -e "CPU使用情况: $container_cpu"
         echo -e "${GREEN}==============================${NC}"
     done
-    
-    echo -e "${GREEN}==============================${NC}"
-    echo "查看所有镜像状态："
-    docker images --format "table {{.ID}}\t{{.Repository}}\t{{.Tag}}\t{{.CreatedAt}}\t{{.Size}}"
 
-    echo -e "${GREEN}==============================${NC}"
-    echo "查看容器资源使用情况（CPU, Memory 等）："
-    docker stats --no-stream
+    # 显示镜像信息
+    echo -e "\n${GREEN}==============================${NC}"
+    echo -e "${GREEN}查看所有镜像状态（ID、名称、标签、创建时间、大小）：${NC}"
+    docker images --format "table {{.ID}}\t{{.Repository}}\t{{.Tag}}\t{{.CreatedAt}}\t{{.Size}}" | column -t
+
     pause
     show_menu
 }
@@ -148,3 +161,4 @@ pause() {
 
 # 启动脚本
 show_menu
+
