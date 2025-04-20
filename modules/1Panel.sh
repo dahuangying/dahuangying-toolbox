@@ -1,36 +1,13 @@
 #!/bin/bash
 
 # =======================================
-# 1Panel 新一代管理面板 安装脚本
+# 1Panel 新一代管理面板 安装与管理脚本
 # =======================================
-
-# 功能菜单
-function show_menu() {
-    clear
-    echo "============================="
-    echo "   1Panel 安装与管理菜单"
-    echo "============================="
-    echo "1. 安装 1Panel"
-    echo "2. 查看面板信息"
-    echo "3. 修改密码"
-    echo "4. 卸载 1Panel"
-    echo "5. 退出"
-    echo "============================="
-    read -p "请输入选项 (1-5): " option
-    case $option in
-        1) install_1panel ;;
-        2) view_panel_info ;;
-        3) update_password ;;
-        4) uninstall_1panel ;;
-        5) exit 0 ;;
-        *) echo "无效选项，请重新输入"; show_menu ;;
-    esac
-}
 
 # 安装 1Panel
 function install_1panel() {
     echo "正在安装 1Panel..."
-    
+
     # 更新系统
     sudo apt-get update -y
     sudo apt-get upgrade -y
@@ -70,7 +47,7 @@ function update_password() {
 function uninstall_1panel() {
     echo "正在卸载 1Panel..."
 
-    # 卸载 1Panel
+    # 执行官方卸载脚本
     curl -sSL https://resource.1panel.pro/uninstall.sh | bash
 
     # 提示卸载完成
@@ -79,8 +56,32 @@ function uninstall_1panel() {
     show_menu
 }
 
-# 显示菜单
+# 功能菜单
+function show_menu() {
+    clear
+    echo "============================="
+    echo "   1Panel 安装与管理菜单"
+    echo "============================="
+    echo "1. 安装 1Panel"
+    echo "2. 查看面板信息"
+    echo "3. 修改密码"
+    echo "4. 卸载 1Panel"
+    echo "5. 退出"
+    echo "============================="
+    read -p "请输入选项 (1-5): " option
+    case $option in
+        1) install_1panel ;;
+        2) view_panel_info ;;
+        3) update_password ;;
+        4) uninstall_1panel ;;
+        5) exit 0 ;;
+        *) echo "无效选项，请重新输入"; read -p "按任意键继续..." && show_menu ;;
+    esac
+}
+
+# 初始化菜单
 show_menu
+
 
 
 
