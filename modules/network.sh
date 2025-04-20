@@ -66,14 +66,14 @@ install_1pane_panel() {
 }
 
 # 8. NginxProxyManager 可视化面板
-install_nginx_proxy_manager() {
+install_nginx_proxy_manager_panel() {
     echo -e "${GREEN}安装 Nginx Proxy Manager 可视化面板...${NC}"
     bash modules/nginx-proxy-manager.sh
     pause
 }
 
 # 9. AList网盘
-install_alist() {
+install_alist_panel() {
     echo -e "${GREEN}安装 AList 网盘...${NC}"
     bash modules/alist.sh
     pause
@@ -142,10 +142,10 @@ show_menu() {
             install_1pane_panel
             ;;
         8)
-            install_nginx_proxy_manager
+            install_nginx_proxy_manager_panel
             ;;
         9)
-            install_alist
+            install_alist_panel
             ;;
         10)
             install_oracle_keep_alive
