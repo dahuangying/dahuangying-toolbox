@@ -40,25 +40,26 @@ show_menu() {
 # 查看 Docker 容器和镜像状态
 show_docker_status() {
     echo -e "${GREEN}==============================${NC}"
-    echo -e "${GREEN}查看所有容器状态（ID、名称、状态、端口映射、资源使用情况）：${NC}"
+    echo -e "${GREEN}查看所有容器状态及资源使用情况：${NC}"
     
-    # 获取容器状态
+    # 获取容器状态及资源使用情况并以表格形式显示
     docker ps -a --format "table {{.ID}}\t{{.Names}}\t{{.Status}}\t{{.Ports}}\t{{.CreatedAt}}" | column -t
-
-    # 获取每个容器的详细信息
+    
+    # 获取每个容器的资源使用情况
     echo -e "\n${GREEN}==============================${NC}"
-    echo -e "${GREEN}容器的详细信息（ID、状态、端口、内存、CPU）${NC}"
+    echo -e "${GREEN}容器的详细资源使用情况（CPU, 内存等）：${NC}"
+
+    # 使用 docker stats 获取每个容器的资源使用情况并与容器状态合并
     for container in $(docker ps -q); do
-        # 获取容器的资源使用情况
-        container_status=$(docker inspect --format '{{.State.Status}}' $container)
+        container_id=$(docker inspect --format '{{.Id}}' $container)
         container_name=$(docker inspect --format '{{.Name}}' $container | sed 's/\///g')
+        container_status=$(docker inspect --format '{{.State.Status}}' $container)
         container_ports=$(docker inspect --format '{{.NetworkSettings.Ports}}' $container)
         container_memory=$(docker stats --no-stream --format "{{.MemUsage}}" $container)
         container_cpu=$(docker stats --no-stream --format "{{.CPUPerc}}" $container)
 
-        # 显示表格
-        echo -e "${GREEN}容器 $container_name 的详细信息：${NC}"
-        echo -e "容器ID: $container"
+        echo -e "容器 ID: $container_id"
+        echo -e "容器名称: $container_name"
         echo -e "状态: $container_status"
         echo -e "端口映射: $container_ports"
         echo -e "内存使用情况: $container_memory"
@@ -161,4 +162,5 @@ pause() {
 
 # 启动脚本
 show_menu
+
 
