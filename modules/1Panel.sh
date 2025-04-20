@@ -53,30 +53,10 @@ uninstall_panel() {
     read -p "您确定要卸载 1Panel 吗？[y/n]: " confirm
     if [[ "$confirm" == "y" || "$confirm" == "Y" ]]; then
         echo "正在卸载 1Panel..."
-
-        # 假设安装目录和配置文件路径
-        INSTALL_DIR="/root/1panel_installation"
-        PANEL_CONFIG_PATH="/root/1panel_config.txt"
         
-        # 停止相关服务
-        systemctl stop 1panel  # 如果 1Panel 有服务，可以使用 systemctl 停止它
-        systemctl disable 1panel  # 如果 1Panel 是开机启动服务
-
-        # 删除 1Panel 安装文件和配置文件
-        if [ -d "$INSTALL_DIR" ]; then
-            rm -rf "$INSTALL_DIR"
-            echo "已删除安装目录 $INSTALL_DIR"
-        fi
-
-        if [ -f "$PANEL_CONFIG_PATH" ]; then
-            rm -f "$PANEL_CONFIG_PATH"
-            echo "已删除配置文件 $PANEL_CONFIG_PATH"
-        fi
-
-        # 如果有其他可能的服务或文件需要删除，可以根据需要添加
-        # 例如，删除 1Panel 的服务文件
-        # rm -f /etc/systemd/system/1panel.service
-
+        # 使用 1pctl 卸载 1Panel
+        1pctl uninstall
+        
         echo "1Panel 卸载完成！"
     else
         echo "取消卸载。"
