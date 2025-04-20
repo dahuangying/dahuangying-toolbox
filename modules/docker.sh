@@ -1,76 +1,325 @@
 #!/bin/bash
 
-# Docker 一键管理脚本
-# 功能版本 v1.2
-# 原始作者：kejilion
-# 修改日期：2023-10-20
+# 设置颜色
+GREEN="\033[0;32m"  # 绿色
+NC="\033[0m"        # 重置颜色
 
-RED="\033[31m"
-GREEN="\033[32m"
-YELLOW="\033[33m"
-BLUE="\033[36m"
-PLAIN="\033[0m"
-
+# 显示主菜单
 show_menu() {
-    echo -e "${BLUE}Docker 管理脚本${PLAIN}"
-    echo -e "${GREEN}1.${PLAIN} 安装 Docker"
-    echo -e "${GREEN}2.${PLAIN} 卸载 Docker"
-    echo -e "${GREEN}3.${PLAIN} 启动 Docker"
-    echo -e "${GREEN}4.${PLAIN} 停止 Docker"
-    echo -e "${GREEN}5.${PLAIN} 重启 Docker"
-    echo -e "${GREEN}6.${PLAIN} 查看 Docker 状态"
-    echo -e "${GREEN}7.${PLAIN} 查看所有容器"
-    echo -e "${GREEN}8.${PLAIN} 查看所有镜像"
-    echo -e "${GREEN}9.${PLAIN} 清理无用镜像/容器"
-    echo -e "${GREEN}10.${PLAIN} 退出脚本"
-    echo
-    read -rp "请输入选项 [1-10]: " choice
-}
-
-install_docker() {
-    echo -e "${BLUE}开始安装 Docker...${PLAIN}"
-    curl -fsSL https://get.docker.com | bash -s docker
-    systemctl enable docker
-    systemctl start docker
-    echo -e "${GREEN}Docker 安装完成！${PLAIN}"
-    docker --version
-}
-
-uninstall_docker() {
-    echo -e "${RED}开始卸载 Docker...${PLAIN}"
-    systemctl stop docker
-    apt-get purge docker-ce docker-ce-cli containerd.io -y
-    rm -rf /var/lib/docker
-    rm -rf /var/lib/containerd
-    echo -e "${GREEN}Docker 已卸载！${PLAIN}"
-}
-
-clean_docker() {
-    echo -e "${YELLOW}开始清理无用资源...${PLAIN}"
-    docker system prune -af
-    echo -e "${GREEN}清理完成！${PLAIN}"
-}
-
-while true; do
-    show_menu
-    case $choice in
-        1) install_docker ;;
-        2) uninstall_docker ;;
-        3) systemctl start docker && echo -e "${GREEN}Docker 已启动${PLAIN}" ;;
-        4) systemctl stop docker && echo -e "${GREEN}Docker 已停止${PLAIN}" ;;
-        5) systemctl restart docker && echo -e "${GREEN}Docker 已重启${PLAIN}" ;;
-        6) systemctl status docker ;;
-        7) docker ps -a ;;
-        8) docker images ;;
-        9) clean_docker ;;
-        10) break ;;
-        *) echo -e "${RED}无效选项，请重新输入！${PLAIN}" ;;
+    clear
+    echo -e "${GREEN}大黄鹰-Linux服务器运维工具箱菜单-Docker 管理脚本${NC}"
+    echo -e "欢迎使用本脚本，请根据菜单选择操作："
+    echo -e "${GREEN}==================================${NC}"
+    echo "1. 查看 Docker 容器、镜像、卷和网络状态"
+    echo "2. 安装/更新 Docker 环境"
+    echo "3. 启动容器"
+    echo "4. 停止容器"
+    echo "5. 停止所有容器"
+    echo "6. 启动所有容器"
+    echo "7. 删除指定容器"
+    echo "8. 删除指定镜像"
+    echo "9. 创建新容器"
+    echo "10. 创建新镜像"
+    echo "11. Docker 网络管理"
+    echo "12. Docker 卷管理"
+    echo "13. 清理所有未使用的资源"
+    echo "0. 退出"
+    echo -e "${GREEN}==================================${NC}"
+    read -p "请输入选项: " option
+    case $option in
+        1) show_docker_status ;;
+        2) install_update_docker ;;
+        3) start_container ;;
+        4) stop_container ;;
+        5) stop_all_containers ;;
+        6) start_all_containers ;;
+        7) remove_specified_container ;;
+        8) remove_specified_image ;;
+        9) create_new_container ;;
+        10) create_new_image ;;
+        11) manage_docker_network ;;
+        12) manage_docker_volumes ;;
+        13) clean_unused_resources ;;
+        0) exit 0 ;;
+        *) echo "无效的选项，请重新选择！" && sleep 2 && show_menu ;;
     esac
-    echo
-    read -rp "按回车键继续..."
-done
+}
 
-echo -e "${BLUE}脚本已退出${PLAIN}"
+# 查看 Docker 容器、镜像、卷和网络状态
+show_docker_status() {
+    echo -e "${GREEN}==============================${NC}"
+    echo -e "${GREEN}查看所有容器状态（ID、名称、状态、内存、CPU、端口映射、资源使用情况）：${NC}"
+    
+    # 获取容器状态并显示
+    docker ps -a --format "table {{.ID}}\t{{.Names}}\t{{.Status}}\t{{.Ports}}\t{{.CreatedAt}}" | column -t
+
+    # 获取容器的详细资源使用情况（内存、CPU）
+    echo -e "\n${GREEN}==============================${NC}"
+    echo -e "${GREEN}容器的详细资源使用情况（内存、CPU、端口映射）：${NC}"
+
+    # 显示每个容器的详细状态
+    for container in $(docker ps -q); do
+        container_id=$(docker inspect --format '{{.Id}}' $container)
+        container_name=$(docker inspect --format '{{.Name}}' $container | sed 's/\///g')
+        container_status=$(docker inspect --format '{{.State.Status}}' $container)
+        container_ports=$(docker inspect --format '{{.NetworkSettings.Ports}}' $container)
+        container_memory=$(docker stats --no-stream --format "{{.MemUsage}}" $container)
+        container_cpu=$(docker stats --no-stream --format "{{.CPUPerc}}" $container)
+
+        # 直接显示容器详细信息
+        echo -e "$container_id\t$container_name\t$container_status\t$container_ports\t$container_memory\t$container_cpu"
+        echo -e "${GREEN}==============================${NC}"
+    done
+
+    # 显示镜像信息
+    echo -e "\n${GREEN}==============================${NC}"
+    echo -e "${GREEN}查看所有镜像状态（ID、名称、标签、创建时间、大小）：${NC}"
+    docker images --format "table {{.ID}}\t{{.Repository}}\t{{.Tag}}\t{{.CreatedAt}}\t{{.Size}}" | column -t
+
+    # 显示卷信息
+    echo -e "\n${GREEN}==============================${NC}"
+    echo -e "${GREEN}查看 Docker 卷（驱动、名称）：${NC}"
+    docker volume ls --format "table {{.Driver}}\t{{.Name}}" | column -t
+
+    # 显示网络信息
+    echo -e "\n${GREEN}==============================${NC}"
+    echo -e "${GREEN}查看 Docker 网络（ID、名称、驱动、范围）：${NC}"
+    docker network ls --format "table {{.ID}}\t{{.Name}}\t{{.Driver}}\t{{.Scope}}" | column -t
+
+    pause
+    show_menu
+}
+
+# 安装或更新 Docker 环境
+install_update_docker() {
+    echo "正在安装或更新 Docker..."
+
+    # 更新系统
+    sudo apt-get update -y
+
+    # 安装 Docker
+    sudo apt-get install -y docker.io
+
+    # 启动 Docker 服务
+    sudo systemctl enable --now docker
+
+    # 安装 Docker Compose
+    sudo curl -L "https://github.com/docker/compose/releases/download/2.35.1/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+    sudo chmod +x /usr/local/bin/docker-compose
+
+    echo -e "${GREEN}Docker 和 Docker Compose 安装/更新完成！${NC}"
+    pause
+    show_menu
+}
+
+# 启动容器
+start_container() {
+    read -p "请输入要启动的容器 ID 或名称: " container_id
+    docker start $container_id
+    echo -e "${GREEN}容器 $container_id 已启动！${NC}"
+    pause
+    show_menu
+}
+
+# 停止容器
+stop_container() {
+    read -p "请输入要停止的容器 ID 或名称: " container_id
+    docker stop $container_id
+    echo -e "${GREEN}容器 $container_id 已停止！${NC}"
+    pause
+    show_menu
+}
+
+# 停止所有容器
+stop_all_containers() {
+    docker stop $(docker ps -q)
+    echo -e "${GREEN}所有容器已停止！${NC}"
+    pause
+    show_menu
+}
+
+# 启动所有容器
+start_all_containers() {
+    docker start $(docker ps -a -q)
+    echo -e "${GREEN}所有容器已启动！${NC}"
+    pause
+    show_menu
+}
+
+# 删除指定容器
+remove_specified_container() {
+    read -p "请输入要删除的容器 ID 或名称: " container_id
+    docker rm -f $container_id
+    echo -e "${GREEN}容器 $container_id 已删除！${NC}"
+    pause
+    show_menu
+}
+
+# 删除指定镜像
+remove_specified_image() {
+    read -p "请输入要删除的镜像 ID 或名称: " image_id
+    docker rmi -f $image_id
+    echo -e "${GREEN}镜像 $image_id 已删除！${NC}"
+    pause
+    show_menu
+}
+
+# 创建新容器
+create_new_container() {
+    read -p "请输入新容器的镜像名称: " image_name
+    read -p "请输入新容器的名称（可选）: " container_name
+    if [[ -z "$image_name" ]]; then
+        echo "镜像名称不能为空！"
+        return
+    fi
+    docker run -d --name $container_name $image_name
+    echo -e "${GREEN}新容器已创建！${NC}"
+    pause
+    show_menu
+}
+
+# 创建新镜像
+create_new_image() {
+    read -p "请输入要创建镜像的容器 ID 或名称: " container_id
+    read -p "请输入镜像标签（可选）: " image_tag
+    if [[ -z "$container_id" ]]; then
+        echo "容器 ID 不能为空！"
+        return
+    fi
+    docker commit $container_id $image_tag
+    echo -e "${GREEN}新镜像已创建！${NC}"
+    pause
+    show_menu
+}
+
+# Docker 网络管理
+manage_docker_network() {
+    echo -e "${GREEN}==============================${NC}"
+    echo -e "${GREEN}1. 创建新网络${NC}"
+    echo -e "${GREEN}2. 加入网络${NC}"
+    echo -e "${GREEN}3. 退出网络${NC}"
+    echo -e "${GREEN}4. 删除网络${NC}"
+    read -p "请输入选项: " network_option
+    case $network_option in
+        1) create_network ;;
+        2) join_network ;;
+        3) leave_network ;;
+        4) delete_network ;;
+        *) echo "无效选项，请重新选择" && manage_docker_network ;;
+    esac
+}
+
+# 创建 Docker 网络
+create_network() {
+    read -p "请输入要创建的网络名称: " network_name
+    docker network create $network_name
+    echo -e "${GREEN}网络 $network_name 已创建！${NC}"
+    pause
+    show_menu
+}
+
+# 加入 Docker 网络
+join_network() {
+    read -p "请输入要加入的容器 ID 或名称: " container_id
+    read -p "请输入要加入的网络名称: " network_name
+    docker network connect $network_name $container_id
+    echo -e "${GREEN}容器 $container_id 已加入网络 $network_name！${NC}"
+    pause
+    show_menu
+}
+
+# 退出 Docker 网络
+leave_network() {
+    read -p "请输入要退出的容器 ID 或名称: " container_id
+    read -p "请输入要退出的网络名称: " network_name
+    docker network disconnect $network_name $container_id
+    echo -e "${GREEN}容器 $container_id 已退出网络 $network_name！${NC}"
+    pause
+    show_menu
+}
+
+# 删除 Docker 网络
+delete_network() {
+    read -p "请输入要删除的网络名称: " network_name
+    docker network rm $network_name
+    echo -e "${GREEN}网络 $network_name 已删除！${NC}"
+    pause
+    show_menu
+}
+
+# Docker 卷管理
+manage_docker_volumes() {
+    echo -e "${GREEN}==============================${NC}"
+    echo -e "${GREEN}1. 创建新卷${NC}"
+    echo -e "${GREEN}2. 删除指定卷${NC}"
+    echo -e "${GREEN}3. 删除所有卷${NC}"
+    read -p "请输入选项: " volume_option
+    case $volume_option in
+        1) create_volume ;;
+        2) delete_specified_volume ;;
+        3) delete_all_volumes ;;
+        *) echo "无效选项，请重新选择" && manage_docker_volumes ;;
+    esac
+}
+
+# 创建新卷
+create_volume() {
+    read -p "请输入要创建的新卷名称: " volume_name
+    docker volume create $volume_name
+    echo -e "${GREEN}新卷 $volume_name 已创建！${NC}"
+    pause
+    show_menu
+}
+
+# 删除指定卷
+delete_specified_volume() {
+    read -p "请输入要删除的卷名称: " volume_name
+    docker volume rm $volume_name
+    echo -e "${GREEN}卷 $volume_name 已删除！${NC}"
+    pause
+    show_menu
+}
+
+# 删除所有卷
+delete_all_volumes() {
+    docker volume rm $(docker volume ls -q)
+    echo -e "${GREEN}所有卷已删除！${NC}"
+    pause
+    show_menu
+}
+
+# 清理所有未使用的资源
+clean_unused_resources() {
+    confirm_action "清理所有未使用的资源" "docker system prune -a --volumes"
+    pause
+    show_menu
+}
+
+# 确认操作
+confirm_action() {
+    action_description=$1
+    command_to_run=$2
+
+    read -p "您确定要执行以下操作？$action_description [y/n]: " confirm
+    if [[ "$confirm" == "y" || "$confirm" == "Y" ]]; then
+        echo "正在执行操作..."
+        eval $command_to_run
+        echo "$action_description 已执行！"
+    else
+        echo "操作已取消。"
+    fi
+}
+
+# 暂停，按任意键继续
+pause() {
+    # 设置绿色文本颜色
+    echo -e "\033[0;32m操作完成，按任意键继续...\033[0m"
+    read -n 1 -s -r
+}
+
+# 启动脚本
+show_menu
+
 
 
 
