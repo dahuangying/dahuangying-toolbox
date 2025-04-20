@@ -7,9 +7,6 @@
 # 配置项
 PANEL_INSTALL_DIR="/root/1panel_installation"  # 1Panel 安装目录
 PANEL_CONFIG_FILE="/root/1panel_config.txt"    # 配置文件路径
-PANEL_LOG_DIR="/var/log/1panel"                 # 日志目录
-PANEL_SERVICE_FILE="/etc/systemd/system/1panel.service"  # 服务文件路径
-PANEL_CLI="/usr/local/bin/1pctl"                # 1pctl 工具路径
 
 # 函数：显示菜单
 show_menu() {
@@ -32,9 +29,29 @@ show_menu() {
     esac
 }
 
+# 函数：检查并删除旧的安装目录
+cleanup_old_installation() {
+    if [ -d "$PANEL_INSTALL_DIR" ]; then
+        echo "检测到旧的安装目录，正在删除..."
+        rm -rf "$PANEL_INSTALL_DIR"
+    fi
+
+    if [ -f "$PANEL_CONFIG_FILE" ]; then
+        echo "检测到旧的配置文件，正在删除..."
+        rm -f "$PANEL_CONFIG_FILE"
+    fi
+
+    echo "旧的安装文件已删除。"
+}
+
 # 函数：安装 1Panel
 install_panel() {
     echo "开始安装 1Panel..."
+    
+    # 检查并删除旧的安装文件
+    cleanup_old_installation
+
+    # 执行安装
     curl -sSL https://resource.1panel.pro/quick_start.sh -o quick_start.sh && bash quick_start.sh
 
     echo "1Panel 安装完成！"
@@ -72,21 +89,6 @@ uninstall_panel() {
         rm -f "$PANEL_CONFIG_FILE"
         echo "已删除配置文件 $PANEL_CONFIG_FILE"
 
-        # 删除日志文件
-        echo "删除日志文件..."
-        rm -rf "$PANEL_LOG_DIR"
-        echo "已删除日志文件 $PANEL_LOG_DIR"
-
-        # 删除服务文件
-        echo "删除服务文件..."
-        rm -f "$PANEL_SERVICE_FILE"
-        echo "已删除服务文件 $PANEL_SERVICE_FILE"
-
-        # 删除 1pctl 工具
-        echo "删除 1pctl 工具..."
-        rm -f "$PANEL_CLI"
-        echo "已删除 1pctl 工具 $PANEL_CLI"
-
         echo "1Panel 卸载完成！"
     else
         echo "取消卸载。"
@@ -97,6 +99,7 @@ uninstall_panel() {
 
 # 启动脚本
 show_menu
+
 
 
 
