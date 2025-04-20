@@ -9,7 +9,7 @@ show_menu() {
     clear
     echo -e "${GREEN}大黄鹰-Linux服务器运维工具箱菜单-Docker 管理脚本${NC}"
     echo -e "欢迎使用本脚本，请根据菜单选择操作："
-    echo -e "${GREEN}=================================================${NC}"
+    echo -e "${GREEN}==================================${NC}"
     echo "1. 查看 Docker 容器和镜像状态"
     echo "2. 停止所有运行中的容器"
     echo "3. 删除所有容器"
@@ -20,6 +20,7 @@ show_menu() {
     echo "8. 删除指定容器"
     echo "9. 删除指定镜像"
     echo "0. 退出"
+    echo -e "${GREEN}==================================${NC}"
     read -p "请输入选项: " option
     case $option in
         1) show_docker_status ;;
@@ -38,12 +39,25 @@ show_menu() {
 
 # 查看 Docker 容器和镜像状态
 show_docker_status() {
-    echo "=============================="
-    echo "查看所有容器状态"
-    docker ps -a
-    echo "=============================="
-    echo "查看所有镜像状态"
-    docker images
+    echo -e "${GREEN}==============================${NC}"
+    echo "查看所有容器状态："
+    docker ps -a --format "table {{.ID}}\t{{.Names}}\t{{.Status}}\t{{.Ports}}\t{{.CreatedAt}}"
+    
+    echo -e "${GREEN}==============================${NC}"
+    echo "查看每个容器的详细信息："
+    for container in $(docker ps -q); do
+        echo -e "${GREEN}容器 $container 的详细信息：${NC}"
+        docker inspect $container | jq '.[0] | {ID: .Id, Name: .Name, Status: .State.Status, StartedAt: .State.StartedAt, Ports: .NetworkSettings.Ports, Memory: .HostConfig.Memory, CPU: .HostConfig.CpuShares}'
+        echo -e "${GREEN}==============================${NC}"
+    done
+    
+    echo -e "${GREEN}==============================${NC}"
+    echo "查看所有镜像状态："
+    docker images --format "table {{.ID}}\t{{.Repository}}\t{{.Tag}}\t{{.CreatedAt}}\t{{.Size}}"
+
+    echo -e "${GREEN}==============================${NC}"
+    echo "查看容器资源使用情况（CPU, Memory 等）："
+    docker stats --no-stream
     pause
     show_menu
 }
@@ -134,6 +148,3 @@ pause() {
 
 # 启动脚本
 show_menu
-
-
-
