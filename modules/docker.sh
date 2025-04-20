@@ -126,7 +126,7 @@ start_container() {
     docker start $container_id
     echo -e "${GREEN}容器 $container_id 已启动！${NC}"
     pause
-    show_menu
+    docker_container_management
 }
 
 # 停止容器
@@ -138,7 +138,7 @@ stop_container() {
     docker stop $container_id
     echo -e "${GREEN}容器 $container_id 已停止！${NC}"
     pause
-    show_menu
+    docker_container_management
 }
 
 # 启动所有容器
@@ -146,7 +146,7 @@ start_all_containers() {
     docker start $(docker ps -a -q)
     echo -e "${GREEN}所有容器已启动！${NC}"
     pause
-    show_menu
+    docker_container_management
 }
 
 # 停止所有容器
@@ -154,7 +154,7 @@ stop_all_containers() {
     docker stop $(docker ps -q)
     echo -e "${GREEN}所有容器已停止！${NC}"
     pause
-    show_menu
+    docker_container_management
 }
 
 # 创建指定容器
@@ -170,7 +170,7 @@ create_new_container() {
     docker run -d --name $container_name $image_name
     echo -e "${GREEN}新容器已创建！${NC}"
     pause
-    show_menu
+    docker_container_management
 }
 
 # 删除指定容器
@@ -182,7 +182,7 @@ remove_specified_container() {
     docker rm -f $container_id
     echo -e "${GREEN}容器 $container_id 已删除！${NC}"
     pause
-    show_menu
+    docker_container_management
 }
 
 # Docker 镜像管理
@@ -213,7 +213,7 @@ remove_specified_image() {
     docker rmi -f $image_id
     echo -e "${GREEN}镜像 $image_id 已删除！${NC}"
     pause
-    show_menu
+    docker_image_management
 }
 
 # 删除所有镜像
@@ -221,7 +221,7 @@ remove_all_images() {
     docker rmi -f $(docker images -q)
     echo -e "${GREEN}所有镜像已删除！${NC}"
     pause
-    show_menu
+    docker_image_management
 }
 
 # Docker 网络管理
@@ -254,7 +254,7 @@ create_network() {
     docker network create $network_name
     echo -e "${GREEN}网络 $network_name 已创建！${NC}"
     pause
-    show_menu
+    docker_network_management
 }
 
 # 加入 Docker 网络
@@ -270,7 +270,7 @@ join_network() {
     docker network connect $network_name $container_id
     echo -e "${GREEN}容器 $container_id 已加入网络 $network_name！${NC}"
     pause
-    show_menu
+    docker_network_management
 }
 
 # 退出 Docker 网络
@@ -286,7 +286,7 @@ leave_network() {
     docker network disconnect $network_name $container_id
     echo -e "${GREEN}容器 $container_id 已退出网络 $network_name！${NC}"
     pause
-    show_menu
+    docker_network_management
 }
 
 # 删除 Docker 网络
@@ -298,7 +298,7 @@ delete_network() {
     docker network rm $network_name
     echo -e "${GREEN}网络 $network_name 已删除！${NC}"
     pause
-    show_menu
+    docker_network_management
 }
 
 # Docker 卷管理
@@ -329,7 +329,7 @@ create_volume() {
     docker volume create $volume_name
     echo -e "${GREEN}新卷 $volume_name 已创建！${NC}"
     pause
-    show_menu
+    docker_volume_management
 }
 
 # 删除指定卷
@@ -341,7 +341,7 @@ delete_specified_volume() {
     docker volume rm $volume_name
     echo -e "${GREEN}卷 $volume_name 已删除！${NC}"
     pause
-    show_menu
+    docker_volume_management
 }
 
 # 删除所有卷
@@ -349,7 +349,7 @@ delete_all_volumes() {
     docker volume rm $(docker volume ls -q)
     echo -e "${GREEN}所有卷已删除！${NC}"
     pause
-    show_menu
+    docker_volume_management
 }
 
 # 清理所有未使用的资源
@@ -383,6 +383,7 @@ pause() {
 
 # 启动脚本
 show_menu
+
 
 
 
