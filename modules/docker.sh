@@ -22,9 +22,11 @@ show_menu() {
     echo "2. 停止所有运行中的容器"
     echo "3. 删除所有容器"
     echo "4. 删除所有镜像"
-    echo "5. 清理所有未使用的资源"
-    echo "6. 删除指定容器"
-    echo "7. 删除指定镜像"
+    echo "5. 创建新容器"
+    echo "6. 创建新镜像"
+    echo "7. 清理所有未使用的资源"
+    echo "8. 删除指定容器"
+    echo "9. 删除指定镜像"
     echo "0. 退出"
     echo "========================="
     read -p "请输入选项: " option
@@ -33,9 +35,11 @@ show_menu() {
         2) stop_all_containers ;;
         3) remove_all_containers ;;
         4) remove_all_images ;;
-        5) clean_unused_resources ;;
-        6) remove_specified_container ;;
-        7) remove_specified_image ;;
+        5) create_new_container ;;
+        6) create_new_image ;;
+        7) clean_unused_resources ;;
+        8) remove_specified_container ;;
+        9) remove_specified_image ;;
         0) exit 0 ;;
         *) echo "无效的选项，请重新选择！" && sleep 2 && show_menu ;;
     esac
@@ -55,36 +59,28 @@ show_docker_status() {
 
 # 停止所有运行中的容器
 stop_all_containers() {
-    echo "停止所有运行中的容器..."
-    docker stop $(docker ps -q)
-    echo "所有容器已停止！"
+    confirm_action "停止所有运行中的容器" "docker stop $(docker ps -q)"
     sleep 2
     show_menu
 }
 
 # 删除所有容器
 remove_all_containers() {
-    echo "删除所有容器..."
-    docker rm $(docker ps -a -q)
-    echo "所有容器已删除！"
+    confirm_action "删除所有容器" "docker rm $(docker ps -a -q)"
     sleep 2
     show_menu
 }
 
 # 删除所有镜像
 remove_all_images() {
-    echo "删除所有镜像..."
-    docker rmi $(docker images -q)
-    echo "所有镜像已删除！"
+    confirm_action "删除所有镜像" "docker rmi $(docker images -q)"
     sleep 2
     show_menu
 }
 
 # 清理所有未使用的资源
 clean_unused_resources() {
-    echo "清理所有未使用的资源..."
-    docker system prune -a --volumes
-    echo "未使用的资源已清理！"
+    confirm_action "清理所有未使用的资源" "docker system prune -a --volumes"
     sleep 2
     show_menu
 }
@@ -92,9 +88,7 @@ clean_unused_resources() {
 # 删除指定容器
 remove_specified_container() {
     read -p "请输入要删除的容器 ID 或名称: " container_id
-    echo "删除容器 $container_id..."
-    docker rm -f $container_id
-    echo "容器 $container_id 已删除！"
+    confirm_action "删除容器 $container_id" "docker rm -f $container_id"
     sleep 2
     show_menu
 }
@@ -102,15 +96,43 @@ remove_specified_container() {
 # 删除指定镜像
 remove_specified_image() {
     read -p "请输入要删除的镜像 ID 或名称: " image_id
-    echo "删除镜像 $image_id..."
-    docker rmi -f $image_id
-    echo "镜像 $image_id 已删除！"
+    confirm_action "删除镜像 $image_id" "docker rmi -f $image_id"
     sleep 2
     show_menu
 }
 
-# 欢迎信息
-show_intro
+# 创建新容器
+create_new_container() {
+    read -p "请输入新容器的镜像名称: " image_name
+    read -p "请输入新容器的名称（可选）: " container_name
+    confirm_action "创建新容器" "docker run -d --name $container_name $image_name"
+    sleep 2
+    show_menu
+}
+
+# 创建新镜像
+create_new_image() {
+    read -p "请输入要创建镜像的容器 ID 或名称: " container_id
+    read -p "请输入镜像标签（可选）: " image_tag
+    confirm_action "创建镜像 $image_tag" "docker commit $container_id $image_tag"
+    sleep 2
+    show_menu
+}
+
+# 确认操作
+confirm_action() {
+    action_description=$1
+    command_to_run=$2
+
+    read -p "您确定要执行以下操作？$action_description [y/n]: " confirm
+    if [[ "$confirm" == "y" || "$confirm" == "Y" ]]; then
+        echo "正在执行操作..."
+        eval $command_to_run
+        echo "$action_description 已执行！"
+    else
+        echo "操作已取消。"
+    fi
+}
 
 # 主程序入口
 while true; do
