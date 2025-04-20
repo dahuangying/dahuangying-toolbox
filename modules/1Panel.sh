@@ -5,9 +5,8 @@
 # Author: ChatGPT
 
 # 配置项
-PANEL_INSTALL_DIR="/root/1panel_installation"  # 1Panel 安装目录
-PANEL_CONFIG_FILE="/root/1panel_config.txt"    # 配置文件路径
-PANEL_SERVICE_FILE="/etc/systemd/system/1panel.service"  # 1Panel 服务文件
+PANEL_INSTALL_DIR="/opt/1panel"  # 1Panel 安装目录
+PANEL_SERVICE_FILE="/etc/systemd/system/1panel.service"  # 1Panel 服务文件路径
 
 # 函数：显示菜单
 show_menu() {
@@ -116,6 +115,7 @@ uninstall_panel() {
 
 # 启动脚本
 show_menu
+
 
 
 
