@@ -45,7 +45,15 @@ view_panel_info() {
     echo "查看面板信息..."
     1pctl user-info
 
-    echo修改面板密码： "1pctl update password"
+    # 提示用户输入新密码
+echo "请输入新密码: "
+read -sp "新密码: " new_password
+echo
+read -sp "确认新密码: " confirm_password
+echo
+
+
+fi
     
 
     sleep 2
