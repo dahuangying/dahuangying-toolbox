@@ -15,13 +15,13 @@ show_menu() {
     clear
     
     # 检查是否已安装 1Panel
-    if [ -d "$PANEL_INSTALL_DIR" ]; then
+    if [ -d "$PANEL_INSTALL_DIR" ] || [ -f "$PANEL_SERVICE_FILE" ]; then
         INSTALL_STATUS="已安装"
     else
         INSTALL_STATUS="未安装"
     fi
 
-    # 显示安装状态和安装目录（绿色）
+ # 显示安装状态和安装目录（绿色）
     echo -e "${GREEN}1Panel 安装状态: $INSTALL_STATUS${NC}"
     echo -e "${GREEN}安装目录: $PANEL_INSTALL_DIR${NC}"
     echo -e "${GREEN}========================================${NC}"
@@ -29,7 +29,6 @@ show_menu() {
     echo -e "${GREEN}大黄鹰-Linux服务器运维工具箱菜单-1Panel${NC}"
     echo -e "欢迎使用本脚本，请根据菜单选择操作："
     echo -e "${GREEN}========================================${NC}"
-
     # 主菜单选项
     echo "1. 安装 1Panel"
     echo "2. 查看面板信息"
@@ -121,18 +120,3 @@ uninstall_panel() {
 
 # 启动脚本
 show_menu
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
