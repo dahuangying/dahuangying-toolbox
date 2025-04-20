@@ -1,12 +1,13 @@
 #!/bin/bash
 
 # 1Panel 安装管理脚本
-# Version: 1.0
+# Version: 1.1
 # Author: ChatGPT
 
 # 配置项
 PANEL_INSTALL_DIR="/root/1panel_installation"  # 1Panel 安装目录
 PANEL_CONFIG_FILE="/root/1panel_config.txt"    # 配置文件路径
+PANEL_SERVICE_FILE="/etc/systemd/system/1panel.service"  # 1Panel 服务文件
 
 # 函数：显示菜单
 show_menu() {
@@ -14,11 +15,21 @@ show_menu() {
     echo "========================="
     echo " 1Panel 安装管理脚本"
     echo "========================="
+    
+    # 检查是否已安装 1Panel
+    if [ -d "$PANEL_INSTALL_DIR" ]; then
+        INSTALL_STATUS="已安装"
+    else
+        INSTALL_STATUS="未安装"
+    fi
+
     echo "1. 安装 1Panel"
     echo "2. 查看面板信息"
     echo "3. 修改密码"
     echo "4. 卸载 1Panel"
-    echo "0. 退出"
+    echo "-------------------------"
+    echo "1Panel 安装状态: $INSTALL_STATUS"
+    echo "安装目录: $PANEL_INSTALL_DIR"
     echo "========================="
     read -p "请输入选项: " option
     case $option in
@@ -41,7 +52,8 @@ install_panel() {
     echo "1Panel 安装完成！"
     echo "请使用以下命令查看面板地址："
     echo "您可以通过 1pctl user-info 查看面板信息"
-    sleep 2
+    echo -e "\e[32m操作完成，按任意键继续...\e[0m"
+    read -n 1 -s
     show_menu
 }
 
@@ -49,7 +61,8 @@ install_panel() {
 view_panel_info() {
     echo "正在获取面板信息..."
     1pctl user-info
-    sleep 2
+    echo -e "\e[32m操作完成，按任意键继续...\e[0m"
+    read -n 1 -s
     show_menu
 }
 
@@ -58,7 +71,8 @@ update_password() {
     echo "正在修改密码..."
     # 通过官方命令修改密码
     1pctl update password
-    sleep 2
+    echo -e "\e[32m操作完成，按任意键继续...\e[0m"
+    read -n 1 -s
     show_menu
 }
 
@@ -95,12 +109,14 @@ uninstall_panel() {
     else
         echo "取消卸载。"
     fi
-    sleep 2
+    echo -e "\e[32m操作完成，按任意键继续...\e[0m"
+    read -n 1 -s
     show_menu
 }
 
 # 启动脚本
 show_menu
+
 
 
 
