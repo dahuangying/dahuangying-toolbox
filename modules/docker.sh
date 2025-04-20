@@ -14,9 +14,9 @@ show_menu() {
     volumes=$(docker volume ls -q | wc -l)
 
     # 显示环境状态
+    echo -e "${GREEN}环境状态： 容器: $containers  镜像: $images  网络: $networks  卷: $volumes ${NC}"
     echo -e "${GREEN}====================================================${NC}"
     echo -e "${GREEN}大黄鹰-Linux服务器运维工具箱菜单-Docker 管理脚本${NC}"
-    echo -e "${GREEN}环境状态： 容器: $containers  镜像: $images  网络: $networks  卷: $volumes ${NC}"
     echo -e "欢迎使用本脚本，请根据菜单选择操作："
     echo -e "${GREEN}====================================================${NC}"
     echo "1. 查看 Docker 容器、镜像、卷和网络状态"
