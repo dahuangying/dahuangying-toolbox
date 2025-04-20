@@ -41,8 +41,8 @@ show_menu() {
 show_docker_status() {
     echo -e "${GREEN}==============================${NC}"
     echo -e "${GREEN}查看所有容器状态（ID、名称、状态、内存、CPU、端口映射、资源使用情况）：${NC}"
-    
-    # 获取容器状态、资源使用情况并以表格形式显示
+
+    # 获取容器状态及资源使用情况，并以表格形式显示
     docker ps -a --format "table {{.ID}}\t{{.Names}}\t{{.Status}}\t{{.Ports}}\t{{.CreatedAt}}" | column -t
 
     # 获取每个容器的详细资源使用情况（内存、CPU）以及端口映射
@@ -58,13 +58,13 @@ show_docker_status() {
         container_memory=$(docker stats --no-stream --format "{{.MemUsage}}" $container)
         container_cpu=$(docker stats --no-stream --format "{{.CPUPerc}}" $container)
 
-        # 表格形式展示容器详细信息
-        echo -e "容器ID: $container_id"
-        echo -e "容器名称: $container_name"
-        echo -e "状态: $container_status"
-        echo -e "端口映射: $container_ports"
-        echo -e "内存使用情况: $container_memory"
-        echo -e "CPU使用情况: $container_cpu"
+        # 表格形式展示容器详细信息，调整列宽以保持对齐
+        echo -e "容器ID:     $container_id"
+        echo -e "容器名称:   $container_name"
+        echo -e "状态:      $container_status"
+        echo -e "端口映射:   $container_ports"
+        echo -e "内存使用:   $container_memory"
+        echo -e "CPU使用:    $container_cpu"
         echo -e "${GREEN}==============================${NC}"
     done
 
@@ -163,6 +163,7 @@ pause() {
 
 # 启动脚本
 show_menu
+
 
 
 
