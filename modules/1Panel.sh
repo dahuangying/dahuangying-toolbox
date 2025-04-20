@@ -15,85 +15,70 @@ check_root() {
     fi
 }
 
+# 获取1Panel配置（修复端口和路径获取问题）
+get_1panel_config() {
+    # 1. 获取端口（优先从 systemd 或配置文件读取）
+    PANEL_PORT=$(grep -oP "server.port=\K[0-9]+" /opt/1panel/conf/app.conf 2>/dev/null || \
+                 grep -oP "ListenPort\":\K[0-9]+" /opt/1panel/db/1Panel.db 2>/dev/null || \
+                 echo "2096")  # 默认端口
+
+    # 2. 获取安全入口路径（如 /qazwsx）
+    PANEL_PATH=$(grep -oP "server.context-path=\K\S+" /opt/1panel/conf/app.conf 2>/dev/null || \
+                grep -oP "SecurityEntrance\":\"\K[^\"]+" /opt/1panel/db/1Panel.db 2>/dev/null || \
+                echo "")  # 默认为空
+
+    # 3. 获取IP地址
+    PUBLIC_IP=$(curl -s ifconfig.me || ip a | grep -oP 'inet \K[\d.]+' | grep -v '127.0.0.1' | head -n1)
+    PRIVATE_IP=$(hostname -I | awk '{print $1}')
+
+    # 4. 获取密码
+    PANEL_PASS=$(cat /opt/1panel/credentials/password.txt 2>/dev/null || \
+                grep -oP "\\\"password\\\":\\\"\K[^\"]+" /opt/1panel/db/1Panel.db 2>/dev/null || \
+                echo "${RED}未找到密码${NC}")
+}
+
+# 显示面板信息（修复版）
+show_info() {
+    get_1panel_config  # 调用配置获取函数
+
+    echo -e "\n${BLUE}========== 1Panel 访问信息 ==========${NC}"
+    echo -e "${GREEN}● 面板地址：${NC}"
+    echo -e "  外部访问: ${YELLOW}http://${PUBLIC_IP}:${PANEL_PORT}${PANEL_PATH}${NC}"
+    echo -e "  内部访问: ${YELLOW}http://${PRIVATE_IP}:${PANEL_PORT}${PANEL_PATH}${NC}"
+    echo -e "${GREEN}● 默认用户: ${YELLOW}admin${NC}"
+    echo -e "${GREEN}● 当前密码: ${YELLOW}${PANEL_PASS}${NC}"
+    echo -e "${BLUE}● 修改密码命令: ${GREEN}1pctl update password${NC}"
+}
+
 # 安装1Panel
 install_1panel() {
     echo -e "${GREEN}▶ 正在安装 1Panel...${NC}"
     curl -sSL https://resource.1panel.pro/quick_start.sh -o quick_start.sh && bash quick_start.sh
-
-    if [ $? -eq 0 ]; then
-        echo -e "${GREEN}✔ 1Panel 安装成功！${NC}"
-        show_info
-    else
-        echo -e "${RED}✖ 安装失败，请检查日志！${NC}"
-        exit 1
-    fi
+    [ $? -eq 0 ] && echo -e "${GREEN}✔ 安装成功！${NC}" && show_info || echo -e "${RED}✖ 安装失败！${NC}"
 }
 
-# 卸载1Panel（需确认）
+# 卸载1Panel
 uninstall_1panel() {
-    echo -e "${RED}⚠ 警告：这将彻底卸载 1Panel 并删除所有数据！${NC}"
-    read -p "确定要继续吗？(y/N): " confirm
-    if [[ "$confirm" =~ [yY] ]]; then
-        echo -e "${YELLOW}▶ 正在卸载 1Panel...${NC}"
-        1pctl uninstall
-        if [ $? -eq 0 ]; then
-            echo -e "${GREEN}✔ 1Panel 已卸载！${NC}"
-        else
-            echo -e "${RED}✖ 卸载失败，请手动执行 '1pctl uninstall'${NC}"
-        fi
-    else
-        echo -e "${YELLOW}已取消卸载。${NC}"
-    fi
+    read -p "${RED}⚠ 确认卸载？此操作不可逆！(y/N): ${NC}" confirm
+    [[ "$confirm" =~ [yY] ]] && 1pctl uninstall && echo -e "${GREEN}✔ 已卸载${NC}" || echo -e "${YELLOW}已取消${NC}"
 }
 
-# 修改面板密码
+# 修改密码
 change_password() {
-    echo -e "${YELLOW}▶ 正在修改密码...${NC}"
-    1pctl update password
-    if [ $? -eq 0 ]; then
-        echo -e "${GREEN}✔ 密码修改成功！${NC}"
-        echo -e "${BLUE}提示：新密码已生效，请妥善保存。${NC}"
-    else
-        echo -e "${RED}✖ 密码修改失败！${NC}"
-    fi
-}
-
-# 显示面板信息
-show_info() {
-    echo -e "\n${BLUE}========== 1Panel 访问信息 ==========${NC}"
-
-    # 获取关键配置
-    PORT=$(grep "server.port" /opt/1panel/conf/app.conf 2>/dev/null | awk -F'=' '{print $2}')
-    CONTEXT_PATH=$(grep "server.context-path" /opt/1panel/conf/app.conf 2>/dev/null | awk -F'=' '{print $2}')
-    [ -z "$CONTEXT_PATH" ] && CONTEXT_PATH="/"
-
-    # 获取IP地址
-    PUBLIC_IP=$(curl -s ifconfig.me || echo "未知")
-    PRIVATE_IP=$(hostname -I | awk '{print $1}' || echo "未知")
-
-    # 获取密码
-    PASSWORD=$(cat /opt/1panel/credentials/password.txt 2>/dev/null || echo "${RED}未找到密码文件${NC}")
-
-    # 输出信息
-    echo -e "${GREEN}● 面板地址：${NC}"
-    echo -e "  外部访问: ${YELLOW}http://${PUBLIC_IP}:${PORT}${CONTEXT_PATH}${NC}"
-    echo -e "  内部访问: ${YELLOW}http://${PRIVATE_IP}:${PORT}${CONTEXT_PATH}${NC}"
-    echo -e "${GREEN}● 默认用户: ${YELLOW}admin${NC}"
-    echo -e "${GREEN}● 当前密码: ${YELLOW}${PASSWORD}${NC}"
-    echo -e "${BLUE}● 修改密码命令: ${GREEN}1pctl update password${NC}"
+    1pctl update password && echo -e "${GREEN}✔ 密码已修改${NC}" || echo -e "${RED}✖ 修改失败${NC}"
 }
 
 # 主菜单
 main_menu() {
     clear
-    echo -e "${BLUE}===== 1Panel 全能管理脚本 =====${NC}"
+    echo -e "${BLUE}===== 1Panel 管理脚本 ====="
     echo "1. 安装 1Panel"
     echo "2. 卸载 1Panel"
-    echo "3. 修改面板密码"
-    echo "4. 查看面板信息"
+    echo "3. 修改密码"
+    echo "4. 查看信息"
     echo "0. 退出"
-    echo -e "${BLUE}===============================${NC}"
-    read -p "请输入选项 [0-4]: " choice
+    echo -e "==========================${NC}"
+    read -p "请输入选项: " choice
 
     case $choice in
         1) install_1panel ;;
@@ -101,13 +86,12 @@ main_menu() {
         3) change_password ;;
         4) show_info ;;
         0) exit 0 ;;
-        *) echo -e "${RED}无效输入，请重新选择！${NC}" ;;
+        *) echo -e "${RED}无效选项！${NC}" ;;
     esac
-
-    read -p "按回车键返回主菜单..." dummy
+    read -p "按回车继续..."
     main_menu
 }
 
-# 初始化
+# 启动脚本
 check_root
 main_menu
