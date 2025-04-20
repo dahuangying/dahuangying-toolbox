@@ -1,182 +1,125 @@
 #!/bin/bash
 
-# 设置颜色
+# 1Panel 安装管理脚本
+
+# 配置项
+PANEL_INSTALL_DIR="/opt/1panel"  # 1Panel 安装目录
+PANEL_SERVICE_FILE="/etc/systemd/system/1panel.service"  # 1Panel 服务文件路径
+
+# 颜色配置
 GREEN='\033[0;32m'
-NC='\033[0m' # 无色
-RED='\033[0;31m'
+NC='\033[0m' # No Color
 
-# 显示暂停，按任意键继续
-pause() {
-    echo -e "${GREEN}操作完成，按任意键继续...${NC}"
-    read -n 1 -s -r  # 等待用户按下任意键
-    echo
-}
-
-# 官网介绍
-show_intro() {
-    echo -e "${GREEN}Alist - 多存储文件管理系统${NC}"
-    echo -e "官网介绍: https://alist.nn.ci/zh/"
-    echo -e "${GREEN}------------------------${NC}"
-}
-
-# 用户确认
-confirm_action() {
-    echo -e "${RED}你确定要继续吗？（y/n）${NC}"
-    read confirmation
-    if [[ $confirmation != "y" && $confirmation != "Y" ]]; then
-        echo -e "${GREEN}操作已取消。${NC}"
-        return 1
-    fi
-    return 0
-}
-
-# 安装 Alist
-install_alist() {
-    echo -e "${GREEN}开始安装 Alist...${NC}"
-
-    # 安装依赖
-    apt update && apt install -y wget curl ufw
-
-    # 下载并安装 Alist
-    wget https://github.com/Xhofe/alist/releases/download/v2.0.0/alist-linux-amd64.tar.gz -O /tmp/alist.tar.gz
-    tar -xvzf /tmp/alist.tar.gz -C /tmp
-    mv /tmp/alist /usr/local/bin/
-
-    # 配置文件目录
-    mkdir -p /etc/alist
-    echo -e "${GREEN}Alist 安装完成！启动 Alist：${NC} alist -conf /etc/alist"
-    
-    # 设置防火墙
-    read -p "请输入应用对外服务端口，回车默认使用5244端口: " port
-    port=${port:-5244}
-    ufw allow $port
-    ufw reload
-
-    # 启动 Alist
-    nohup alist -conf /etc/alist > /dev/null 2>&1 &
-
-    echo -e "${GREEN}Alist 启动完成，访问地址：http://(你服务器的IP):5244${NC}"
-    echo "初始用户名: admin@example.com"
-    echo "初始密码: changeme"
-    pause
-}
-
-# 更新 Alist
-update_alist() {
-    echo -e "${GREEN}开始更新 Alist...${NC}"
-    # 更新 Alist
-    wget https://github.com/Xhofe/alist/releases/latest/download/alist-linux-amd64.tar.gz -O /tmp/alist.tar.gz
-    tar -xvzf /tmp/alist.tar.gz -C /tmp
-    mv /tmp/alist /usr/local/bin/
-    echo -e "${GREEN}Alist 更新完成！${NC}"
-    pause
-}
-
-# 卸载 Alist
-uninstall_alist() {
-    echo -e "${RED}你确定要卸载 Alist 吗？（y/n）${NC}"
-    read confirmation
-    if [[ $confirmation == "y" || $confirmation == "Y" ]]; then
-        sudo rm -f /usr/local/bin/alist
-        sudo rm -rf /etc/alist
-        echo -e "${GREEN}Alist 已卸载。${NC}"
-    else
-        echo -e "${GREEN}取消卸载操作。${NC}"
-    fi
-    pause
-}
-
-# 添加域名访问
-add_domain_access() {
-    echo -e "${GREEN}请输入要添加的域名：${NC}"
-    read domain
-    echo -e "${GREEN}添加域名访问：$domain${NC}"
-    # 这里可以添加实际配置域名的命令（例如 Nginx 配置）
-    pause
-}
-
-# 删除域名访问
-delete_domain_access() {
-    echo -e "${GREEN}请输入要删除的域名：${NC}"
-    read domain
-    echo -e "${GREEN}删除域名访问：$domain${NC}"
-    # 这里可以添加实际删除域名配置的命令（例如 Nginx 配置）
-    pause
-}
-
-# 允许IP+端口访问
-allow_ip_port_access() {
-    echo -e "${GREEN}请输入允许访问的IP地址：${NC}"
-    read ip
-    echo -e "${GREEN}请输入允许访问的端口：${NC}"
-    read port
-    echo -e "${GREEN}允许IP：$ip 访问端口：$port${NC}"
-    # 这里可以添加允许IP和端口访问的实际命令（如防火墙规则）
-    pause
-}
-
-# 阻止IP+端口访问
-block_ip_port_access() {
-    echo -e "${GREEN}请输入阻止访问的IP地址：${NC}"
-    read ip
-    echo -e "${GREEN}请输入阻止访问的端口：${NC}"
-    read port
-    echo -e "${GREEN}阻止IP：$ip 访问端口：$port${NC}"
-    # 这里可以添加阻止IP和端口访问的实际命令（如防火墙规则）
-    pause
-}
-
-# 脚本功能菜单
+# 函数：显示菜单
 show_menu() {
-    echo -e "${GREEN}大黄鹰-Linux服务器运维工具箱菜单-Alist${NC}"
+    clear
+    
+    # 检查是否已安装 1Panel
+    if [ -d "$PANEL_INSTALL_DIR" ]; then
+        INSTALL_STATUS="已安装"
+    else
+        INSTALL_STATUS="未安装"
+    fi
+    
+ # 显示安装状态和安装目录（绿色）
+    echo -e "${GREEN}1Panel 安装状态: $INSTALL_STATUS${NC}"
+    echo -e "${GREEN}安装目录: $PANEL_INSTALL_DIR${NC}"
+    echo -e "${GREEN}==================================${NC}"
+
+    # 显示菜单头部
+    echo -e "${GREEN}大黄鹰-Linux服务器运维工具箱菜单-1Panel${NC}"
     echo -e "欢迎使用本脚本，请根据菜单选择操作："
     echo -e "${GREEN}==================================${NC}"
-    echo "1. 安装"
-    echo "2. 更新"
-    echo "3. 卸载"
-    echo "4. 添加域名访问"
-    echo "5. 删除域名访问"
-    echo "6. 允许IP+端口访问"
-    echo "7. 阻止IP+端口访问"
-    echo "0. 退出"
-    read -p "请输入选项编号: " choice
-    case $choice in
-        1)
-            install_alist
-            ;;
-        2)
-            update_alist
-            ;;
-        3)
-            uninstall_alist
-            ;;
-        4)
-            add_domain_access
-            ;;
-        5)
-            delete_domain_access
-            ;;
-        6)
-            allow_ip_port_access
-            ;;
-        7)
-            block_ip_port_access
-            ;;
-        0)
-            echo "感谢使用 Alist 管理工具！"
-            exit 0
-            ;;
-        *)
-            echo "无效输入，请重试。"
-            ;;
+    # 主菜单选项
+    echo "1. 安装 1Panel"
+    echo "2. 查看面板信息"
+    echo "3. 修改密码"
+    echo "4. 卸载 1Panel"
+    echo "-------------------------"
+    read -p "请输入选项: " option
+    case $option in
+        1) install_panel ;;
+        2) view_panel_info ;;
+        3) update_password ;;
+        4) uninstall_panel ;;
+        0) exit 0 ;;
+        *) echo "无效的选项，请重新选择！" && sleep 2 && show_menu ;;
     esac
 }
 
-# 欢迎信息
-show_intro
+# 函数：安装 1Panel
+install_panel() {
+    echo "开始安装 1Panel..."
 
-# 主程序入口
-while true; do
-    show_menu  # 显示菜单
-done
+    # 执行官方安装脚本
+    curl -sSL https://resource.1panel.pro/quick_start.sh -o quick_start.sh && bash quick_start.sh
+
+    echo "1Panel 安装完成！"
+    echo "请使用以下命令查看面板地址："
+    echo "您可以通过 1pctl user-info 查看面板信息"
+    echo -e "\e[32m操作完成，按任意键继续...\e[0m"
+    read -n 1 -s
+    show_menu
+}
+
+# 函数：查看面板信息
+view_panel_info() {
+    echo "正在获取面板信息..."
+    1pctl user-info
+    echo -e "\e[32m操作完成，按任意键继续...\e[0m"
+    read -n 1 -s
+    show_menu
+}
+
+# 函数：修改密码
+update_password() {
+    echo "正在修改密码..."
+    # 通过官方命令修改密码
+    1pctl update password
+    echo -e "\e[32m操作完成，按任意键继续...\e[0m"
+    read -n 1 -s
+    show_menu
+}
+
+# 函数：卸载 1Panel
+uninstall_panel() {
+    read -p "您确定要卸载 1Panel 并删除所有相关文件吗？[y/n]: " confirm
+    if [[ "$confirm" == "y" || "$confirm" == "Y" ]]; then
+        echo "正在卸载 1Panel..."
+
+        # 查找并删除 1Panel 相关文件
+        echo "查找并删除 1Panel 相关文件..."
+        sudo find / -name "1panel*" -exec sudo rm -f {} \;
+
+        # 删除服务文件
+        echo "检查并删除服务文件..."
+        sudo rm -f /root/1panel-v1.10.29-lts-linux-amd64/1panel.service
+
+        # 检查并禁用服务
+        echo "检查并禁用服务..."
+        sudo systemctl list-units --type=service | grep 1panel
+        sudo systemctl stop 1panel
+        sudo systemctl disable 1panel
+        sudo rm -f /etc/systemd/system/1panel.service
+
+        # 确认删除所有文件
+        echo "确认所有相关文件已删除..."
+        sudo find / -name "1panel*"
+
+        # 清理日志文件
+        echo "清理日志文件..."
+        sudo rm -f /var/log/1panel.log
+
+        echo "1Panel 卸载完成！"
+    else
+        echo "取消卸载。"
+    fi
+    echo -e "\e[32m操作完成，按任意键继续...\e[0m"
+    read -n 1 -s
+    show_menu
+}
+
+# 启动脚本
+show_menu
+
 
