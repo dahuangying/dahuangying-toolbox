@@ -14,11 +14,11 @@ show_menu() {
     volumes=$(docker volume ls -q | wc -l)
 
     # 显示环境状态
-    echo -e "${GREEN}环境状态： 容器: $containers  镜像: $images  网络: $networks  卷: $volumes ${NC}"
-    echo -e "${GREEN}==================================${NC}"
+    echo -e "${GREEN}====================================================${NC}"
     echo -e "${GREEN}大黄鹰-Linux服务器运维工具箱菜单-Docker 管理脚本${NC}"
+    echo -e "${GREEN}环境状态： 容器: $containers  镜像: $images  网络: $networks  卷: $volumes ${NC}"
     echo -e "欢迎使用本脚本，请根据菜单选择操作："
-    echo -e "${GREEN}==================================${NC}"
+    echo -e "${GREEN}====================================================${NC}"
     echo "1. 查看 Docker 容器、镜像、卷和网络状态"
     echo "2. 安装/更新 Docker 环境"
     echo "3. Docker 容器管理"
@@ -27,7 +27,6 @@ show_menu() {
     echo "6. Docker 卷管理"
     echo "7. 清理所有未使用的资源"
     echo "0. 退出"
-    echo -e "${GREEN}==================================${NC}"
     read -p "请输入选项: " option
     case $option in
         1) show_docker_status ;;
@@ -94,8 +93,8 @@ install_update_docker() {
 
 # Docker 容器管理
 docker_container_management() {
-    echo -e "${GREEN}==============================${NC}"
     echo -e "${GREEN}Docker容器管理${NC}"
+    echo -e "${GREEN}==============================${NC}"
     echo "1. 启动容器"
     echo "2. 停止容器"
     echo "3. 启动所有容器"
@@ -103,7 +102,6 @@ docker_container_management() {
     echo "5. 创建指定容器"
     echo "6. 删除指定容器"
     echo "0. 返回"
-    echo -e "${GREEN}==============================${NC}"
     read -p "请输入选项: " container_option
     case $container_option in
         1) start_container ;;
@@ -187,13 +185,12 @@ remove_specified_container() {
 
 # Docker 镜像管理
 docker_image_management() {
-    echo -e "${GREEN}==============================${NC}"
     echo -e "${GREEN}Docker镜像管理${NC}"
+    echo -e "${GREEN}==============================${NC}"
     echo "1. 删除指定镜像"
     echo "2. 创建指定容器"
     echo "3. 删除所有镜像"
     echo "0. 返回"
-    echo -e "${GREEN}==============================${NC}"
     read -p "请输入选项: " image_option
     case $image_option in
         1) remove_specified_image ;;
@@ -226,14 +223,13 @@ remove_all_images() {
 
 # Docker 网络管理
 docker_network_management() {
-    echo -e "${GREEN}==============================${NC}"
     echo -e "${GREEN}Docker网络管理${NC}"
+    echo -e "${GREEN}==============================${NC}"
     echo "1. 创建网络"
     echo "2. 加入网络"
     echo "3. 退出网络"
     echo "4. 删除网络"
     echo "0. 返回"
-    echo -e "${GREEN}==============================${NC}"
     read -p "请输入选项: " network_option
     case $network_option in
         1) create_network ;;
@@ -303,13 +299,12 @@ delete_network() {
 
 # Docker 卷管理
 docker_volume_management() {
-    echo -e "${GREEN}==============================${NC}"
     echo -e "${GREEN}Docker卷管理${NC}"
+    echo -e "${GREEN}==============================${NC}"
     echo "1. 创建新卷"
     echo "2. 删除指定卷"
     echo "3. 删除所有卷"
     echo "0. 返回"
-    echo -e "${GREEN}==============================${NC}"
     read -p "请输入选项: " volume_option
     case $volume_option in
         1) create_volume ;;
@@ -383,14 +378,3 @@ pause() {
 
 # 启动脚本
 show_menu
-
-
-
-
-
-
-
-
-
-
-
