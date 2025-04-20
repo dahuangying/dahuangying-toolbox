@@ -1,8 +1,16 @@
 #!/bin/bash
 
-# Docker 管理脚本
-# Version: 1.0
-# Author: ChatGPT
+# 设置颜色
+GREEN='\033[0;32m'
+NC='\033[0m' # 无色
+RED='\033[0;31m'
+
+# 显示暂停，按任意键继续
+pause() {
+    echo -e "${GREEN}操作完成，按任意键继续...${NC}"
+    read -n 1 -s -r  # 等待用户按下任意键
+    echo
+}
 
 # 显示主菜单
 show_menu() {
@@ -123,11 +131,6 @@ confirm_action() {
     else
         echo "操作已取消。"
     fi
-}
-
-# 暂停，按任意键继续
-pause() {
-    read -n 1 -s -r -p "${GREEN}操作完成，按任意键继续...${NC}"
 }
 
 # 启动脚本
