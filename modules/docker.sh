@@ -4,125 +4,167 @@
 GREEN="\033[0;32m"  # 绿色
 NC="\033[0m"        # 重置颜色
 
-docker_ps() {
-while true; do
-	clear
-	send_stats "Docker容器管理"
-	echo "Docker容器列表"
-	docker ps -a --format "table {{.ID}}\t{{.Names}}\t{{.Status}}\t{{.Ports}}"
-	echo ""
-	echo "容器操作"
-	echo "------------------------"
-	echo "1. 创建新的容器"
-	echo "------------------------"
-	echo "2. 启动指定容器             6. 启动所有容器"
-	echo "3. 停止指定容器             7. 停止所有容器"
-	echo "4. 删除指定容器             8. 删除所有容器"
-	echo "5. 重启指定容器             9. 重启所有容器"
-	echo "------------------------"
-	echo "11. 进入指定容器           12. 查看容器日志"
-	echo "13. 查看容器网络           14. 查看容器占用"
-	echo "------------------------"
-	echo "0. 返回上一级选单"
-	echo "------------------------"
-	read -e -p "请输入你的选择: " sub_choice
-	case $sub_choice in
-		1)
-			send_stats "新建容器"
-			read -e -p "请输入创建命令: " dockername
-			$dockername
-			;;
-		2)
-			send_stats "启动指定容器"
-			read -e -p "请输入容器名（多个容器名请用空格分隔）: " dockername
-			docker start $dockername
-			;;
-		3)
-			send_stats "停止指定容器"
-			read -e -p "请输入容器名（多个容器名请用空格分隔）: " dockername
-			docker stop $dockername
-			;;
-		4)
-			send_stats "删除指定容器"
-			read -e -p "请输入容器名（多个容器名请用空格分隔）: " dockername
-			docker rm -f $dockername
-			;;
-		5)
-			send_stats "重启指定容器"
-			read -e -p "请输入容器名（多个容器名请用空格分隔）: " dockername
-			docker restart $dockername
-			;;
-		6)
-			send_stats "启动所有容器"
-			docker start $(docker ps -a -q)
-			;;
-		7)
-			send_stats "停止所有容器"
-			docker stop $(docker ps -q)
-			;;
-		8)
-			send_stats "删除所有容器"
-			read -e -p "$(echo -e "${gl_hong}注意: ${gl_bai}确定删除所有容器吗？(Y/N): ")" choice
-			case "$choice" in
-			  [Yy])
-				docker rm -f $(docker ps -a -q)
-				;;
-			  [Nn])
-				;;
-			  *)
-				echo "无效的选择，请输入 Y 或 N。"
-				;;
-			esac
-			;;
-		9)
-			send_stats "重启所有容器"
-			docker restart $(docker ps -q)
-			;;
-		11)
-			send_stats "进入容器"
-			read -e -p "请输入容器名: " dockername
-			docker exec -it $dockername /bin/sh
-			break_end
-			;;
-		12)
-			send_stats "查看容器日志"
-			read -e -p "请输入容器名: " dockername
-			docker logs $dockername
-			break_end
-			;;
-		13)
-			send_stats "查看容器网络"
-			echo ""
-			container_ids=$(docker ps -q)
-			echo "------------------------------------------------------------"
-			printf "%-25s %-25s %-25s\n" "容器名称" "网络名称" "IP地址"
-			for container_id in $container_ids; do
-				local container_info=$(docker inspect --format '{{ .Name }}{{ range $network, $config := .NetworkSettings.Networks }} {{ $network }} {{ $config.IPAddress }}{{ end }}' "$container_id")
-				local container_name=$(echo "$container_info" | awk '{print $1}')
-				local network_info=$(echo "$container_info" | cut -d' ' -f2-)
-				while IFS= read -r line; do
-					local network_name=$(echo "$line" | awk '{print $1}')
-					local ip_address=$(echo "$line" | awk '{print $2}')
-					printf "%-20s %-20s %-15s\n" "$container_name" "$network_name" "$ip_address"
-				done <<< "$network_info"
-			done
-			break_end
-			;;
-		14)
-			send_stats "查看容器占用"
-			docker stats --no-stream
-			break_end
-			;;
-		*)
-			break  # 跳出循环，退出菜单
-			;;
-	esac
-done
+# 显示主菜单
+show_menu() {
+    clear
+    echo -e "${GREEN}大黄鹰-Linux服务器运维工具箱菜单-Docker 管理脚本${NC}"
+    echo -e "欢迎使用本脚本，请根据菜单选择操作："
+    echo -e "${GREEN}==================================${NC}"
+    echo "1. 查看 Docker 容器和镜像状态"
+    echo "2. 停止所有运行中的容器"
+    echo "3. 删除所有容器"
+    echo "4. 删除所有镜像"
+    echo "5. 创建新容器"
+    echo "6. 创建新镜像"
+    echo "7. 清理所有未使用的资源"
+    echo "8. 删除指定容器"
+    echo "9. 删除指定镜像"
+    echo "0. 退出"
+    echo -e "${GREEN}==================================${NC}"
+    read -p "请输入选项: " option
+    case $option in
+        1) show_docker_status ;;
+        2) stop_all_containers ;;
+        3) remove_all_containers ;;
+        4) remove_all_images ;;
+        5) create_new_container ;;
+        6) create_new_image ;;
+        7) clean_unused_resources ;;
+        8) remove_specified_container ;;
+        9) remove_specified_image ;;
+        0) exit 0 ;;
+        *) echo "无效的选项，请重新选择！" && sleep 2 && show_menu ;;
+    esac
+}
+
+# 查看 Docker 容器和镜像状态
+show_docker_status() {
+    echo -e "${GREEN}==============================${NC}"
+    echo -e "${GREEN}查看所有容器状态（ID、名称、状态、内存、CPU、端口映射、资源使用情况）：${NC}"
+
+    # 获取容器状态、内存、CPU、端口映射和资源使用情况，并去除表头
+    docker ps -a --format "{{.ID}}\t{{.Names}}\t{{.Status}}\t{{.Ports}}\t{{.CreatedAt}}" | column -t
+
+    echo -e "\n${GREEN}==============================${NC}"
+    echo -e "${GREEN}容器的详细资源使用情况（内存、CPU、端口映射）：${NC}"
+
+    # 显示每个容器的详细状态（去除表头，直接显示）
+    for container in $(docker ps -q); do
+        container_id=$(docker inspect --format '{{.Id}}' $container)
+        container_name=$(docker inspect --format '{{.Name}}' $container | sed 's/\///g')
+        container_status=$(docker inspect --format '{{.State.Status}}' $container)
+        container_ports=$(docker inspect --format '{{.NetworkSettings.Ports}}' $container)
+        container_memory=$(docker stats --no-stream --format "{{.MemUsage}}" $container)
+        container_cpu=$(docker stats --no-stream --format "{{.CPUPerc}}" $container)
+
+        # 直接显示容器详细信息，不需要表头
+        echo -e "$container_id\t$container_name\t$container_status\t$container_ports\t$container_memory\t$container_cpu"
+        echo -e "${GREEN}==============================${NC}"
+    done
+
+    # 显示镜像信息
+    echo -e "\n${GREEN}==============================${NC}"
+    echo -e "${GREEN}查看所有镜像状态（ID、名称、标签、创建时间、大小）：${NC}"
+    docker images --format "{{.ID}}\t{{.Repository}}\t{{.Tag}}\t{{.CreatedAt}}\t{{.Size}}" | column -t
+
+    pause
+    show_menu
+}
+
+# 停止所有运行中的容器
+stop_all_containers() {
+    confirm_action "停止所有运行中的容器" "docker stop $(docker ps -q)"
+    pause
+    show_menu
+}
+
+# 删除所有容器
+remove_all_containers() {
+    confirm_action "删除所有容器" "docker rm $(docker ps -a -q)"
+    pause
+    show_menu
+}
+
+# 删除所有镜像
+remove_all_images() {
+    confirm_action "删除所有镜像" "docker rmi $(docker images -q)"
+    pause
+    show_menu
+}
+
+# 清理所有未使用的资源
+clean_unused_resources() {
+    confirm_action "清理所有未使用的资源" "docker system prune -a --volumes"
+    pause
+    show_menu
+}
+
+# 删除指定容器
+remove_specified_container() {
+    read -p "请输入要删除的容器 ID 或名称: " container_id
+    confirm_action "删除容器 $container_id" "docker rm -f $container_id"
+    pause
+    show_menu
+}
+
+# 删除指定镜像
+remove_specified_image() {
+    read -p "请输入要删除的镜像 ID 或名称: " image_id
+    confirm_action "删除镜像 $image_id" "docker rmi -f $image_id"
+    pause
+    show_menu
+}
+
+# 创建新容器
+create_new_container() {
+    read -p "请输入新容器的镜像名称: " image_name
+    read -p "请输入新容器的名称（可选）: " container_name
+    if [[ -z "$image_name" ]]; then
+        echo "镜像名称不能为空！"
+        return
+    fi
+    confirm_action "创建新容器" "docker run -d --name $container_name $image_name"
+    pause
+    show_menu
+}
+
+# 创建新镜像
+create_new_image() {
+    read -p "请输入要创建镜像的容器 ID 或名称: " container_id
+    read -p "请输入镜像标签（可选）: " image_tag
+    if [[ -z "$container_id" ]]; then
+        echo "容器 ID 不能为空！"
+        return
+    fi
+    confirm_action "创建镜像 $image_tag" "docker commit $container_id $image_tag"
+    pause
+    show_menu
+}
+
+# 确认操作
+confirm_action() {
+    action_description=$1
+    command_to_run=$2
+
+    read -p "您确定要执行以下操作？$action_description [y/n]: " confirm
+    if [[ "$confirm" == "y" || "$confirm" == "Y" ]]; then
+        echo "正在执行操作..."
+        eval $command_to_run
+        echo "$action_description 已执行！"
+    else
+        echo "操作已取消。"
+    fi
+}
+
+# 暂停，按任意键继续
+pause() {
+    # 设置绿色文本颜色
+    echo -e "\033[0;32m操作完成，按任意键继续...\033[0m"
+    read -n 1 -s -r
 }
 
 # 启动脚本
 show_menu
-
 
 
 
