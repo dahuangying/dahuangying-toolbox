@@ -18,7 +18,6 @@ show_menu() {
     echo "6. Docker 卷管理"
     echo "7. 清理所有未使用的资源"
     echo "0. 退出"
-    echo -e "${GREEN}==================================${NC}"
     read -p "请输入选项: " option
     case $option in
         1) show_docker_status ;;
@@ -85,8 +84,8 @@ install_update_docker() {
 
 # Docker 容器管理
 docker_container_management() {
-    echo -e "${GREEN}==============================${NC}"
     echo -e "${GREEN}Docker容器管理${NC}"
+    echo -e "${GREEN}==============================${NC}"
     echo "1. 启动容器"
     echo "2. 停止容器"
     echo "3. 启动所有容器"
@@ -94,7 +93,6 @@ docker_container_management() {
     echo "5. 创建指定容器"
     echo "6. 删除指定容器"
     echo "0. 返回"
-    echo -e "${GREEN}==============================${NC}"
     read -p "请输入选项: " container_option
     case $container_option in
         1) start_container ;;
@@ -167,13 +165,12 @@ remove_specified_container() {
 
 # Docker 镜像管理
 docker_image_management() {
-    echo -e "${GREEN}==============================${NC}"
     echo -e "${GREEN}Docker镜像管理${NC}"
+    echo -e "${GREEN}==============================${NC}"
     echo "1. 删除指定镜像"
     echo "2. 创建指定容器"
     echo "3. 删除所有镜像"
     echo "0. 返回"
-    echo -e "${GREEN}==============================${NC}"
     read -p "请输入选项: " image_option
     case $image_option in
         1) remove_specified_image ;;
@@ -203,14 +200,13 @@ remove_all_images() {
 
 # Docker 网络管理
 docker_network_management() {
-    echo -e "${GREEN}==============================${NC}"
     echo -e "${GREEN}Docker网络管理${NC}"
+    echo -e "${GREEN}==============================${NC}"
     echo "1. 创建网络"
     echo "2. 加入网络"
     echo "3. 退出网络"
     echo "4. 删除网络"
     echo "0. 返回"
-    echo -e "${GREEN}==============================${NC}"
     read -p "请输入选项: " network_option
     case $network_option in
         1) create_network ;;
@@ -262,13 +258,12 @@ delete_network() {
 
 # Docker 卷管理
 docker_volume_management() {
-    echo -e "${GREEN}==============================${NC}"
     echo -e "${GREEN}Docker卷管理${NC}"
+    echo -e "${GREEN}==============================${NC}"
     echo "1. 创建新卷"
     echo "2. 删除指定卷"
     echo "3. 删除所有卷"
     echo "0. 返回"
-    echo -e "${GREEN}==============================${NC}"
     read -p "请输入选项: " volume_option
     case $volume_option in
         1) create_volume ;;
