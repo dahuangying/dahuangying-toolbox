@@ -1,85 +1,83 @@
 #!/bin/bash
 
-# =======================================
-# 1Panel 新一代管理面板 安装与管理脚本
-# =======================================
+# 1Panel 安装管理脚本
 
-# 安装 1Panel
-function install_1panel() {
-    echo "正在安装 1Panel..."
+# 配置项
+PANEL_INSTALL_DIR="/root/1panel_installation"  # 1Panel 安装目录
+PANEL_CONFIG_FILE="/root/1panel_config.txt"    # 配置文件路径
 
-    # 更新系统
-    sudo apt-get update -y
-    sudo apt-get upgrade -y
-
-    # 安装必要依赖
-    sudo apt-get install -y curl wget
-
-    # 下载并安装 1Panel 官方脚本
-    curl -sSL https://resource.1panel.pro/quick_start.sh -o quick_start.sh && bash quick_start.sh
-
-    # 提示安装完成
-    echo "1Panel 安装完成！"
-    echo "------------------------------------------------"
-    echo "1Panel 服务已启动。"
-    echo "访问面板: http://<你的服务器IP>:8888"
-    echo "------------------------------------------------"
-    show_menu
-}
-
-# 查看面板信息
-function view_panel_info() {
-    echo "要查看面板信息，请运行以下命令:"
-    echo "1pctl user-info"
-    echo "------------------------------------------------"
-    show_menu
-}
-
-# 修改密码
-function update_password() {
-    echo "要修改密码，请运行以下命令:"
-    echo "1pctl update password"
-    echo "------------------------------------------------"
-    show_menu
-}
-
-# 卸载 1Panel
-function uninstall_1panel() {
-    echo "正在卸载 1Panel..."
-
-    # 执行官方卸载脚本
-    curl -sSL https://resource.1panel.pro/uninstall.sh | bash
-
-    # 提示卸载完成
-    echo "1Panel 卸载完成！"
-    echo "------------------------------------------------"
-    show_menu
-}
-
-# 功能菜单
-function show_menu() {
+# 函数：显示菜单
+show_menu() {
     clear
-    echo "============================="
-    echo "   1Panel 安装与管理菜单"
-    echo "============================="
+    echo "========================="
+    echo " 1Panel 安装管理脚本"
+    echo "========================="
     echo "1. 安装 1Panel"
     echo "2. 查看面板信息"
-    echo "3. 修改密码"
-    echo "4. 卸载 1Panel"
-    echo "5. 退出"
-    echo "============================="
-    read -p "请输入选项 (1-5): " option
+    echo "3. 卸载 1Panel"
+    echo "0. 退出"
+    echo "========================="
+    read -p "请输入选项: " option
     case $option in
-        1) install_1panel ;;
+        1) install_panel ;;
         2) view_panel_info ;;
-        3) update_password ;;
-        4) uninstall_1panel ;;
-        5) exit 0 ;;
-        *) echo "无效选项，请重新输入"; read -p "按任意键继续..." && show_menu ;;
+        3) uninstall_panel ;;
+        0) exit 0 ;;
+        *) echo "无效的选项，请重新选择！" && sleep 2 && show_menu ;;
     esac
 }
 
-# 初始化菜单
+# 函数：安装 1Panel
+install_panel() {
+    echo "开始安装 1Panel..."
+    
+    # 执行安装
+    curl -sSL https://resource.1panel.pro/quick_start.sh -o quick_start.sh && bash quick_start.sh
+
+    echo "1Panel 安装完成！"
+    echo "请使用以下命令查看面板地址："
+    echo "您可以通过 1pctl user-info 查看面板信息"
+    sleep 2
+    show_menu
+}
+
+# 函数：查看面板信息
+view_panel_info() {
+    echo "正在获取面板信息..."
+    1pctl user-info
+    sleep 2
+    show_menu
+}
+
+# 函数：卸载 1Panel
+uninstall_panel() {
+    read -p "您确定要卸载 1Panel 并删除所有相关文件吗？[y/n]: " confirm
+    if [[ "$confirm" == "y" || "$confirm" == "Y" ]]; then
+        echo "正在卸载 1Panel..."
+
+        # 停止服务并禁用启动
+        systemctl stop 1panel
+        systemctl disable 1panel
+
+        # 删除 1Panel 安装目录
+        echo "删除安装目录..."
+        rm -rf "$PANEL_INSTALL_DIR"
+        echo "已删除安装目录 $PANEL_INSTALL_DIR"
+
+        # 删除配置文件
+        echo "删除配置文件..."
+        rm -f "$PANEL_CONFIG_FILE"
+        echo "已删除配置文件 $PANEL_CONFIG_FILE"
+
+        echo "1Panel 卸载完成！"
+    else
+        echo "取消卸载。"
+    fi
+    sleep 2
+    show_menu
+}
+
+# 启动脚本
 show_menu
 
 
