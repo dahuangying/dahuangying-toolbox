@@ -75,7 +75,7 @@ install_nginx_proxy_manager_panel() {
 # 9. AList网盘
 install_alist_panel() {
     echo -e "${GREEN}安装 AList 网盘...${NC}"
-    bash modules/alist.sh
+    curl -fsSL "https://alist.nn.ci/v3.sh" -o v3.sh && bash v3.sh
     pause
 }
 
