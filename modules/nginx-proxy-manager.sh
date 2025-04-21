@@ -19,13 +19,12 @@ check_nginx_installed() {
     else
         return 1  # 未安装
     fi
-
 }
 
 # Nginx菜单
 show_menu() {
     echo -e "${GREEN}大黄鹰-Linux服务器运维工具箱菜单-Nginx${NC}"
-     clear
+    clear
     echo -e "${GREEN}==================================${NC}"
     if check_nginx_installed; then
         echo "Nginx Proxy Manager 已安装"
@@ -134,7 +133,7 @@ confirm_action() {
 
 # 停止并删除容器
 remove_container() {
-    container_id=$(docker ps -a -q --filter "name=npm")
+    container_id=$(docker ps -a -q --filter "name=nginx-proxy-manager")
     if [ -n "$container_id" ]; then
         echo -e "${GREEN}正在停止并删除容器...${NC}"
         docker stop $container_id
@@ -146,7 +145,7 @@ remove_container() {
 
 # 删除镜像
 remove_image() {
-    image_id=$(docker images -q "jc21/nginx-proxy-manager:latest")
+    image_id=$(docker images -q "jc21/nginx-proxy-manager")
     if [ -n "$image_id" ]; then
         echo -e "${GREEN}正在删除镜像...${NC}"
         docker rmi -f $image_id
@@ -165,9 +164,7 @@ remove_files() {
 # 清理防火墙规则
 remove_firewall_rules() {
     echo -e "${GREEN}正在移除防火墙规则...${NC}"
-    ufw delete allow 80
-    ufw delete allow 443
-    ufw delete allow 81
+    ufw status | grep -E '80|443|81' && ufw delete allow 80 && ufw delete allow 443 && ufw delete allow 81
     ufw reload
     echo -e "${GREEN}防火墙规则已移除。${NC}"
 }
@@ -237,4 +234,5 @@ show_intro() {
 while true; do
     show_menu
 done
+
 
