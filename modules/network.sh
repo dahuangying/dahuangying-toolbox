@@ -86,10 +86,10 @@ install_oracle_keep_alive() {
     pause
 }
 
-# 11. 青龙面板定时任务
-install_qinglong_cron() {
-    echo -e "${GREEN}安装青龙面板定时任务...${NC}"
-    # 填入对应的安装命令
+# 11. 哪吒监控面板
+install_nezajiankong_cron() {
+    echo -e "${GREEN}安装哪吒监控面板...${NC}"
+    curl -L https://raw.githubusercontent.com/nezhahq/scripts/refs/heads/main/install.sh -o nezha.sh && chmod +x nezha.sh && sudo ./nezha.sh
     pause
 }
 
@@ -115,7 +115,7 @@ show_menu() {
     echo "8. 安装 Nginx Proxy Manager 可视化面板"
     echo "9. 安装 AList 网盘"
     echo "10. 安装 甲骨文保活脚本"
-    echo "11. 安装 青龙面板定时任务"
+    echo "11. 安装 哪吒监控面板"
     echo "12. 安装 Ubuntu 远程桌面"
     echo "0. 退出"
     read -p "请输入选项编号: " choice
@@ -151,7 +151,7 @@ show_menu() {
             install_oracle_keep_alive
             ;;
         11)
-            install_qinglong_cron
+            install_nezajiankong_cron
             ;;
         12)
             install_ubuntu_rdp
