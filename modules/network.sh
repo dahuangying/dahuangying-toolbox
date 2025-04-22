@@ -93,10 +93,10 @@ install_nezajiankong_cron() {
     pause
 }
 
-# 12. Ubuntu远程桌面
-install_ubuntu_rdp() {
-    echo -e "${GREEN}安装 Ubuntu 远程桌面...${NC}"
-    # 填入对应的安装命令
+# 12. Halo和WordPress博客
+install_koke_panel() {
+    echo -e "${GREEN}安装 Halo 和 WordPress博客${NC}"
+    bash modules/boke.sh
     pause
 }
 
@@ -116,7 +116,7 @@ show_menu() {
     echo "9. 安装 AList 网盘"
     echo "10. 安装 甲骨文保活脚本"
     echo "11. 安装 哪吒监控面板"
-    echo "12. 安装 Ubuntu 远程桌面"
+    echo "12. 安装 Halo和WordPress"
     echo "0. 退出"
     read -p "请输入选项编号: " choice
     case $choice in
@@ -154,7 +154,7 @@ show_menu() {
             install_nezajiankong_cron
             ;;
         12)
-            install_ubuntu_rdp
+            install_koke_panel
             ;;
         0)
             echo "感谢使用工具箱！"
