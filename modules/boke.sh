@@ -198,12 +198,13 @@ main_menu() {
     esac
 }
 
-# 先检查 Docker 和 Docker Compose 是否安装
+# 开始脚本执行时检测 Docker 和 Docker Compose 是否安装
 check_docker_installed
 check_docker_compose_installed
 
 # 调用主菜单
 main_menu
+
 
 
 
