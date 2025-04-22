@@ -9,10 +9,13 @@ HALO_DIR="/opt/halo"
 WORDPRESS_DIR="/opt/wordpress"
 HALO_DB_NAME="halo_db"
 WORDPRESS_DB_NAME="wordpress_db"
+HALO_DB_USER="halo_user"
+WORDPRESS_DB_USER="wordpress_user"
 
 # 检查安装状态
 check_status() {
     clear
+    echo -e "${GREEN}========================================${NC}"
     if [ -d "$HALO_DIR" ]; then
         echo "Halo 安装状态: 已安装"
     else
@@ -30,6 +33,58 @@ check_status() {
     echo -e "${GREEN}========================================${NC}"
 }
 
+# 安装依赖项（Java、MySQL）
+install_dependencies() {
+    echo "正在安装必要的依赖项..."
+    sudo apt update
+
+    # 安装 Java（如果没有安装）
+    if ! java -version &>/dev/null; then
+        echo "Java 未安装，正在安装 OpenJDK 11..."
+        sudo apt install -y openjdk-11-jdk
+    else
+        echo "Java 已安装：$(java -version)"
+    fi
+
+    # 安装 MySQL（如果没有安装）
+    if ! mysql --version &>/dev/null; then
+        echo "MySQL 未安装，正在安装 MySQL..."
+        sudo apt install -y mysql-server
+        sudo systemctl start mysql
+        sudo systemctl enable mysql
+    else
+        echo "MySQL 已安装：$(mysql --version)"
+    fi
+}
+
+# 创建数据库和用户
+create_database() {
+    echo "创建数据库和用户之前，请提供以下信息："
+
+    # 用户输入数据库名称和密码
+    read -p "请输入 Halo 数据库名称（默认 halo_db）： " db_name
+    db_name=${db_name:-halo_db}
+
+    read -p "请输入 Halo 数据库用户名（默认 halo_user）： " db_user
+    db_user=${db_user:-halo_user}
+
+    read -sp "请输入 Halo 数据库密码（默认 password）： " db_password
+    echo
+    db_password=${db_password:-password}
+
+    # 创建数据库和用户
+    echo "正在创建数据库和用户..."
+    sudo mysql -e "CREATE DATABASE IF NOT EXISTS $db_name;"
+    sudo mysql -e "CREATE USER IF NOT EXISTS '$db_user'@'localhost' IDENTIFIED BY '$db_password';"
+    sudo mysql -e "GRANT ALL PRIVILEGES ON $db_name.* TO '$db_user'@'localhost';"
+    sudo mysql -e "FLUSH PRIVILEGES;"
+
+    # 更新数据库信息
+    HALO_DB_NAME=$db_name
+    HALO_DB_USER=$db_user
+    HALO_DB_PASS=$db_password
+}
+
 # 安装 Halo
 install_halo() {
     echo "开始安装 Halo..."
@@ -39,7 +94,8 @@ install_halo() {
         echo "正在下载并安装 Halo..."
         git clone https://github.com/halo-dev/halo.git "$HALO_DIR"
         cd "$HALO_DIR"
-        sudo apt update && sudo apt install -y openjdk-11-jdk
+        echo "正在构建 Halo 项目..."
+        ./mvnw clean install -DskipTests
         echo "Halo 安装完成，配置服务..."
     fi
 }
@@ -53,7 +109,10 @@ install_wordpress() {
         echo "正在下载并安装 WordPress..."
         git clone https://github.com/WordPress/WordPress.git "$WORDPRESS_DIR"
         cd "$WORDPRESS_DIR"
-        sudo apt update && sudo apt install -y php php-mysql mysql-server
+        sudo apt install -y php php-mysql
+        sudo apt install -y apache2
+        sudo systemctl enable apache2
+        sudo systemctl start apache2
         cp wp-config-sample.php wp-config.php
         echo "WordPress 安装完成，配置数据库等."
     fi
@@ -82,8 +141,15 @@ uninstall_halo() {
         echo "正在卸载 Halo..."
         rm -rf "$HALO_DIR"
         echo "Halo 卸载完成，正在清理残余文件..."
-        # 清理数据库或其他残余文件
-        # sudo mysql -e "DROP DATABASE $HALO_DB_NAME;"
+
+        # 清理数据库
+        read -p "你是否需要删除 Halo 的数据库？(y/n): " delete_db
+        if [[ $delete_db == [yY] ]]; then
+            sudo mysql -e "DROP DATABASE IF EXISTS $HALO_DB_NAME;"
+            sudo mysql -e "DROP USER IF EXISTS '$HALO_DB_USER'@'localhost';"
+            echo "Halo 数据库和用户已删除."
+        fi
+
         echo "残余文件已彻底清除."
     else
         echo "取消卸载 Halo."
@@ -97,8 +163,15 @@ uninstall_wordpress() {
         echo "正在卸载 WordPress..."
         rm -rf "$WORDPRESS_DIR"
         echo "WordPress 卸载完成，正在清理残余文件..."
-        # 清理数据库或其他残余文件
-        # sudo mysql -e "DROP DATABASE $WORDPRESS_DB_NAME;"
+
+        # 清理数据库
+        read -p "你是否需要删除 WordPress 的数据库？(y/n): " delete_db
+        if [[ $delete_db == [yY] ]]; then
+            sudo mysql -e "DROP DATABASE IF EXISTS $WORDPRESS_DB_NAME;"
+            sudo mysql -e "DROP USER IF EXISTS '$WORDPRESS_DB_USER'@'localhost';"
+            echo "WordPress 数据库和用户已删除."
+        fi
+
         echo "残余文件已彻底清除."
     else
         echo "取消卸载 WordPress."
@@ -125,7 +198,7 @@ main_menu() {
     read -p "请选择操作: " choice
 
     case $choice in
-        1) install_halo; press_any_key_to_continue ;;
+        1) install_dependencies; create_database; install_halo; press_any_key_to_continue ;;
         2) update_halo; press_any_key_to_continue ;;
         3) uninstall_halo; press_any_key_to_continue ;;
         4) install_wordpress; press_any_key_to_continue ;;
@@ -138,6 +211,7 @@ main_menu() {
 
 # 调用主菜单
 main_menu
+
 
 
 
