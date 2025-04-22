@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# 设置绿色文本的颜色
+GREEN='\033[0;32m'
+NC='\033[0m' # 默认颜色
+
 # 安装和配置 Halo 和 WordPress 的基本路径和变量
 HALO_DIR="/opt/halo"
 WORDPRESS_DIR="/opt/wordpress"
@@ -9,7 +13,6 @@ WORDPRESS_DB_NAME="wordpress_db"
 # 检查安装状态
 check_status() {
     clear
-    echo "========================================"
     if [ -d "$HALO_DIR" ]; then
         echo "Halo 安装状态: 已安装"
     else
@@ -21,7 +24,10 @@ check_status() {
     else
         echo "WordPress 安装状态: 未安装"
     fi
-   
+    echo -e "${GREEN}========================================${NC}"
+    echo "大黄鹰-Linux服务器运维工具箱菜单-博客"
+    echo "欢迎使用本脚本，请根据菜单选择操作："
+    echo -e "${GREEN}========================================${NC}"
 }
 
 # 安装 Halo
@@ -106,10 +112,6 @@ press_any_key_to_continue() {
 
 # 主菜单
 main_menu() {
-    echo -e "${GREEN}========================================${NC}"
-    echo "大黄鹰-Linux服务器运维工具箱菜单-博客"
-    echo "欢迎使用本脚本，请根据菜单选择操作："
-    echo -e "${GREEN}========================================${NC}"
     check_status
     echo "1. 安装 Halo"
     echo "2. 更新 Halo"
@@ -119,14 +121,15 @@ main_menu() {
     echo "5. 更新 WordPress"
     echo "6. 卸载 WordPress"
     echo "0. 退出"
+    echo -e "${GREEN}==============${NC}"
     read -p "请选择操作: " choice
 
     case $choice in
         1) install_halo; press_any_key_to_continue ;;
-        2) install_wordpress; press_any_key_to_continue ;;
-        3) update_halo; press_any_key_to_continue ;;
-        4) update_wordpress; press_any_key_to_continue ;;
-        5) uninstall_halo; press_any_key_to_continue ;;
+        2) update_halo; press_any_key_to_continue ;;
+        3) uninstall_halo; press_any_key_to_continue ;;
+        4) install_wordpress; press_any_key_to_continue ;;
+        5) update_wordpress; press_any_key_to_continue ;;
         6) uninstall_wordpress; press_any_key_to_continue ;;
         0) exit 0 ;;
         *) echo "无效选项，请重新选择." ; press_any_key_to_continue ; main_menu ;;
@@ -135,6 +138,7 @@ main_menu() {
 
 # 调用主菜单
 main_menu
+
 
 
 
