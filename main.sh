@@ -204,7 +204,7 @@ download_module "system.sh" "https://raw.githubusercontent.com/dahuangying/dahua
 download_module "docker.sh" "https://raw.githubusercontent.com/dahuangying/dahuangying-toolbox/main/modules/docker.sh"
 download_module "network.sh" "https://raw.githubusercontent.com/dahuangying/dahuangying-toolbox/main/modules/network.sh"
 download_module "nginx-proxy-manager.sh" "https://raw.githubusercontent.com/dahuangying/dahuangying-toolbox/main/modules/nginx-proxy-manager.sh"
-download_module "alist.sh" "https://raw.githubusercontent.com/dahuangying/dahuangying-toolbox/main/modules/alist.sh"
+download_module "boke.sh" "https://raw.githubusercontent.com/dahuangying/dahuangying-toolbox/main/modules/boke.sh"
 download_module "1Panel.sh" "https://raw.githubusercontent.com/dahuangying/dahuangying-toolbox/main/modules/1Panel.sh"
 
 # 为下载的模块赋予执行权限
