@@ -9,16 +9,41 @@ NC='\033[0m' # 默认颜色
 HALO_DIR="/opt/halo"
 COMPOSE_FILE="docker-compose.yml"
 
-# 检查 Docker 和 Docker Compose 是否安装
-check_docker() {
+# 检查 Docker 是否安装
+check_docker_installed() {
     if ! command -v docker &>/dev/null; then
-        echo "Docker 未安装，请先安装 Docker。"
-        exit 1
+        echo "Docker 未安装，正在安装 Docker..."
+        install_docker
+    else
+        echo -e "${GREEN}Docker 已安装${NC}"
     fi
+}
+
+# 检查 Docker Compose 是否安装
+check_docker_compose_installed() {
     if ! command -v docker-compose &>/dev/null; then
-        echo "Docker Compose 未安装，请先安装 Docker Compose。"
-        exit 1
+        echo "Docker Compose 未安装，正在安装 Docker Compose..."
+        install_docker_compose
+    else
+        echo -e "${GREEN}Docker Compose 已安装${NC}"
     fi
+}
+
+# 安装 Docker
+install_docker() {
+    # 使用官方脚本安装 Docker
+    curl -fsSL https://get.docker.com | bash
+    sudo systemctl start docker
+    sudo systemctl enable docker
+    echo -e "${GREEN}Docker 安装成功！${NC}"
+}
+
+# 安装 Docker Compose
+install_docker_compose() {
+    # 安装 Docker Compose
+    sudo curl -L "https://github.com/docker/compose/releases/download/1.29.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+    sudo chmod +x /usr/local/bin/docker-compose
+    echo -e "${GREEN}Docker Compose 安装成功！${NC}"
 }
 
 # 检查 Halo 是否已安装
@@ -173,8 +198,13 @@ main_menu() {
     esac
 }
 
+# 先检查 Docker 和 Docker Compose 是否安装
+check_docker_installed
+check_docker_compose_installed
+
 # 调用主菜单
 main_menu
+
 
 
 
