@@ -7,6 +7,7 @@ NC='\033[0m' # 默认颜色
 # 设置目录路径
 HALO_DIR="/opt/halo"
 WORDPRESS_DIR="/opt/wordpress"
+COMPOSE_FILE="docker-compose.yml"
 
 # 检查 Docker 和 Docker Compose 是否安装
 check_docker() {
@@ -17,6 +18,24 @@ check_docker() {
     if ! command -v docker-compose &>/dev/null; then
         echo "Docker Compose 未安装，请先安装 Docker Compose。"
         exit 1
+    fi
+}
+
+# 检查 Halo 是否已安装
+check_halo_installed() {
+    if [ -d "$HALO_DIR" ]; then
+        echo -e "Halo 安装状态: ${GREEN}已安装${NC}"
+    else
+        echo -e "Halo 安装状态: ${RED}未安装${NC}"
+    fi
+}
+
+# 检查 WordPress 是否已安装
+check_wordpress_installed() {
+    if [ -f "$COMPOSE_FILE" ]; then
+        echo -e "WordPress 安装状态: ${GREEN}已安装${NC}"
+    else
+        echo -e "WordPress 安装状态: ${RED}未安装${NC}"
     fi
 }
 
@@ -50,7 +69,7 @@ EOF
 create_docker_compose() {
     echo "正在创建 Docker Compose 配置文件..."
 
-    cat <<EOF > "docker-compose.yml"
+    cat <<EOF > "$COMPOSE_FILE"
 version: '3.7'
 
 services:
@@ -94,7 +113,7 @@ EOF
     echo "Docker Compose 配置文件创建完成."
 }
 
-# 启动 Docker Compose 服务
+# 启动 Docker 服务
 start_docker_services() {
     echo "正在启动 Docker 服务..."
 
@@ -107,17 +126,91 @@ start_docker_services() {
     fi
 }
 
-# 查看 Docker 容器状态
-check_docker_status() {
-    echo "正在查看 Docker 容器状态..."
-    docker ps
-}
-
 # 停止并清除容器
 stop_and_cleanup() {
     echo "停止并清理容器..."
     docker-compose down -v
     echo "容器已停止并清除所有数据卷."
+}
+
+# 安装 Halo
+install_halo() {
+    check_halo_installed
+    read -p "确定要安装 Halo 吗? (y/n): " confirm
+    if [ "$confirm" == "y" ]; then
+        create_halo_dockerfile
+        start_docker_services
+        echo -e "${GREEN}Halo 安装成功${NC}"
+    else
+        echo "取消安装 Halo."
+    fi
+}
+
+# 更新 Halo
+update_halo() {
+    check_halo_installed
+    read -p "确定要更新 Halo 吗? (y/n): " confirm
+    if [ "$confirm" == "y" ]; then
+        echo "正在更新 Halo..."
+        stop_and_cleanup
+        create_halo_dockerfile
+        start_docker_services
+        echo -e "${GREEN}Halo 更新成功${NC}"
+    else
+        echo "取消更新 Halo."
+    fi
+}
+
+# 卸载 Halo
+uninstall_halo() {
+    check_halo_installed
+    read -p "确定要卸载 Halo 吗? (y/n): " confirm
+    if [ "$confirm" == "y" ]; then
+        stop_and_cleanup
+        echo -e "${GREEN}Halo 卸载成功${NC}"
+    else
+        echo "取消卸载 Halo."
+    fi
+}
+
+# 安装 WordPress
+install_wordpress() {
+    check_wordpress_installed
+    read -p "确定要安装 WordPress 吗? (y/n): " confirm
+    if [ "$confirm" == "y" ]; then
+        create_docker_compose
+        start_docker_services
+        echo -e "${GREEN}WordPress 安装成功${NC}"
+    else
+        echo "取消安装 WordPress."
+    fi
+}
+
+# 更新 WordPress
+update_wordpress() {
+    check_wordpress_installed
+    read -p "确定要更新 WordPress 吗? (y/n): " confirm
+    if [ "$confirm" == "y" ]; then
+        echo "正在更新 WordPress..."
+        stop_and_cleanup
+        create_docker_compose
+        start_docker_services
+        echo -e "${GREEN}WordPress 更新成功${NC}"
+    else
+        echo "取消更新 WordPress."
+    fi
+}
+
+# 卸载 WordPress
+uninstall_wordpress() {
+    check_wordpress_installed
+    read -p "确定要卸载 WordPress 吗? (y/n): " confirm
+    if [ "$confirm" == "y" ]; then
+        stop_and_cleanup
+        echo -e "${GREEN}WordPress 卸载成功${NC}"
+    else
+        echo "取消卸载 WordPress."
+    fi
 }
 
 # 主菜单
@@ -128,18 +221,28 @@ main_menu() {
     echo "欢迎使用本脚本，请根据菜单选择操作："
     echo -e "${GREEN}========================================${NC}"
 
-    echo "1. 部署 Halo 和 WordPress"
-    echo "2. 查看 Docker 容器状态"
-    echo "3. 停止并清理 Docker 容器"
+    check_halo_installed
+    check_wordpress_installed
+
+    echo "1. 安装 Halo"
+    echo "2. 更新 Halo"
+    echo "3. 卸载 Halo"
+    echo "=============="
+    echo "4. 安装 WordPress"
+    echo "5. 更新 WordPress"
+    echo "6. 卸载 WordPress"
     echo "0. 退出"
     echo -e "${GREEN}========================================${NC}"
 
     read -p "请选择操作: " choice
 
     case $choice in
-        1) check_docker; create_halo_dockerfile; create_docker_compose; start_docker_services ;;
-        2) check_docker_status ;;
-        3) stop_and_cleanup ;;
+        1) install_halo ;;
+        2) update_halo ;;
+        3) uninstall_halo ;;
+        4) install_wordpress ;;
+        5) update_wordpress ;;
+        6) uninstall_wordpress ;;
         0) exit 0 ;;
         *) echo "无效选项，请重新选择." ; main_menu ;;
     esac
@@ -147,6 +250,7 @@ main_menu() {
 
 # 调用主菜单
 main_menu
+
 
 
 
