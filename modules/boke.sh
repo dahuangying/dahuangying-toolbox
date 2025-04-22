@@ -21,10 +21,7 @@ check_status() {
     else
         echo "WordPress 安装状态: 未安装"
     fi
-    echo "========================================"
-    echo "大黄鹰-Linux服务器运维工具箱菜单-博客"
-    echo "欢迎使用本脚本，请根据菜单选择操作："
-    echo "========================================"
+   
 }
 
 # 安装 Halo
@@ -109,15 +106,19 @@ press_any_key_to_continue() {
 
 # 主菜单
 main_menu() {
+    echo -e "${GREEN}========================================${NC}"
+    echo "大黄鹰-Linux服务器运维工具箱菜单-博客"
+    echo "欢迎使用本脚本，请根据菜单选择操作："
+    echo -e "${GREEN}========================================${NC}"
     check_status
     echo "1. 安装 Halo"
-    echo "2. 安装 WordPress"
-    echo "3. 更新 Halo"
-    echo "4. 更新 WordPress"
-    echo "5. 卸载 Halo"
+    echo "2. 更新 Halo"
+    echo "3. 卸载 Halo"
+    echo -e "${GREEN}==============${NC}"
+    echo "4. 安装 WordPress"
+    echo "5. 更新 WordPress"
     echo "6. 卸载 WordPress"
     echo "0. 退出"
-    echo "========================================"
     read -p "请选择操作: " choice
 
     case $choice in
