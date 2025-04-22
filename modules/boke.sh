@@ -10,8 +10,9 @@ HALO_DIR="$HOME/.halo2"
 HALO_CONTAINER_NAME="halo"
 
 # 可选镜像源（不指定版本号，拉取最新镜像）
-DEFAULT_IMAGE="registry.fit2cloud.com/halo/halo"
-ALTERNATIVE_IMAGES=("halohub/halo" "ghcr.io/halo-dev/halo")
+DEFAULT_IMAGE="halohub/halo"  # 更改为 halohub/halo
+# 或者
+# DEFAULT_IMAGE="ghcr.io/halo-dev/halo"  # 更改为 ghcr.io/halo-dev/halo
 
 # 检查 Docker 是否安装
 check_docker_installed() {
@@ -43,7 +44,7 @@ check_halo_installed() {
 # 创建 Halo 容器
 create_halo_container() {
     # 默认使用最新镜像
-    IMAGE="${DEFAULT_IMAGE}"
+    IMAGE="$DEFAULT_IMAGE"
     echo "使用的镜像是：$IMAGE"
 
     docker run -it -d --name "$HALO_CONTAINER_NAME" -p 8090:8090 -v "$HALO_DIR:/root/.halo2" -e JVM_OPTS="-Xmx256m -Xms256m" "$IMAGE"
@@ -140,6 +141,7 @@ check_docker_installed
 
 # 调用主菜单
 main_menu
+
 
 
 
