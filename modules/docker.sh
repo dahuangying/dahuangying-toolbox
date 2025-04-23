@@ -59,12 +59,12 @@ show_docker_status() {
     docker-compose --version
 
     echo -e "\n${GREEN}==============================${NC}"
-    echo -e "${GREEN}Docker镜像: $(docker images -q | wc -l)${NC}"
-    docker images --format "table {{.Repository}}\t{{.Tag}}\t{{.ID}}\t{{.CreatedAt}}\t{{.Size}}"
-
-    echo -e "\n${GREEN}==============================${NC}"
     echo -e "${GREEN}Docker容器: $(docker ps -a -q | wc -l)${NC}"
     docker ps -a --format "table {{.ID}}\t{{.Image}}\t{{.Command}}\t{{.CreatedAt}}\t{{.Status}}\t{{.Ports}}\t{{.Names}}"
+
+    echo -e "\n${GREEN}==============================${NC}"
+    echo -e "${GREEN}Docker镜像: $(docker images -q | wc -l)${NC}"
+    docker images --format "table {{.Repository}}\t{{.Tag}}\t{{.ID}}\t{{.CreatedAt}}\t{{.Size}}"
 
     echo -e "\n${GREEN}==============================${NC}"
     echo -e "${GREEN}Docker卷: $(docker volume ls -q | wc -l)${NC}"
