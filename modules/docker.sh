@@ -403,6 +403,7 @@ docker_container_management() {
     echo "4. 停止所有容器"
     echo "5. 创建指定容器"
     echo "6. 删除指定容器"
+    echo "6. 删除所有容器"
     echo "0. 返回"
     read -p "请输入选项: " container_option
     case $container_option in
@@ -412,6 +413,7 @@ docker_container_management() {
         4) stop_all_containers ;;
         5) create_new_container ;;
         6) remove_specified_container ;;
+        7) remove_all_containers ;;
         0) show_menu ;;
         *) echo "无效选项，请重新选择" && docker_container_management ;;
     esac
@@ -483,6 +485,16 @@ remove_specified_container() {
     echo -e "${GREEN}容器 $container_id 已删除！${NC}"
     pause
     docker_container_management
+}
+
+# 删除所有容器
+remove_all_containers() {
+    read -p "您确定要删除所有容器吗？[y/n]: " confirm
+    if [[ "$confirm" == "y" || "$confirm" == "Y" ]]; then
+    docker rm -f $(docker ps -a -q)  # 强制删除所有容器
+    echo -e "${GREEN}所有容器已删除！${NC}"
+    pause
+    docker_container_management  # 返回容器管理菜单
 }
 
 # Docker 镜像管理
