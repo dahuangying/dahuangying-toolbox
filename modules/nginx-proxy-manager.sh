@@ -89,7 +89,7 @@ services:
     restart: unless-stopped
     ports:
       - "80:80"
-      - "$port:$port"
+      - "81:81"
       - "443:443"
     volumes:
       - ./data:/data
