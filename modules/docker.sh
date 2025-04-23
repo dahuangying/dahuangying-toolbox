@@ -26,6 +26,7 @@ show_menu() {
     echo "5. Docker 网络管理"
     echo "6. Docker 卷管理"
     echo "7. 清理所有未使用的资源"
+	echo "8. 删除 Docker环境"
     echo "0. 退出"
     read -p "请输入选项: " option
     case $option in
@@ -36,6 +37,8 @@ show_menu() {
         5) docker_network_management ;;
         6) docker_volume_management ;;
         7) clean_unused_resources ;;
+		8) delete_docker ;;
+		
         0) exit 0 ;;
         *) echo "无效的选项，请重新选择！" && sleep 2 && show_menu ;;
     esac
@@ -380,6 +383,76 @@ confirm_action() {
         echo "$action_description 已执行！"
     else
         echo "操作已取消。"
+    fi
+}
+
+# 删除 Docker环境
+delete_docker() {
+    echo -e "${GREEN}正在卸载 Docker...${NC}"
+
+    # 停止并删除 Docker 容器和镜像
+    clean_docker_containers_images
+
+    # 卸载 Docker 对应的包
+    uninstall_docker
+
+    # 删除 Docker 相关文件和目录
+    delete_docker_files
+
+    # 删除 Docker 用户和组（可选）
+    delete_docker_user_group
+
+    # 删除 Docker 安装脚本文件（如果存在）
+    delete_docker_install_script
+
+    echo -e "${GREEN}Docker 已卸载并清理完成！${NC}"
+    pause
+    show_menu
+}
+
+# 停止并删除 Docker 容器和镜像
+clean_docker_containers_images() {
+    echo "停止并删除所有容器和镜像..."
+    sudo docker stop $(sudo docker ps -a -q)
+    sudo docker rm $(sudo docker ps -a -q)
+    sudo docker rmi $(sudo docker images -q)
+}
+
+# 卸载 Docker 对应的包
+uninstall_docker() {
+    if [[ "$DISTRO" == "ubuntu" || "$DISTRO" == "debian" ]]; then
+        echo "卸载 Docker（适用于 Ubuntu/Debian）..."
+        sudo apt-get purge -y docker-ce docker-ce-cli containerd.io
+    elif [[ "$DISTRO" == "centos" || "$DISTRO" == "rhel" ]]; then
+        echo "卸载 Docker（适用于 CentOS/RHEL）..."
+        sudo yum remove -y docker-ce docker-ce-cli containerd.io
+    else
+        echo "不支持的操作系统。"
+        exit 1
+    fi
+}
+
+# 删除 Docker 相关文件和目录
+delete_docker_files() {
+    echo "删除 Docker 配置和数据文件..."
+    sudo rm -rf /var/lib/docker
+    sudo rm -rf /var/lib/containerd
+    sudo rm -rf /etc/docker
+    sudo rm -rf /var/run/docker
+}
+
+# 删除 Docker 用户和组（可选）
+delete_docker_user_group() {
+    echo "删除 Docker 用户和组..."
+    sudo deluser docker
+    sudo delgroup docker
+}
+
+# 删除 Docker 安装脚本文件（如果存在）
+delete_docker_install_script() {
+    if [[ -f /get-docker.sh ]]; then
+        echo "删除 Docker 安装脚本文件..."
+        sudo rm -f /get-docker.sh
     fi
 }
 
