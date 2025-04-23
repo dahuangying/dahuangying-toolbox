@@ -15,6 +15,12 @@ show_menu() {
 
     # 显示环境状态
     echo -e "${GREEN}环境状态： 容器: $containers  镜像: $images  网络: $networks  卷: $volumes ${NC}"
+     # 显示 Docker 安装状态
+    if command -v docker &> /dev/null; then
+        echo -e "${GREEN}Docker 已安装${NC}"
+    else
+        echo -e "${RED}Docker 未安装${NC}"
+    fi
     echo -e "${GREEN}====================================================${NC}"
     echo -e "${GREEN}大黄鹰-Linux服务器运维工具箱菜单-Docker 管理脚本${NC}"
     echo -e "欢迎使用本脚本，请根据菜单选择操作："
