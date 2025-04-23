@@ -67,12 +67,12 @@ show_docker_status() {
     docker images --format "table {{.Repository}}\t{{.Tag}}\t{{.ID}}\t{{.CreatedAt}}\t{{.Size}}"
 
     echo -e "\n${GREEN}==============================${NC}"
-    echo -e "${GREEN}Docker卷: $(docker volume ls -q | wc -l)${NC}"
-    docker volume ls --format "table {{.Driver}}\t{{.Name}}"
-
-    echo -e "\n${GREEN}==============================${NC}"
     echo -e "${GREEN}Docker网络: $(docker network ls -q | wc -l)${NC}"
     docker network ls --format "table {{.ID}}\t{{.Name}}\t{{.Driver}}\t{{.Scope}}"
+
+    echo -e "\n${GREEN}==============================${NC}"
+    echo -e "${GREEN}Docker卷: $(docker volume ls -q | wc -l)${NC}"
+    docker volume ls --format "table {{.Driver}}\t{{.Name}}"
 
     pause
     show_menu
