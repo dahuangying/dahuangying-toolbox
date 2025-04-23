@@ -26,7 +26,7 @@ show_menu() {
     echo "5. Docker 网络管理"
     echo "6. Docker 卷管理"
     echo "7. 清理所有未使用的资源"
-	echo "8. 删除 Docker环境"
+	echo "8. 卸载Docker环境"
     echo "0. 退出"
     read -p "请输入选项: " option
     case $option in
@@ -37,7 +37,7 @@ show_menu() {
         5) docker_network_management ;;
         6) docker_volume_management ;;
         7) clean_unused_resources ;;
-		8) delete_docker ;;
+		8) uninstall_docker_environment ;;
 		
         0) exit 0 ;;
         *) echo "无效的选项，请重新选择！" && sleep 2 && show_menu ;;
@@ -386,32 +386,34 @@ confirm_action() {
     fi
 }
 
-# 删除 Docker环境
-delete_docker() {
-    echo -e "${GREEN}正在卸载 Docker...${NC}"
-
-    # 停止并删除 Docker 容器和镜像
-    clean_docker_containers_images
-
-    # 卸载 Docker 对应的包
-    uninstall_docker
-
-    # 删除 Docker 相关文件和目录
-    delete_docker_files
-
-    # 删除 Docker 用户和组（可选）
-    delete_docker_user_group
-
-    # 删除 Docker 安装脚本文件（如果存在）
-    delete_docker_install_script
-
-    echo -e "${GREEN}Docker 已卸载并清理完成！${NC}"
-    pause
-    show_menu
+# 卸载 Docker 环境的函数
+uninstall_docker_environment() {
+    read -p "您确定要卸载 Docker 吗？此操作将删除所有 Docker 容器、镜像及数据。请输入 y 确认：" confirm
+    if [[ "$confirm" == "y" || "$confirm" == "Y" ]]; then
+        # 执行 Docker 卸载操作
+        clean_docker_containers_images
+        uninstall_docker
+        delete_docker_files
+        delete_docker_user_group
+        delete_docker_install_script
+        echo -e "${GREEN}Docker 环境已卸载并清理完成！${NC}"
+        pause
+        show_menu
+    else
+        echo "取消卸载操作。"
+        pause
+        show_menu
+    fi
 }
 
+# 检测系统类型
+if [[ -f /etc/os-release ]]; then
+    . /etc/os-release
+    DISTRO=$ID
+fi
+
 # 停止并删除 Docker 容器和镜像
-clean_docker_containers_images() {
+function clean_docker_containers_images {
     echo "停止并删除所有容器和镜像..."
     sudo docker stop $(sudo docker ps -a -q)
     sudo docker rm $(sudo docker ps -a -q)
@@ -419,7 +421,7 @@ clean_docker_containers_images() {
 }
 
 # 卸载 Docker 对应的包
-uninstall_docker() {
+function uninstall_docker {
     if [[ "$DISTRO" == "ubuntu" || "$DISTRO" == "debian" ]]; then
         echo "卸载 Docker（适用于 Ubuntu/Debian）..."
         sudo apt-get purge -y docker-ce docker-ce-cli containerd.io
@@ -433,7 +435,7 @@ uninstall_docker() {
 }
 
 # 删除 Docker 相关文件和目录
-delete_docker_files() {
+function delete_docker_files {
     echo "删除 Docker 配置和数据文件..."
     sudo rm -rf /var/lib/docker
     sudo rm -rf /var/lib/containerd
@@ -442,14 +444,14 @@ delete_docker_files() {
 }
 
 # 删除 Docker 用户和组（可选）
-delete_docker_user_group() {
+function delete_docker_user_group {
     echo "删除 Docker 用户和组..."
     sudo deluser docker
     sudo delgroup docker
 }
 
 # 删除 Docker 安装脚本文件（如果存在）
-delete_docker_install_script() {
+function delete_docker_install_script {
     if [[ -f /get-docker.sh ]]; then
         echo "删除 Docker 安装脚本文件..."
         sudo rm -f /get-docker.sh
