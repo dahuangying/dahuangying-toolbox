@@ -55,23 +55,28 @@ restart_ssh_service() {
 
 # 1. 启用ROOT密码登录
 enable_root_login() {
-    echo -e "${YELLOW}=== 启用ROOT密码登录 ===${NC}"
+    echo -e "${YELLOW}=== 启用ROOT密码登录模式 ===${NC}"
     
-    # 设置密码
-    while true; do
-        read -sp "设置ROOT密码: " root_pass
-        echo
-        [ -z "$root_pass" ] && echo -e "${RED}密码不能为空！${NC}" || break
-    done
-    
-    echo "root:$root_pass" | chpasswd
-    
-    # 修改SSH配置
+    # 使用系统passwd命令修改密码
+    echo -e "${BLUE}请设置ROOT用户的新密码：${NC}"
+    passwd root
+    if [ $? -ne 0 ]; then
+        echo -e "${RED}密码设置失败，请检查！${NC}"
+        return 1
+    fi
+
+    # 启用SSH的ROOT登录
+    echo -e "${BLUE}正在启用SSH的ROOT登录...${NC}"
     sed -i 's/^#*PermitRootLogin.*/PermitRootLogin yes/g' /etc/ssh/sshd_config
     sed -i 's/^#*PasswordAuthentication.*/PasswordAuthentication yes/g' /etc/ssh/sshd_config
-    
-    restart_ssh_service
-    echo -e "${GREEN}ROOT密码登录已启用！${NC}"
+
+    # 重启SSH服务（兼容不同系统）
+    if systemctl restart sshd 2>/dev/null || systemctl restart ssh 2>/dev/null; then
+        echo -e "${GREEN}ROOT密码登录已成功启用！${NC}"
+    else
+        echo -e "${RED}SSH服务重启失败，请手动执行：systemctl restart sshd${NC}"
+        return 1
+    fi
 }
 
 # 2. 禁用ROOT密码登录
