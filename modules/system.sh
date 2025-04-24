@@ -138,6 +138,125 @@ change_root_password() {
     wait_key
 }
 
+# 4. 查看端口状态
+show_port_status() {
+    echo -e "\n${YELLOW}=== 端口占用状态 ===${NC}"
+    echo -e "${BLUE}活动连接：${NC}"
+    ss -tulnp
+    echo -e "\n${BLUE}防火墙规则：${NC}"
+    if command -v ufw >/dev/null; then
+        ufw status
+    elif command -v firewall-cmd >/dev/null; then
+        firewall-cmd --list-all
+    else
+        iptables -L -n
+    fi
+    wait_key
+}
+
+# 5. 开放所有端口
+open_all_ports() {
+    echo -e "\n${RED}=== 警告：这将开放所有端口！ ===${NC}"
+    read -p "确定继续吗？(y/n): " confirm
+    [ "$confirm" != "y" ] && return
+    
+    if command -v ufw >/dev/null; then
+        ufw disable
+    elif command -v firewall-cmd >/dev/null; then
+        firewall-cmd --zone=public --add-port=1-65535/tcp --permanent
+        firewall-cmd --zone=public --add-port=1-65535/udp --permanent
+        firewall-cmd --reload
+    else
+        iptables -P INPUT ACCEPT
+        iptables -P FORWARD ACCEPT
+        iptables -P OUTPUT ACCEPT
+        iptables -F
+    fi
+    echo -e "${GREEN}所有端口已开放！${NC}"
+    wait_key
+}
+
+# 6. 关闭所有端口
+close_all_ports() {
+    echo -e "\n${RED}=== 警告：这将关闭所有端口！ ===${NC}"
+    read -p "确定继续吗？(y/n): " confirm
+    [ "$confirm" != "y" ] && return
+    
+    if command -v ufw >/dev/null; then
+        ufw enable
+        ufw default deny
+    elif command -v firewall-cmd >/dev/null; then
+        firewall-cmd --zone=public --remove-port=1-65535/tcp --permanent
+        firewall-cmd --zone=public --remove-port=1-65535/udp --permanent
+        firewall-cmd --reload
+    else
+        iptables -P INPUT DROP
+        iptables -P FORWARD DROP
+        iptables -P OUTPUT ACCEPT
+        iptables -F
+    fi
+    echo -e "${GREEN}所有端口已关闭！${NC}"
+    echo -e "${YELLOW}注意：您可能需要通过控制台重新开放SSH端口！${NC}"
+    wait_key
+}
+
+# 7. 开放指定端口
+open_specific_port() {
+    echo -e "\n${YELLOW}=== 开放指定端口 ===${NC}"
+    if ! safe_input "输入端口号" "port"; then
+        echo -e "${YELLOW}已取消操作${NC}"
+        wait_key
+        return
+    fi
+    
+    if ! safe_input "协议类型(tcp/udp，默认tcp)" "protocol"; then
+        protocol="tcp"
+    fi
+    protocol=${protocol:-tcp}
+    
+    [[ ! $port =~ ^[0-9]+$ ]] && echo -e "${RED}无效端口号！${NC}" && wait_key && return
+    [[ $port -lt 1 || $port -gt 65535 ]] && echo -e "${RED}端口范围1-65535！${NC}" && wait_key && return
+    
+    if command -v ufw >/dev/null; then
+        ufw allow $port/$protocol
+    elif command -v firewall-cmd >/dev/null; then
+        firewall-cmd --zone=public --add-port=$port/$protocol --permanent
+        firewall-cmd --reload
+    else
+        iptables -A INPUT -p $protocol --dport $port -j ACCEPT
+    fi
+    echo -e "${GREEN}端口 $port/$protocol 已开放！${NC}"
+    wait_key
+}
+
+# 8. 关闭指定端口
+close_specific_port() {
+    echo -e "\n${YELLOW}=== 关闭指定端口 ===${NC}"
+    if ! safe_input "输入端口号" "port"; then
+        echo -e "${YELLOW}已取消操作${NC}"
+        wait_key
+        return
+    fi
+    
+    if ! safe_input "协议类型(tcp/udp，默认tcp)" "protocol"; then
+        protocol="tcp"
+    fi
+    protocol=${protocol:-tcp}
+    
+    [[ ! $port =~ ^[0-9]+$ ]] && echo -e "${RED}无效端口号！${NC}" && wait_key && return
+    
+    if command -v ufw >/dev/null; then
+        ufw delete allow $port/$protocol
+    elif command -v firewall-cmd >/dev/null; then
+        firewall-cmd --zone=public --remove-port=$port/$protocol --permanent
+        firewall-cmd --reload
+    else
+        iptables -D INPUT -p $protocol --dport $port -j ACCEPT
+    fi
+    echo -e "${GREEN}端口 $port/$protocol 已关闭！${NC}"
+    wait_key
+}
+
 # 9. 文件权限设置
 file_permission_settings() {
     while true; do
@@ -194,8 +313,35 @@ file_permission_settings() {
     done
 }
 
-# 其他保持原样的函数（show_port_status/open_all_ports/close_all_ports/open_specific_port/close_specific_port/reset_file_permissions）
-# 此处省略，实际脚本中请保留原有实现，只需在最后添加 wait_key 调用
+# 10. 重置文件权限
+reset_file_permissions() {
+    echo -e "\n${YELLOW}=== 重置文件权限 ===${NC}"
+    if ! safe_input "输入要重置的路径" "path"; then
+        echo -e "${YELLOW}已取消操作${NC}"
+        wait_key
+        return
+    fi
+    
+    [ ! -e "$path" ] && echo -e "${RED}路径不存在！${NC}" && wait_key && return
+    
+    echo -e "${RED}警告：这将递归重置所有权限！${NC}"
+    if ! safe_input "确认重置？(y/n)" "confirm"; then
+        echo -e "${YELLOW}已取消操作${NC}"
+        wait_key
+        return
+    fi
+
+    if [ "$confirm" = "y" ]; then
+        if [ -d "$path" ]; then
+            find "$path" -type d -exec chmod 755 {} \; 2>/dev/null
+            find "$path" -type f -exec chmod 644 {} \; 2>/dev/null
+        else
+            chmod 644 "$path"
+        fi
+        echo -e "${GREEN}权限已重置为默认！${NC}"
+    fi
+    wait_key
+}
 
 # 主循环
 main() {
@@ -207,13 +353,13 @@ main() {
             1) enable_root_login ;;
             2) disable_root_login ;;
             3) change_root_password ;;
-            4) show_port_status; wait_key ;;
-            5) open_all_ports; wait_key ;;
-            6) close_all_ports; wait_key ;;
-            7) open_specific_port; wait_key ;;
-            8) close_specific_port; wait_key ;;
+            4) show_port_status ;;
+            5) open_all_ports ;;
+            6) close_all_ports ;;
+            7) open_specific_port ;;
+            8) close_specific_port ;;
             9) file_permission_settings ;;
-            10) reset_file_permissions; wait_key ;;
+            10) reset_file_permissions ;;
             0) echo -e "${GREEN}脚本已退出${NC}"; exit 0 ;;
             *) echo -e "${RED}无效选项！${NC}"; sleep 1 ;;
         esac
