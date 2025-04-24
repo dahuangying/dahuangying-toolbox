@@ -77,29 +77,32 @@ restart_ssh_service() {
     fi
 }
 
-# 1. 启用ROOT密码登录
+# 1. 启用ROOT密码登录（回车退出版）
 enable_root_login() {
     echo -e "\n${YELLOW}=== 启用ROOT密码登录模式 ===${NC}"
+    echo -e "${BLUE}请设置ROOT密码（直接回车取消操作）:${NC}"
     
-    # 使用系统passwd命令修改密码
-    echo -e "${BLUE}请设置ROOT用户的新密码（直接回车取消）：${NC}"
-    passwd root
-    if [ $? -ne 0 ]; then
-        echo -e "${YELLOW}已取消密码设置${NC}"
+    # 单次密码输入，回车直接退出
+    read -s -p "" root_pass
+    [ -z "$root_pass" ] && {
+        echo -e "${YELLOW}已取消操作${NC}"
         wait_key
         return
-    fi
+    }
 
-    # 启用SSH的ROOT登录
-    echo -e "${BLUE}正在启用SSH的ROOT登录...${NC}"
-    sed -i 's/^#*PermitRootLogin.*/PermitRootLogin yes/g' /etc/ssh/sshd_config
-    sed -i 's/^#*PasswordAuthentication.*/PasswordAuthentication yes/g' /etc/ssh/sshd_config
-
-    if restart_ssh_service; then
-        echo -e "${GREEN}ROOT密码登录已成功启用！${NC}"
-    else
-        echo -e "${RED}SSH服务重启失败，请手动执行：systemctl restart sshd${NC}"
-    fi
+    # 设置密码
+    echo "root:$root_pass" | chpasswd && {
+        # 修改SSH配置
+        sed -i 's/^#*PermitRootLogin.*/PermitRootLogin yes/g' /etc/ssh/sshd_config
+        sed -i 's/^#*PasswordAuthentication.*/PasswordAuthentication yes/g' /etc/ssh/sshd_config
+        
+        if restart_ssh_service; then
+            echo -e "${GREEN}ROOT密码登录已启用！${NC}"
+        else
+            echo -e "${RED}SSH服务重启失败！${NC}"
+        fi
+    } || echo -e "${RED}密码设置失败！${NC}"
+    
     wait_key
 }
 
@@ -125,16 +128,24 @@ disable_root_login() {
     wait_key
 }
 
-# 3. 修改ROOT密码
+# 3. 修改ROOT密码（回车退出版）
 change_root_password() {
     echo -e "\n${YELLOW}=== 修改ROOT密码 ===${NC}"
-    echo -e "${BLUE}（直接回车取消操作）${NC}"
-    passwd root
-    if [ $? -eq 0 ]; then
-        echo -e "${GREEN}密码修改成功！${NC}"
-    else
-        echo -e "${YELLOW}已取消密码修改${NC}"
-    fi
+    echo -e "${BLUE}请输入新密码（直接回车取消）:${NC}"
+    
+    # 单次输入即可
+    read -s -p "" new_pass
+    [ -z "$new_pass" ] && {
+        echo -e "${YELLOW}已取消操作${NC}"
+        wait_key
+        return
+    }
+
+    # 直接修改密码
+    echo "root:$new_pass" | chpasswd && \
+        echo -e "${GREEN}密码修改成功！${NC}" || \
+        echo -e "${RED}密码修改失败！${NC}"
+    
     wait_key
 }
 
