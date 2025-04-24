@@ -59,6 +59,16 @@ show_menu() {
     echo -e "9. 文件权限设置"
     echo -e "10. 重置文件权限为默认"
     echo -e "${BLUE}---------------------------------------${NC}"
+	echo -e "11. 查看防火墙状态"
+    echo -e "12. 关闭防火墙"
+    echo -e "13. 开启防火墙"
+    echo -e "14. 禁止防火墙开机自启"
+    echo -e "15. 恢复防火墙开机自启"
+    echo -e "16. 一键关闭防火墙及开机自启"[2]+[4]
+    echo -e "17. 一键开启防火墙及开机自启"[3]+[5]
+    echo -e "${BLUE}---------------------------------------${NC}"
+	echo -e "18. 重启服务器"
+    echo -e "${BLUE}---------------------------------------${NC}"
     echo -e "0. 退出"
     echo -n "请输入选项数字: "
 }
@@ -343,6 +353,208 @@ reset_file_permissions() {
     wait_key
 }
 
+#  检测防火墙类型
+detect_firewall() {
+    if command -v ufw >/dev/null; then
+        echo "ufw"
+    elif command -v firewall-cmd >/dev/null; then
+        echo "firewalld"
+    elif command -v iptables >/dev/null; then
+        echo "iptables"
+    else
+        echo "none"
+    fi
+}
+
+# 11. 防火墙状态查看
+show_firewall_status() {
+    echo -e "\n${YELLOW}=== 防火墙状态 ===${NC}"
+    case $(detect_firewall) in
+        ufw)
+            ufw status verbose
+            ;;
+        firewalld)
+            firewall-cmd --state
+            firewall-cmd --list-all
+            ;;
+        iptables)
+            iptables -L -n -v
+            ;;
+        none)
+            echo -e "${RED}未检测到常用防火墙！${NC}"
+            ;;
+    esac
+    wait_key
+}
+
+# 12. 关闭防火墙
+stop_firewall() {
+    echo -e "\n${RED}=== 关闭防火墙 ===${NC}"
+    case $(detect_firewall) in
+        ufw)
+            ufw disable
+            ;;
+        firewalld)
+            systemctl stop firewalld
+            ;;
+        iptables)
+            iptables -F
+            iptables -X
+            iptables -Z
+            ;;
+        none)
+            echo -e "${YELLOW}无活跃防火墙可关闭${NC}"
+            wait_key
+            return
+            ;;
+    esac
+    echo -e "${GREEN}防火墙已关闭！${NC}"
+    wait_key
+}
+
+# 13. 开启防火墙
+start_firewall() {
+    echo -e "\n${GREEN}=== 开启防火墙 ===${NC}"
+    case $(detect_firewall) in
+        ufw)
+            ufw enable
+            ;;
+        firewalld)
+            systemctl start firewalld
+            ;;
+        iptables)
+            echo -e "${YELLOW}iptables需要手动配置规则${NC}"
+            ;;
+        none)
+            echo -e "${RED}未检测到可管理防火墙！${NC}"
+            wait_key
+            return
+            ;;
+    esac
+    echo -e "${GREEN}防火墙已启动！${NC}"
+    wait_key
+}
+
+# 14. 禁止防火墙开机自启
+disable_firewall_autostart() {
+    echo -e "\n${YELLOW}=== 禁用防火墙开机自启 ===${NC}"
+    case $(detect_firewall) in
+        ufw)
+            ufw disable
+            ;;
+        firewalld)
+            systemctl disable firewalld
+            ;;
+        iptables)
+            echo -e "${YELLOW}iptables需自行处理开机脚本${NC}"
+            ;;
+        none)
+            echo -e "${RED}未检测到可管理防火墙！${NC}"
+            wait_key
+            return
+            ;;
+    esac
+    echo -e "${GREEN}已禁止防火墙开机自启！${NC}"
+    wait_key
+}
+
+# 15. 恢复防火墙开机自启
+enable_firewall_autostart() {
+    echo -e "\n${GREEN}=== 启用防火墙开机自启 ===${NC}"
+    case $(detect_firewall) in
+        ufw)
+            ufw enable
+            ;;
+        firewalld)
+            systemctl enable --now firewalld
+            ;;
+        iptables)
+            echo -e "${YELLOW}iptables需自行配置开机启动${NC}"
+            ;;
+        none)
+            echo -e "${RED}未检测到可管理防火墙！${NC}"
+            wait_key
+            return
+            ;;
+    esac
+    echo -e "${GREEN}已恢复防火墙开机自启！${NC}"
+    wait_key
+}
+
+# 16. 一键关闭防火墙及开机自启
+onekey_disable_firewall() {
+    echo -e "\n${RED}=== 一键关闭防火墙 ===${NC}"
+    case $(detect_firewall) in
+        ufw)
+            ufw disable
+            ;;
+        firewalld)
+            systemctl stop firewalld
+            systemctl disable firewalld
+            ;;
+        iptables)
+            iptables -F
+            iptables -X
+            iptables -Z
+            echo -e "${YELLOW}请手动处理iptables开机启动${NC}"
+            ;;
+        none)
+            echo -e "${YELLOW}无活跃防火墙可关闭${NC}"
+            wait_key
+            return
+            ;;
+    esac
+    echo -e "${GREEN}防火墙已关闭并禁用开机启动！${NC}"
+    wait_key
+}
+
+# 17. 一键开启防火墙及开机自启
+onekey_enable_firewall() {
+    echo -e "\n${GREEN}=== 一键开启防火墙 ===${NC}"
+    case $(detect_firewall) in
+        ufw)
+            ufw enable
+            ;;
+        firewalld)
+            systemctl enable --now firewalld
+            ;;
+        iptables)
+            echo -e "${YELLOW}请手动配置iptables规则和开机启动${NC}"
+            ;;
+        none)
+            echo -e "${RED}未检测到可管理防火墙！${NC}"
+            wait_key
+            return
+            ;;
+    esac
+    echo -e "${GREEN}防火墙已开启并设置开机启动！${NC}"
+    wait_key
+}
+
+# 18. 重启服务器函数
+reboot_server() {
+    echo -e "\n${RED}=== 重启服务器 ===${NC}"
+    echo -e "${YELLOW}警告：这将导致服务器立即重启！${NC}"
+    
+    # 确认操作
+    read -p "确定要重启服务器吗？(y/n): " confirm
+    if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
+        echo -e "${YELLOW}已取消重启操作${NC}"
+        wait_key
+        return
+    fi
+
+    # 倒计时提示
+    for i in {5..1}; do
+        echo -ne "${RED}服务器将在 ${i} 秒后重启...${NC}\033[0K\r"
+        sleep 1
+    done
+
+    # 执行重启
+    echo -e "\n${GREEN}正在重启服务器...${NC}"
+    shutdown -r now
+}
+
 # 主循环
 main() {
     check_root
@@ -360,6 +572,14 @@ main() {
             8) close_specific_port ;;
             9) file_permission_settings ;;
             10) reset_file_permissions ;;
+			11) show_firewall_status ;;
+            12) stop_firewall ;;
+            13) start_firewall ;;
+            14) disable_firewall_autostart ;;
+            15) enable_firewall_autostart ;;
+            16) onekey_disable_firewall ;;
+            17) onekey_enable_firewall ;;
+			18) reboot_server ;; 
             0) echo -e "${GREEN}脚本已退出${NC}"; exit 0 ;;
             *) echo -e "${RED}无效选项！${NC}"; sleep 1 ;;
         esac
