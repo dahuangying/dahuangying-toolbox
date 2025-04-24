@@ -1,226 +1,248 @@
 #!/bin/bash
 
-# ROOT密码登录模式管理
-function root_password_login() {
-    echo "1. 开启 ROOT 密码登录模式"
-    echo "2. 关闭 ROOT 密码登录模式"
-    read -p "请选择操作 (1-2): " choice
+# 颜色定义
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[0;33m'
+NC='\033[0m' # No Color
 
-    if [ "$choice" -eq 1 ]; then
-        echo "正在开启 ROOT 密码登录模式..."
-        sed -i 's/^PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config
-        systemctl restart sshd
-        echo "ROOT 密码登录模式已开启，请设置 ROOT 密码。"
-        # 强制用户设置 ROOT 密码
-        while true; do
-            read -sp "请输入新的 ROOT 密码: " new_password
-            echo
-            read -sp "请再次输入密码: " confirm_password
-            echo
-            if [ "$new_password" == "$confirm_password" ]; then
-                echo -e "$new_password\n$new_password" | passwd root
-                echo "ROOT 密码已设置成功！"
-                break
-            else
-                echo "两次输入的密码不匹配，请重新输入。"
-            fi
-        done
-    elif [ "$choice" -eq 2 ]; then
-        echo "正在关闭 ROOT 密码登录模式..."
-        sed -i 's/^PermitRootLogin.*/PermitRootLogin no/' /etc/ssh/sshd_config
-        systemctl restart sshd
-        echo "ROOT 密码登录模式已关闭！"
-    else
-        echo "无效选项！"
+# 检查是否为root用户
+check_root() {
+    if [ "$(id -u)" != "0" ]; then
+        echo -e "${RED}错误：此脚本必须以root权限运行！${NC}" >&2
+        exit 1
     fi
-    echo -e "\e[32m操作完成，按任意键继续...\e[0m"
-    read -n 1 -s
-    return_to_menu
 }
 
-# 修改登录密码
-function change_password() {
-    read -sp "请输入新密码: " new_password
-    echo
-    read -sp "请再次输入新密码: " confirm_password
-    echo
-    if [ "$new_password" == "$confirm_password" ]; then
-        echo -e "$new_password\n$new_password" | passwd root
-        echo "密码修改成功！"
+# 显示菜单
+show_menu() {
+    clear
+    echo -e "${GREEN}=======================================${NC}"
+    echo -e "          Linux 系统管理一键脚本         "
+    echo -e "${GREEN}=======================================${NC}"
+    echo -e "1. 启用ROOT密码登录模式"
+    echo -e "2. 禁用ROOT密码登录模式"
+    echo -e "3. 修改ROOT登录密码"
+    echo -e "${GREEN}---------------------------------------${NC}"
+    echo -e "4. 查看端口占用状态"
+    echo -e "5. 开放所有端口（谨慎使用）"
+    echo -e "6. 关闭所有端口（谨慎使用）"
+    echo -e "7. 开放指定端口"
+    echo -e "8. 关闭指定端口"
+    echo -e "${GREEN}---------------------------------------${NC}"
+    echo -e "9. 文件权限安全设置（755/644）"
+    echo -e "10. 重置文件权限为默认"
+    echo -e "${GREEN}---------------------------------------${NC}"
+    echo -e "0. 退出脚本"
+    echo -e "${GREEN}=======================================${NC}"
+    echo -n "请输入选项数字: "
+}
+
+# 启用ROOT密码登录
+enable_root_login() {
+    sed -i 's/^#PermitRootLogin.*/PermitRootLogin yes/g' /etc/ssh/sshd_config
+    sed -i 's/^PermitRootLogin prohibit-password/PermitRootLogin yes/g' /etc/ssh/sshd_config
+    sed -i 's/^PermitRootLogin no/PermitRootLogin yes/g' /etc/ssh/sshd_config
+    systemctl restart sshd
+    echo -e "${GREEN}已启用ROOT密码登录模式${NC}"
+}
+
+# 禁用ROOT密码登录
+disable_root_login() {
+    sed -i 's/^PermitRootLogin.*/#PermitRootLogin no/g' /etc/ssh/sshd_config
+    systemctl restart sshd
+    echo -e "${GREEN}已禁用ROOT密码登录模式${NC}"
+}
+
+# 修改ROOT密码
+change_root_password() {
+    passwd root
+    if [ $? -eq 0 ]; then
+        echo -e "${GREEN}ROOT密码修改成功${NC}"
     else
-        echo "两次输入的密码不匹配，请重新输入。"
+        echo -e "${RED}ROOT密码修改失败${NC}"
     fi
-    echo -e "\e[32m操作完成，按任意键继续...\e[0m"
-    read -n 1 -s
-    return_to_menu
 }
 
-# 查看端口占用状态
-function check_ports() {
-    echo "正在查看端口占用状态..."
-    netstat -tuln
-    echo -e "\e[32m操作完成，按任意键继续...\e[0m"
-    read -n 1 -s
-    return_to_menu
+# 查看端口占用
+show_port_status() {
+    echo -e "${YELLOW}活动的监听端口：${NC}"
+    ss -tulnp | grep LISTEN
+    echo -e "\n${YELLOW}防火墙状态：${NC}"
+    if command -v ufw &> /dev/null; then
+        ufw status numbered
+    elif command -v firewall-cmd &> /dev/null; then
+        firewall-cmd --list-all
+    else
+        iptables -L -n
+    fi
 }
 
-# 开放所有端口
-function open_all_ports() {
-    echo "正在开放所有端口..."
-    firewall-cmd --zone=public --add-port=0-65535/tcp --permanent
-    firewall-cmd --reload
-    echo -e "\e[32m操作完成，按任意键继续...\e[0m"
-    read -n 1 -s
-    return_to_menu
+# 开放所有端口（危险操作）
+open_all_ports() {
+    echo -e "${RED}警告：这将开放所有端口，存在重大安全风险！${NC}"
+    read -p "确定要继续吗？(y/n): " confirm
+    if [ "$confirm" == "y" ]; then
+        if command -v ufw &> /dev/null; then
+            ufw disable
+        elif command -v firewall-cmd &> /dev/null; then
+            firewall-cmd --zone=public --add-port=1-65535/tcp --permanent
+            firewall-cmd --zone=public --add-port=1-65535/udp --permanent
+            firewall-cmd --reload
+        else
+            iptables -P INPUT ACCEPT
+            iptables -P FORWARD ACCEPT
+            iptables -P OUTPUT ACCEPT
+            iptables -F
+        fi
+        echo -e "${GREEN}已开放所有端口${NC}"
+    else
+        echo -e "${YELLOW}操作已取消${NC}"
+    fi
 }
 
-# 关闭所有端口
-function close_all_ports() {
-    echo "正在关闭所有端口..."
-    firewall-cmd --zone=public --remove-port=0-65535/tcp --permanent
-    firewall-cmd --reload
-    echo -e "\e[32m操作完成，按任意键继续...\e[0m"
-    read -n 1 -s
-    return_to_menu
+# 关闭所有端口（危险操作）
+close_all_ports() {
+    echo -e "${RED}警告：这将关闭所有端口，可能导致系统无法远程访问！${NC}"
+    read -p "确定要继续吗？(y/n): " confirm
+    if [ "$confirm" == "y" ]; then
+        if command -v ufw &> /dev/null; then
+            ufw enable
+            ufw default deny
+        elif command -v firewall-cmd &> /dev/null; then
+            firewall-cmd --zone=public --remove-port=1-65535/tcp --permanent
+            firewall-cmd --zone=public --remove-port=1-65535/udp --permanent
+            firewall-cmd --reload
+        else
+            iptables -P INPUT DROP
+            iptables -P FORWARD DROP
+            iptables -P OUTPUT ACCEPT
+            iptables -F
+        fi
+        echo -e "${GREEN}已关闭所有端口${NC}"
+        echo -e "${YELLOW}注意：您可能需要通过控制台重新开放SSH端口！${NC}"
+    else
+        echo -e "${YELLOW}操作已取消${NC}"
+    fi
 }
 
 # 开放指定端口
-function open_specific_port() {
+open_specific_port() {
     read -p "请输入要开放的端口号: " port
-    echo "正在开放端口 $port ..."
-    firewall-cmd --zone=public --add-port=$port/tcp --permanent
-    firewall-cmd --reload
-    echo -e "\e[32m操作完成，按任意键继续...\e[0m"
-    read -n 1 -s
-    return_to_menu
+    read -p "请输入协议类型(tcp/udp，默认tcp): " protocol
+    protocol=${protocol:-tcp}
+    
+    if ! [[ "$port" =~ ^[0-9]+$ ]] || [ "$port" -lt 1 ] || [ "$port" -gt 65535 ]; then
+        echo -e "${RED}错误：端口号必须是1-65535之间的数字${NC}"
+        return
+    fi
+    
+    if [ "$protocol" != "tcp" ] && [ "$protocol" != "udp" ]; then
+        echo -e "${RED}错误：协议类型必须是tcp或udp${NC}"
+        return
+    fi
+    
+    if command -v ufw &> /dev/null; then
+        ufw allow $port/$protocol
+    elif command -v firewall-cmd &> /dev/null; then
+        firewall-cmd --zone=public --add-port=$port/$protocol --permanent
+        firewall-cmd --reload
+    else
+        iptables -A INPUT -p $protocol --dport $port -j ACCEPT
+    fi
+    
+    echo -e "${GREEN}已开放端口 $port/$protocol${NC}"
 }
 
 # 关闭指定端口
-function close_specific_port() {
+close_specific_port() {
     read -p "请输入要关闭的端口号: " port
-    echo "正在关闭端口 $port ..."
-    firewall-cmd --zone=public --remove-port=$port/tcp --permanent
-    firewall-cmd --reload
-    echo -e "\e[32m操作完成，按任意键继续...\e[0m"
-    read -n 1 -s
-    return_to_menu
-}
-
-# 文件权限管理
-function file_permissions() {
-    echo "请选择文件权限设置："
-    echo "1. rwxr-xr-x (755)"
-    echo "2. rw-r--r-- (644)"
-    echo "3. rwx------ (700)"
-    echo "4. r-xr-xr-x (555)"
-    echo "5. r-------- (400)"
-    echo "6. 自定义权限"
-    read -p "请输入选项 (1-6): " choice
-
-    echo "请输入文件或目录的路径："
-    read filepath
-
-    # 检查文件或目录是否存在
-    if [ ! -e "$filepath" ]; then
-        echo "错误：文件或目录不存在！"
+    read -p "请输入协议类型(tcp/udp，默认tcp): " protocol
+    protocol=${protocol:-tcp}
+    
+    if ! [[ "$port" =~ ^[0-9]+$ ]] || [ "$port" -lt 1 ] || [ "$port" -gt 65535 ]; then
+        echo -e "${RED}错误：端口号必须是1-65535之间的数字${NC}"
         return
     fi
-
-    # 根据用户选择的权限设置相应的权限
-    case $choice in
-        1)
-            chmod 755 "$filepath"
-            echo "权限已设置为 rwxr-xr-x (755)"
-            ;;
-        2)
-            chmod 644 "$filepath"
-            echo "权限已设置为 rw-r--r-- (644)"
-            ;;
-        3)
-            chmod 700 "$filepath"
-            echo "权限已设置为 rwx------ (700)"
-            ;;
-        4)
-            chmod 555 "$filepath"
-            echo "权限已设置为 r-xr-xr-x (555)"
-            ;;
-        5)
-            chmod 400 "$filepath"
-            echo "权限已设置为 r-------- (400)"
-            ;;
-        6)
-            read -p "请输入自定义权限 (如：755, 644)： " custom_permission
-            chmod "$custom_permission" "$filepath"
-            echo "权限已设置为自定义权限 $custom_permission"
-            ;;
-        *)
-            echo "无效选项！"
-            ;;
-    esac
-    echo -e "\e[32m操作完成，按任意键继续...\e[0m"
-    read -n 1 -s
-    return_to_menu
+    
+    if [ "$protocol" != "tcp" ] && [ "$protocol" != "udp" ]; then
+        echo -e "${RED}错误：协议类型必须是tcp或udp${NC}"
+        return
+    fi
+    
+    if command -v ufw &> /dev/null; then
+        ufw delete allow $port/$protocol
+    elif command -v firewall-cmd &> /dev/null; then
+        firewall-cmd --zone=public --remove-port=$port/$protocol --permanent
+        firewall-cmd --reload
+    else
+        iptables -D INPUT -p $protocol --dport $port -j ACCEPT
+    fi
+    
+    echo -e "${GREEN}已关闭端口 $port/$protocol${NC}"
 }
 
-# 返回主菜单函数
-function return_to_menu() {
-    echo -e "\e[32m返回主菜单...\e[0m"
-    main_menu
+# 文件权限安全设置
+set_file_permissions() {
+    echo -e "${YELLOW}正在设置安全文件权限...${NC}"
+    
+    # 设置目录权限为755
+    find / -type d -exec chmod 755 {} \; 2>/dev/null
+    
+    # 设置文件权限为644
+    find / -type f -exec chmod 644 {} \; 2>/dev/null
+    
+    # 特殊目录权限
+    chmod 700 /etc/ssh/ssh_host*key
+    chmod 755 /etc /etc/ssh /var/log
+    
+    echo -e "${GREEN}文件权限已设置为安全模式(755/644)${NC}"
 }
 
-# 主菜单
-function main_menu() {
-    echo "=============================="
-    echo "欢迎使用一键运维脚本"
-    echo "=============================="
-    echo "请选择你要执行的操作："
-    echo "1. ROOT密码登录模式管理"
-    echo "2. 修改登录密码"
-    echo "3. 查看端口占用状态"
-    echo "4. 开放/关闭端口"
-    echo "5. 文件权限管理"
-    echo "0. 退出"
-    read -p "请输入选项 (0-5): " option
-
-    case $option in
-        1)
-            root_password_login
-            ;;
-        2)
-            change_password
-            ;;
-        3)
-            check_ports
-            ;;
-        4)
-            echo "请选择端口操作："
-            echo "1. 开放所有端口"
-            echo "2. 关闭所有端口"
-            echo "3. 开放指定端口"
-            echo "4. 关闭指定端口"
-            read -p "请输入选项 (1-4): " port_option
-            case $port_option in
-                1) open_all_ports ;;
-                2) close_all_ports ;;
-                3) open_specific_port ;;
-                4) close_specific_port ;;
-                *) echo "无效选项！" ;;
-            esac
-            ;;
-        5)
-            file_permissions
-            ;;
-        0)
-            echo "退出脚本"
-            exit 0
-            ;;
-        *)
-            echo "无效选项！"
-            ;;
-    esac
+# 重置文件权限为默认
+reset_file_permissions() {
+    echo -e "${YELLOW}正在重置文件权限为默认值...${NC}"
+    
+    # 重置目录权限为755
+    find / -type d -exec chmod 755 {} \; 2>/dev/null
+    
+    # 重置文件权限为644
+    find / -type f -exec chmod 644 {} \; 2>/dev/null
+    
+    # 特殊文件权限
+    chmod 755 /bin/* /sbin/* /usr/bin/* /usr/sbin/*
+    chmod 755 /usr/local/bin/* /usr/local/sbin/*
+    chmod 644 /etc/*.conf /etc/hosts /etc/resolv.conf
+    
+    echo -e "${GREEN}文件权限已重置为默认值${NC}"
 }
 
-# 启动脚本
-main_menu
+# 主循环
+main() {
+    check_root
+    
+    while true; do
+        show_menu
+        read choice
+        case $choice in
+            1) enable_root_login ;;
+            2) disable_root_login ;;
+            3) change_root_password ;;
+            4) show_port_status ;;
+            5) open_all_ports ;;
+            6) close_all_ports ;;
+            7) open_specific_port ;;
+            8) close_specific_port ;;
+            9) set_file_permissions ;;
+            10) reset_file_permissions ;;
+            0) echo -e "${GREEN}退出脚本${NC}"; exit 0 ;;
+            *) echo -e "${RED}无效选项，请重新输入${NC}" ;;
+        esac
+        echo -e "\n按Enter键继续..."
+        read
+    done
+}
+
+main
 
 
