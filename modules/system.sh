@@ -1,8 +1,11 @@
 #!/bin/bash
 
-# 设置颜色
-GREEN="\033[0;32m"  # 绿色
-NC="\033[0m"        # 重置颜色
+# 颜色定义
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[0;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
 
 # 检查root权限
 check_root() {
@@ -278,14 +281,6 @@ main() {
     done
 }
 
-# 暂停，按任意键继续
-pause() {
-    # 设置绿色文本颜色
-    echo -e "\033[0;32m操作完成，按任意键继续...\033[0m"
-    read -n 1 -s -r
-}
-
-# 启动脚本
-show_menu
+main
 
 
