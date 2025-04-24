@@ -19,7 +19,7 @@ check_root() {
 safe_input() {
     local prompt="$1"
     local var_name="$2"
-    local is_password="${3:-n}"
+    local is_password="${1:-n}"
     
     echo -ne "${YELLOW}${prompt}（直接回车取消）: ${NC}"
     if [ "$is_password" = "y" ]; then
