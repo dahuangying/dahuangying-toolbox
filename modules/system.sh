@@ -64,14 +64,53 @@ show_menu() {
     echo -e "13. 开启防火墙"
     echo -e "14. 禁止防火墙开机自启"
     echo -e "15. 恢复防火墙开机自启"
-    echo -e "16. 一键关闭防火墙及开机自启"[2]+[4]
-    echo -e "17. 一键开启防火墙及开机自启"[3]+[5]
     echo -e "${BLUE}---------------------------------------${NC}"
-	echo -e "18. 重启服务器"
+	echo -e "16. 重启服务器"
     echo -e "${BLUE}---------------------------------------${NC}"
+    echo -e "17. 创建目录"
+    echo -e "18. 创建文件"
+    echo -e "19. 删除目录/文件"
+    echo -e "20. 编辑文件"
+    echo -e "21. 查找文件/目录"
+    echo -e "${GREEN}--------------------------------${NC}"
     echo -e "0. 退出"
     echo -n "请输入选项数字: "
 }
+
+# 主循环
+main() {
+    check_root
+    while true; do
+        show_menu
+        read option
+        case $option in
+            1) enable_root_login ;;
+            2) disable_root_login ;;
+            3) change_root_password ;;
+            4) show_port_status ;;
+            5) open_all_ports ;;
+            6) close_all_ports ;;
+            7) open_specific_port ;;
+            8) close_specific_port ;;
+            9) file_permission_settings ;;
+            10) reset_file_permissions ;;
+			11) show_firewall_status ;;
+            12) stop_firewall ;;
+            13) start_firewall ;;
+            14) disable_firewall_autostart ;;
+            15) enable_firewall_autostart ;;
+			16) reboot_server ;; 
+            17) create_directory ;;
+            18) create_file ;;
+            19) delete_target ;;
+            20) edit_file ;;
+            21) search_files ;;
+            0) echo -e "${GREEN}脚本已退出${NC}"; exit 0 ;;
+            *) echo -e "${RED}无效选项！${NC}"; sleep 1 ;;
+        esac
+    done
+}
+
 
 # SSH服务管理
 restart_ssh_service() {
@@ -543,57 +582,7 @@ enable_firewall_autostart() {
     wait_key
 }
 
-# 16. 一键关闭防火墙及开机自启
-onekey_disable_firewall() {
-    echo -e "\n${RED}=== 一键关闭防火墙 ===${NC}"
-    case $(detect_firewall) in
-        ufw)
-            ufw disable
-            ;;
-        firewalld)
-            systemctl stop firewalld
-            systemctl disable firewalld
-            ;;
-        iptables)
-            iptables -F
-            iptables -X
-            iptables -Z
-            echo -e "${YELLOW}请手动处理iptables开机启动${NC}"
-            ;;
-        none)
-            echo -e "${YELLOW}无活跃防火墙可关闭${NC}"
-            wait_key
-            return
-            ;;
-    esac
-    echo -e "${GREEN}防火墙已关闭并禁用开机启动！${NC}"
-    wait_key
-}
-
-# 17. 一键开启防火墙及开机自启
-onekey_enable_firewall() {
-    echo -e "\n${GREEN}=== 一键开启防火墙 ===${NC}"
-    case $(detect_firewall) in
-        ufw)
-            ufw enable
-            ;;
-        firewalld)
-            systemctl enable --now firewalld
-            ;;
-        iptables)
-            echo -e "${YELLOW}请手动配置iptables规则和开机启动${NC}"
-            ;;
-        none)
-            echo -e "${RED}未检测到可管理防火墙！${NC}"
-            wait_key
-            return
-            ;;
-    esac
-    echo -e "${GREEN}防火墙已开启并设置开机启动！${NC}"
-    wait_key
-}
-
-# 18. 重启服务器函数
+# 16. 重启服务器函数
 reboot_server() {
     echo -e "\n${RED}=== 重启服务器 ===${NC}"
     echo -e "${YELLOW}警告：这将导致服务器立即重启！${NC}"
@@ -617,35 +606,155 @@ reboot_server() {
     shutdown -r now
 }
 
-# 主循环
-main() {
-    check_root
-    while true; do
-        show_menu
-        read option
-        case $option in
-            1) enable_root_login ;;
-            2) disable_root_login ;;
-            3) change_root_password ;;
-            4) show_port_status ;;
-            5) open_all_ports ;;
-            6) close_all_ports ;;
-            7) open_specific_port ;;
-            8) close_specific_port ;;
-            9) file_permission_settings ;;
-            10) reset_file_permissions ;;
-			11) show_firewall_status ;;
-            12) stop_firewall ;;
-            13) start_firewall ;;
-            14) disable_firewall_autostart ;;
-            15) enable_firewall_autostart ;;
-            16) onekey_disable_firewall ;;
-            17) onekey_enable_firewall ;;
-			18) reboot_server ;; 
-            0) echo -e "${GREEN}脚本已退出${NC}"; exit 0 ;;
-            *) echo -e "${RED}无效选项！${NC}"; sleep 1 ;;
-        esac
+# 安全确认函数
+confirm_action() {
+    local action=$1
+    local target=$2
+    echo -e "${RED}警告：即将执行 ${action} 操作目标：${YELLOW}${target}${NC}"
+    read -p "确认执行？(y/n): " choice
+    [[ "$choice" =~ ^[Yy]$ ]] && return 0 || return 1
+}
+
+# 17. 创建目录
+create_directory() {
+    read -p "输入要创建的目录路径: " dirpath
+    if [ -z "$dirpath" ]; then
+        echo -e "${RED}路径不能为空！${NC}"
+        return
+    fi
+    
+    if confirm_action "创建目录" "$dirpath"; then
+        if mkdir -p "$dirpath"; then
+            echo -e "${GREEN}目录创建成功！${NC}"
+            recommend_permissions "$dirpath" "directory"
+        else
+            echo -e "${RED}创建失败，请检查权限！${NC}"
+        fi
+    else
+        echo -e "${YELLOW}已取消操作${NC}"
+    fi
+    wait_key
+}
+
+# 18. 创建文件
+create_file() {
+    read -p "输入要创建的文件路径: " filepath
+    if [ -z "$filepath" ]; then
+        echo -e "${RED}路径不能为空！${NC}"
+        return
+    fi
+    
+    if confirm_action "创建文件" "$filepath"; then
+        if touch "$filepath"; then
+            echo -e "${GREEN}文件创建成功！${NC}"
+            recommend_permissions "$filepath" "file"
+        else
+            echo -e "${RED}创建失败，请检查权限！${NC}"
+        fi
+    else
+        echo -e "${YELLOW}已取消操作${NC}"
+    fi
+    wait_key
+}
+
+# 19. 删除目录/文件
+delete_target() {
+    read -p "输入要删除的路径: " target
+    if [ -z "$target" ]; then
+        echo -e "${RED}路径不能为空！${NC}"
+        return
+    fi
+    
+    if [ ! -e "$target" ]; then
+        echo -e "${RED}目标不存在！${NC}"
+        return
+    fi
+    
+    if confirm_action "删除" "$target"; then
+        if [ -d "$target" ]; then
+            rm -r "$target" && echo -e "${GREEN}目录删除成功！${NC}" || echo -e "${RED}删除失败！${NC}"
+        else
+            rm "$target" && echo -e "${GREEN}文件删除成功！${NC}" || echo -e "${RED}删除失败！${NC}"
+        fi
+    else
+        echo -e "${YELLOW}已取消操作${NC}"
+    fi
+    wait_key
+}
+
+# 20. 编辑文件
+edit_file() {
+    read -p "输入要编辑的文件路径: " filepath
+    if [ -z "$filepath" ]; then
+        echo -e "${RED}路径不能为空！${NC}"
+        return
+    fi
+    
+    if [ ! -f "$filepath" ]; then
+        echo -e "${RED}文件不存在或不是普通文件！${NC}"
+        return
+    fi
+    
+    if [ ! -w "$filepath" ]; then
+        echo -e "${RED}无写权限，尝试获取权限...${NC}"
+        if ! sudo chmod u+w "$filepath"; then
+            echo -e "${RED}无法获取写权限！${NC}"
+            return
+        fi
+    fi
+    
+    # 检测可用编辑器
+    editor=${EDITOR:-nano}
+    command -v $editor >/dev/null || editor="vi"
+    
+    $editor "$filepath"
+    echo -e "${GREEN}编辑完成！${NC}"
+    wait_key
+}
+
+# 21. 查找文件/目录
+search_files() {
+    read -p "输入查找路径（默认当前目录）: " searchpath
+    read -p "输入查找名称（支持通配符）: " pattern
+    
+    searchpath=${searchpath:-.}
+    
+    if [ -z "$pattern" ]; then
+        echo -e "${RED}搜索模式不能为空！${NC}"
+        return
+    fi
+    
+    echo -e "${BLUE}搜索结果：${NC}"
+    find "$searchpath" -name "$pattern" -print | while read result; do
+        if [ -d "$result" ]; then
+            echo -e "${GREEN}[目录] ${result}${NC}"
+        else
+            echo -e "${YELLOW}[文件] ${result}${NC}"
+        fi
     done
+    
+    wait_key
+}
+
+# 权限建议函数
+recommend_permissions() {
+    local target=$1
+    local type=$2
+    
+    echo -e "\n${BLUE}权限建议：${NC}"
+    case $type in
+        "directory")
+            echo -e "• 普通目录： ${GREEN}755 (drwxr-xr-x)${NC}"
+            echo -e "• 敏感目录： ${GREEN}700 (drwx------)${NC}"
+            echo -e "当前权限： $(stat -c "%a %A" "$target")"
+            ;;
+        "file")
+            echo -e "• 配置文件： ${GREEN}644 (-rw-r--r--)${NC}"
+            echo -e "• 可执行文件： ${GREEN}755 (-rwxr-xr-x)${NC}"
+            echo -e "• 敏感文件： ${GREEN}600 (-rw-------)${NC}"
+            echo -e "当前权限： $(stat -c "%a %A" "$target")"
+            ;;
+    esac
 }
 
 main
