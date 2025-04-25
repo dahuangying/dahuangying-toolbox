@@ -72,7 +72,7 @@ show_menu() {
     echo -e "19. 删除目录/文件"
     echo -e "20. 编辑文件"
     echo -e "21. 查找文件/目录"
-    echo -e "${GREEN}--------------------------------${NC}"
+    echo -e "${BLUE}---------------------------------------${NC}"
     echo -e "0. 退出"
     echo -n "请输入选项数字: "
 }
@@ -617,7 +617,7 @@ confirm_action() {
 
 # 17. 创建目录
 create_directory() {
-    read -p "输入要创建的目录路径: " dirpath
+    read -p "输入要创建的目录路径及目录名: " dirpath
     if [ -z "$dirpath" ]; then
         echo -e "${RED}路径不能为空！${NC}"
         return
@@ -638,7 +638,7 @@ create_directory() {
 
 # 18. 创建文件
 create_file() {
-    read -p "输入要创建的文件路径: " filepath
+    read -p "输入要创建的文件路径及文件名: " filepath
     if [ -z "$filepath" ]; then
         echo -e "${RED}路径不能为空！${NC}"
         return
@@ -659,7 +659,7 @@ create_file() {
 
 # 19. 删除目录/文件
 delete_target() {
-    read -p "输入要删除的路径: " target
+    read -p "输入要删除的目录或文件的路径: " target
     if [ -z "$target" ]; then
         echo -e "${RED}路径不能为空！${NC}"
         return
