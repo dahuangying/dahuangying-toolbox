@@ -51,7 +51,7 @@ show_menu() {
     echo -e "3. 修改ROOT登录密码"
     echo -e "${BLUE}---------------------------------------${NC}"
     echo -e "4. 查看端口占用状态"
-    echo -e "5. 开放所有端口${RED}（危险）${NC}"
+    echo -e "5. 开放所有端口（关键端口不开放）"
     echo -e "6. 关闭所有端口（保留 22.80.443）"
     echo -e "7. 开放指定端口"
     echo -e "8. 关闭指定端口"
@@ -166,26 +166,57 @@ show_port_status() {
 
 # 5. 开放所有端口
 open_all_ports() {
-    echo -e "\n${RED}=== 警告：这将开放所有端口！ ===${NC}"
+    echo -e "\n${RED}=== 警告：将开放非系统关键端口 ===${NC}"
+    echo -e "${YELLOW}以下端口仍受保护："
+    echo -e "• 22/tcp    (SSH)"
+    echo -e "• 53/udp    (DNS)"
+    echo -e "• 161/udp   (SNMP)"
+    echo -e "• 389/tcp   (LDAP)"
+    echo -e "• 3306/tcp  (MySQL)"
+    echo -e "• 5432/tcp  (PostgreSQL)"
+    echo -e "• 6379/tcp  (Redis)"
+    echo -e "• 内部网络通信端口${NC}"
+    
     read -p "确定继续吗？(y/n): " confirm
     [ "$confirm" != "y" ] && return
     
     if command -v ufw >/dev/null; then
-        ufw disable
+        # UFW方案：先放行所有再保护关键端口
+        ufw --force reset
+        ufw default allow incoming
+        ufw deny 22/tcp
+        ufw deny 53/udp
+        ufw deny 161/udp
+        ufw deny 3306,5432,6379/tcp
+        ufw enable
     elif command -v firewall-cmd >/dev/null; then
-        firewall-cmd --zone=public --add-port=1-65535/tcp --permanent
-        firewall-cmd --zone=public --add-port=1-65535/udp --permanent
+        # Firewalld方案：设置默认开放但拒绝关键端口
+        firewall-cmd --zone=public --remove-rich-rule='rule' --permanent
+        firewall-cmd --zone=public --add-rich-rule='rule port port="22" protocol="tcp" reject' --permanent
+        firewall-cmd --zone=public --add-rich-rule='rule port port="3306" protocol="tcp" reject' --permanent
+        firewall-cmd --zone=public --add-rich-rule='rule family="ipv4" source address="10.0.0.0/8" reject' --permanent
         firewall-cmd --reload
     else
+        # iptables方案：先开放后限制
         iptables -P INPUT ACCEPT
         iptables -P FORWARD ACCEPT
         iptables -P OUTPUT ACCEPT
         iptables -F
+        # 保护关键端口
+        iptables -A INPUT -p tcp --dport 22 -j DROP
+        iptables -A INPUT -p tcp --dport 3306 -j DROP
+        iptables -A INPUT -s 10.0.0.0/8 -j DROP
+        # 保存规则
+        iptables-save > /etc/iptables.rules 2>/dev/null
     fi
-    echo -e "${GREEN}所有端口已开放！${NC}"
+    
+    echo -e "${GREEN}非关键端口已开放！${NC}"
+    echo -e "${YELLOW}受保护的端口："
+    ss -tulnp | grep -E '22|53|161|389|3306|5432|6379'
     wait_key
 }
 
+# 6. 关闭所有端口
 close_all_ports() {
     echo -e "\n${RED}=== 警告：将关闭非必要端口（保留关键端口） ===${NC}"
     echo -e "${YELLOW}以下端口将被保留："
