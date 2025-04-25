@@ -684,7 +684,7 @@ delete_target() {
 
 # 20. 编辑文件
 edit_file() {
-    read -p "输入要编辑的文件路径: " filepath
+    read -p "输入要编辑的文件路径:（编辑模式：Vim：按 ESC → 输入 :wq → 回车  Nano：按 Ctrl+O 保存 → Ctrl+X 退出 ） " filepath
     if [ -z "$filepath" ]; then
         echo -e "${RED}路径不能为空！${NC}"
         return
