@@ -172,10 +172,68 @@ system_update() {
 
 # 系统清理
 system_cleanup() {
-    echo -e "${GREEN}正在清理系统...${NC}"
-    sudo apt-get autoremove -y
-    sudo apt-get autoclean -y
-    echo -e "${GREEN}系统清理完成。${NC}"
+    echo -e "\n${GREEN}=== 系统清理 ===${NC}"
+    
+    # 检测系统类型
+    if [ -f /etc/os-release ]; then
+        source /etc/os-release
+        case $ID in
+            debian|ubuntu|raspbian)
+                echo -e "${BLUE}[Debian/Ubuntu] 正在清理...${NC}"
+                sudo apt-get autoremove -y
+                sudo apt-get autoclean -y
+                sudo apt-get clean -y
+                sudo rm -rf /var/cache/apt/archives/*
+                sudo journalctl --vacuum-time=7d  # 清理7天前的日志
+                ;;
+            centos|rhel|fedora|rocky|almalinux)
+                echo -e "${BLUE}[RHEL/CentOS] 正在清理...${NC}"
+                if command -v dnf >/dev/null; then
+                    sudo dnf autoremove -y
+                    sudo dnf clean all
+                else
+                    sudo yum autoremove -y
+                    sudo yum clean all
+                fi
+                sudo rm -rf /var/cache/yum/*
+                sudo journalctl --vacuum-time=7d
+                ;;
+            arch|manjaro)
+                echo -e "${BLUE}[Arch/Manjaro] 正在清理...${NC}"
+                sudo pacman -Rns $(pacman -Qdtq) --noconfirm 2>/dev/null  # 清理孤儿包
+                sudo pacman -Sc --noconfirm  # 清理缓存
+                sudo rm -rf /var/cache/pacman/pkg/*
+                sudo journalctl --vacuum-time=7d
+                ;;
+            alpine)
+                echo -e "${BLUE}[Alpine] 正在清理...${NC}"
+                sudo apk cache clean
+                sudo rm -rf /var/cache/apk/*
+                ;;
+            *)
+                echo -e "${RED}不支持的Linux发行版: $ID${NC}"
+                return 1
+                ;;
+        esac
+    elif [ "$(uname)" == "Darwin" ]; then
+        echo -e "${BLUE}[macOS] 正在清理...${NC}"
+        brew cleanup
+        brew autoremove
+        rm -rf ~/Library/Caches/*
+        sudo rm -rf /System/Library/Caches/*
+    else
+        echo -e "${RED}无法识别的操作系统${NC}"
+        return 1
+    fi
+
+    # 通用清理（所有系统）
+    echo -e "${YELLOW}执行通用清理...${NC}"
+    sudo rm -rf /tmp/*
+    sudo find /var/log -type f -name "*.log" -exec truncate -s 0 {} \;
+    sudo find /var/tmp -type f -atime +7 -delete
+
+    echo -e "\n${GREEN}清理完成！${NC}"
+    echo -e "释放空间：$(df -h / | awk 'NR==2{print $4}') 可用"
     pause
 }
 
