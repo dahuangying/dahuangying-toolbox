@@ -167,7 +167,7 @@ system_update() {
 
     echo -e "${GREEN}系统更新完成！${NC}"
     echo -e "${YELLOW}建议重启系统以应用所有更新${NC}"
-    wait_key
+    pause
 }
 
 # 系统清理
