@@ -1,6 +1,4 @@
 #!/bin/bash
-# 或者完全静默
-exec >/dev/null 2>&1
 
 # 设置颜色
 GREEN='\033[0;32m'
