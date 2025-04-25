@@ -113,10 +113,61 @@ show_system_info() {
 
 # 系统更新
 system_update() {
-    echo -e "${GREEN}正在进行系统更新...${NC}"
-    sudo apt-get update && sudo apt-get upgrade -y
-    echo -e "${GREEN}系统更新完成。${NC}"
-    pause
+    echo -e "\n${GREEN}=== 系统更新 ===${NC}"
+    
+    # 检测系统类型
+    if [ -f /etc/os-release ]; then
+        source /etc/os-release
+        case $ID in
+            debian|ubuntu|raspbian)
+                echo -e "${BLUE}检测到 Debian/Ubuntu 系统${NC}"
+                sudo apt-get update && sudo apt-get upgrade -y
+                sudo apt-get autoremove -y
+                ;;
+            centos|rhel|fedora|rocky|almalinux)
+                echo -e "${BLUE}检测到 RHEL/CentOS/Fedora 系统${NC}"
+                if command -v dnf >/dev/null; then
+                    sudo dnf upgrade -y
+                    sudo dnf autoremove -y
+                else
+                    sudo yum update -y
+                    sudo yum autoremove -y
+                fi
+                ;;
+            arch|manjaro)
+                echo -e "${BLUE}检测到 Arch/Manjaro 系统${NC}"
+                sudo pacman -Syu --noconfirm
+                sudo pacman -Qdtq | sudo pacman -Rs - --noconfirm 2>/dev/null
+                ;;
+            alpine)
+                echo -e "${BLUE}检测到 Alpine 系统${NC}"
+                sudo apk update && sudo apk upgrade
+                ;;
+            opensuse*|sles)
+                echo -e "${BLUE}检测到 openSUSE/SLES 系统${NC}"
+                sudo zypper refresh && sudo zypper update -y
+                ;;
+            *)
+                echo -e "${RED}不支持的Linux发行版: $ID${NC}"
+                return 1
+                ;;
+        esac
+    elif [ "$(uname)" == "Darwin" ]; then
+        echo -e "${BLUE}检测到 macOS 系统${NC}"
+        brew update && brew upgrade
+        mas upgrade  # 更新Mac App Store应用
+    elif [ "$(uname -s)" == "FreeBSD" ]; then
+        echo -e "${BLUE}检测到 FreeBSD 系统${NC}"
+        sudo freebsd-update fetch install
+        sudo pkg update && sudo pkg upgrade -y
+    else
+        echo -e "${RED}无法识别的操作系统${NC}"
+        return 1
+    fi
+
+    echo -e "${GREEN}系统更新完成！${NC}"
+    echo -e "${YELLOW}建议重启系统以应用所有更新${NC}"
+    wait_key
 }
 
 # 系统清理
