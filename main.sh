@@ -287,30 +287,37 @@ full_uninstall() {
 
 # 模块下载目录
 MODULES_DIR="./modules"
-echo -e "${GREEN}模块存储路径: $MODULES_DIR${NC}"  # 唯一显示的内容
 
 # 确保模块目录存在
-mkdir -p "$MODULES_DIR" >/dev/null 2>&1
+mkdir -p "$MODULES_DIR"
 
-# 自动下载模块（完全静默）
+# 自动下载模块
 download_module() {
     MODULE_NAME=$1
     MODULE_URL=$2
-    curl -fsSL "$MODULE_URL" -o "$MODULES_DIR/$MODULE_NAME" >/dev/null 2>&1
+
+    echo -e "${GREEN}正在下载模块: $MODULE_NAME${NC}"
+
+    # 使用 curl 下载模块文件
+    curl -fsSL "$MODULE_URL" -o "$MODULES_DIR/$MODULE_NAME"
+
+    # 检查下载是否成功
+    if [ -f "$MODULES_DIR/$MODULE_NAME" ]; then
+        echo -e "${GREEN}模块 $MODULE_NAME 下载成功！${NC}"
+    else
+        echo -e "${RED}模块 $MODULE_NAME 下载失败，请检查 URL 或网络连接！${NC}"
+    fi
 }
 
-# 静默下载所有模块
+# 下载所需模块（可以根据实际需要扩展更多模块）
 download_module "system.sh" "https://raw.githubusercontent.com/dahuangying/dahuangying-toolbox/main/modules/system.sh"
 download_module "docker.sh" "https://raw.githubusercontent.com/dahuangying/dahuangying-toolbox/main/modules/docker.sh"
 download_module "network.sh" "https://raw.githubusercontent.com/dahuangying/dahuangying-toolbox/main/modules/network.sh"
 download_module "nginx-proxy-manager.sh" "https://raw.githubusercontent.com/dahuangying/dahuangying-toolbox/main/modules/nginx-proxy-manager.sh"
 download_module "1Panel.sh" "https://raw.githubusercontent.com/dahuangying/dahuangying-toolbox/main/modules/1Panel.sh"
 
-# 静默设置执行权限
-chmod +x "$MODULES_DIR"/* >/dev/null 2>&1
-
-# 无提示暂停（保留功能但隐藏输出）
-read -n 1 -s -r -p "" >/dev/null 2>&1
+# 为下载的模块赋予执行权限
+chmod +x "$MODULES_DIR"/*
 
 # 显示暂停，按任意键继续，字体设置为绿色
 pause() {
