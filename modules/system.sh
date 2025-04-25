@@ -52,7 +52,7 @@ show_menu() {
     echo -e "${BLUE}---------------------------------------${NC}"
     echo -e "4. 查看端口占用状态"
     echo -e "5. 开放所有端口${RED}（危险）${NC}"
-    echo -e "6. 关闭所有端口${RED}（危险）${NC}"
+    echo -e "6. 关闭所有端口（保留 22.80.443）"
     echo -e "7. 开放指定端口"
     echo -e "8. 关闭指定端口"
     echo -e "${BLUE}---------------------------------------${NC}"
@@ -186,27 +186,58 @@ open_all_ports() {
     wait_key
 }
 
-# 6. 关闭所有端口
 close_all_ports() {
-    echo -e "\n${RED}=== 警告：这将关闭所有端口！ ===${NC}"
+    echo -e "\n${RED}=== 警告：将关闭非必要端口（保留关键端口） ===${NC}"
+    echo -e "${YELLOW}以下端口将被保留："
+    echo -e "• 22/tcp    (SSH)"
+    echo -e "• 80,443/tcp (HTTP/HTTPS)"
+    echo -e "• 53/udp    (DNS)"
+    echo -e "• 123/udp   (NTP时间同步)"
+    echo -e "• 873/tcp   (Rsync)"
+    echo -e "• 3000-4000/tcp (常见内部服务)${NC}"
+    
     read -p "确定继续吗？(y/n): " confirm
     [ "$confirm" != "y" ] && return
     
     if command -v ufw >/dev/null; then
+        # UFW方案：保留关键端口
+        ufw --force reset
+        ufw allow 22/tcp
+        ufw allow 80,443/tcp
+        ufw allow 53/udp
+        ufw allow 123/udp
+        ufw allow 873/tcp
+        ufw allow 3000:4000/tcp
+        ufw default deny incoming
         ufw enable
-        ufw default deny
     elif command -v firewall-cmd >/dev/null; then
+        # Firewalld方案
         firewall-cmd --zone=public --remove-port=1-65535/tcp --permanent
         firewall-cmd --zone=public --remove-port=1-65535/udp --permanent
+        firewall-cmd --zone=public --add-port={22,80,443,873}/tcp --permanent
+        firewall-cmd --zone=public --add-port={53,123}/udp --permanent
+        firewall-cmd --zone=public --add-port=3000-4000/tcp --permanent
+        firewall-cmd --zone=public --set-target=DROP --permanent
         firewall-cmd --reload
     else
+        # iptables方案
+        iptables -F
+        # 保留关键端口
+        iptables -A INPUT -p tcp -m multiport --dports 22,80,443,873,3000:4000 -j ACCEPT
+        iptables -A INPUT -p udp --dport 53 -j ACCEPT
+        iptables -A INPUT -p udp --dport 123 -j ACCEPT
+        # 放行本地回环和内部通信
+        iptables -A INPUT -i lo -j ACCEPT
+        iptables -A INPUT -s 10.0.0.0/8,172.16.0.0/12,192.168.0.0/16 -j ACCEPT
         iptables -P INPUT DROP
         iptables -P FORWARD DROP
         iptables -P OUTPUT ACCEPT
-        iptables -F
+        iptables-save > /etc/iptables.rules 2>/dev/null
     fi
-    echo -e "${GREEN}所有端口已关闭！${NC}"
-    echo -e "${YELLOW}注意：您可能需要通过控制台重新开放SSH端口！${NC}"
+    
+    echo -e "${GREEN}端口策略已更新！${NC}"
+    echo -e "${YELLOW}当前开放端口："
+    ss -tulnp | grep -E '22|80|443|53|123|873|3000|4000'
     wait_key
 }
 
