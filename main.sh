@@ -220,70 +220,181 @@ system_update() {
 
 # 系统清理
 system_cleanup() {
-    echo -e "\n${GREEN}=== 系统清理 ===${NC}"
-    
-    # 检测系统类型
-    if [ -f /etc/os-release ]; then
-        source /etc/os-release
-        case $ID in
-            debian|ubuntu|raspbian)
-                echo -e "${BLUE}[Debian/Ubuntu] 正在清理...${NC}"
-                sudo apt-get autoremove -y
-                sudo apt-get autoclean -y
-                sudo apt-get clean -y
-                sudo rm -rf /var/cache/apt/archives/*
-                sudo journalctl --vacuum-time=7d  # 清理7天前的日志
-                ;;
-            centos|rhel|fedora|rocky|almalinux)
-                echo -e "${BLUE}[RHEL/CentOS] 正在清理...${NC}"
-                if command -v dnf >/dev/null; then
-                    sudo dnf autoremove -y
-                    sudo dnf clean all
-                else
-                    sudo yum autoremove -y
-                    sudo yum clean all
-                fi
-                sudo rm -rf /var/cache/yum/*
-                sudo journalctl --vacuum-time=7d
-                ;;
-            arch|manjaro)
-                echo -e "${BLUE}[Arch/Manjaro] 正在清理...${NC}"
-                sudo pacman -Rns $(pacman -Qdtq) --noconfirm 2>/dev/null  # 清理孤儿包
-                sudo pacman -Sc --noconfirm  # 清理缓存
-                sudo rm -rf /var/cache/pacman/pkg/*
-                sudo journalctl --vacuum-time=7d
-                ;;
-            alpine)
-                echo -e "${BLUE}[Alpine] 正在清理...${NC}"
-                sudo apk cache clean
-                sudo rm -rf /var/cache/apk/*
-                ;;
-            *)
-                echo -e "${RED}不支持的Linux发行版: $ID${NC}"
+
+    NEED_REBOOT=false
+    REBOOT_MARKER="/var/run/reboot-required"
+    LOG_FILE="/var/log/dahuang_clean.log"
+
+    # 安全验证函数
+    safe_clean() {
+        local path="$1"
+        # 增加对危险路径的检查
+        SAFE_PATHS=("/etc" "/var" "/home")
+        for safe_path in "${SAFE_PATHS[@]}"; do
+            if [[ "$path" == "$safe_path"* ]]; then
+                echo -e "${RED}危险路径禁止操作: $path${NC}"
                 return 1
-                ;;
-        esac
-    elif [ "$(uname)" == "Darwin" ]; then
-        echo -e "${BLUE}[macOS] 正在清理...${NC}"
-        brew cleanup
-        brew autoremove
-        rm -rf ~/Library/Caches/*
-        sudo rm -rf /System/Library/Caches/*
-    else
-        echo -e "${RED}无法识别的操作系统${NC}"
+            fi
+        done
+        [[ "$path" == "/" ]] && { echo -e "${RED}危险路径禁止操作${NC}"; return 1; }
+        [ -e "$path" ] || { echo -e "${YELLOW}路径不存在: $path${NC}"; return 1; }
+        return 0
+    }
+
+    # 内核检测函数
+    check_kernel() {
+        CURRENT_KERNEL=$(uname -r)
+        NEWEST_KERNEL=$(ls -t /boot/vmlinuz-* 2>/dev/null | head -n1 | sed 's/.*vmlinuz-//')
+        
+        if [ -n "$NEWEST_KERNEL" ] && [ "$CURRENT_KERNEL" != "$NEWEST_KERNEL" ]; then
+            echo -e "${YELLOW}⚠️ 内核待更新: ${CURRENT_KERNEL} → ${NEWEST_KERNEL}${NC}"
+            return 0
+        fi
         return 1
-    fi
+    }
 
-    # 通用清理（所有系统）
-    echo -e "${YELLOW}执行通用清理...${NC}"
-    sudo rm -rf /tmp/*
-    sudo find /var/log -type f -name "*.log" -exec truncate -s 0 {} \;
-    sudo find /var/tmp -type f -atime +7 -delete
+    # 清理旧内核
+    clean_old_kernels() {
+        echo -e "${CYAN}◆ 清理旧内核${NC}"
+        
+        # 对于 Debian 系列
+        if grep -qi "debian" /etc/os-release; then
+            sudo apt-get autoremove --purge -y
+        # 对于 CentOS 系列
+        elif grep -qi "centos|rhel" /etc/os-release; then
+            sudo package-cleanup --oldkernels --count=1 -y
+        fi
+    }
 
-    echo -e "\n${GREEN}清理完成！${NC}"
-    echo -e "释放空间：$(df -h / | awk 'NR==2{print $4}') 可用"
-    pause
-}
+    # 记录系统状态（清理前）
+    record_system_status() {
+        echo -e "\n${CYAN}=== 清理前系统状态 ===${NC}"
+        
+        echo -e "${CYAN}◆ 磁盘使用情况${NC}"
+        df -h
+
+        echo -e "\n${CYAN}◆ 日志目录大小${NC}"
+        du -sh /var/log
+
+        echo -e "\n${CYAN}◆ 临时文件目录大小${NC}"
+        du -sh /tmp /var/tmp
+    }
+
+    # 清理函数
+    perform_clean() {
+
+        echo -e "\n${BLUE}=== 开始系统深度清理 ===${NC}"
+        
+        # 1. 包管理器清理
+        echo -e "${CYAN}◆ 包缓存清理${NC}"
+        if grep -qi "debian" /etc/os-release; then
+            sudo apt clean && sudo apt autoremove -y
+        elif grep -qi "centos|rhel" /etc/os-release; then
+            sudo yum clean all || sudo dnf clean all
+        fi
+
+        # 2. 临时文件清理
+        echo -e "\n${CYAN}◆ 临时文件清理${NC}"
+        safe_clean "/tmp/*" && sudo rm -rf /tmp/*
+        safe_clean "/var/tmp/*" && sudo rm -rf /var/tmp/*
+
+        # 3. 日志清理
+        echo -e "\n${CYAN}◆ 系统日志清理${NC}"
+        sudo journalctl --vacuum-time=7d
+        sudo find /var/log -type f -name "*.gz" -exec rm -f {} \;
+        sudo find /var/log -type f -name "*.old" -exec rm -f {} \;
+        sudo find /var/log -type f -name "*.log" -exec truncate -s 0 {} \;
+
+        # 4. 其他清理
+        echo -e "\n${CYAN}◆ 其他资源清理${NC}"
+        sudo rm -f "$REBOOT_MARKER" 2>/dev/null
+    }
+
+    # 记录系统状态（清理后）
+    record_system_status_after() {
+        echo -e "\n${CYAN}=== 清理后系统状态 ===${NC}"
+
+        echo -e "${CYAN}◆ 磁盘使用情况${NC}"
+        df -h
+
+        echo -e "\n${CYAN}◆ 日志目录大小${NC}"
+        du -sh /var/log
+
+        echo -e "\n${CYAN}◆ 临时文件目录大小${NC}"
+        du -sh /tmp /var/tmp
+    }
+
+    # 重启检测函数
+    check_reboot() {
+        echo -e "\n${BLUE}=== 系统状态检测 ===${NC}"
+        
+        # 1. 内核检测
+        if check_kernel; then
+            NEED_REBOOT=true
+            echo -e "${YELLOW}• 新内核待激活${NC}"
+        fi
+
+        # 2. 系统标记检测
+        if [ -f "$REBOOT_MARKER" ]; then
+            NEED_REBOOT=true
+            echo -e "${YELLOW}• 系统关键更新待生效${NC}"
+            cat "$REBOOT_MARKER" | sed 's/^/  /'
+        fi
+
+        # 3. 服务检测
+        if command -v needrestart >/dev/null; then
+            if needrestart -b | grep -q "NEEDRESTART-KERNEL"; then
+                NEED_REBOOT=true
+                echo -e "${YELLOW}• 关键服务需重启${NC}"
+            fi
+        fi
+    }
+
+    # 主执行流程
+    main() {
+        # 记录开始时间
+        START_TIME=$(date +%s)
+        echo "[$(date '+%F %T')] 清理开始" | sudo tee -a "$LOG_FILE"
+
+        # 记录清理前系统状态
+        record_system_status
+
+        # 清理旧内核
+        clean_old_kernels
+
+        # 执行清理
+        perform_clean
+
+        # 记录清理后系统状态
+        record_system_status_after
+
+        # 检测重启需求
+        check_reboot
+
+        # 最终判断
+        if $NEED_REBOOT; then
+            echo -e "\n${RED}════════════ 重要提示 ════════════${NC}"
+            echo -e "以下更改需要重启生效："
+            check_reboot | grep "•"
+            
+            read -p $'\033[33m是否立即重启？(y/N): \033[0m' choice
+            if [[ "$choice" =~ ^[Yy]$ ]]; then
+                echo -e "${GREEN}系统将在5秒后重启...${NC}"
+                echo "[$(date '+%F %T')] 用户确认重启" | sudo tee -a "$LOG_FILE"
+                sleep 5
+                sudo reboot
+            else
+                echo -e "${YELLOW}请稍后手动执行 reboot 命令${NC}"
+            fi
+        else
+            echo -e "\n${GREEN}✓ 所有更改已实时生效，无需重启${NC}"
+        fi
+
+        # 计算耗时
+        echo -e "\n${CYAN}清理完成，耗时: $(( $(date +%s) - START_TIME ))秒${NC}"
+        echo "[$(date '+%F %T')] 清理完成" | sudo tee -a "$LOG_FILE"
+        pause 
+    }
 
 # 删除模块
 delete_module() {
