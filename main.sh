@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # 设置颜色
-GREEN='\033[0;32m'
-NC='\033[0m' # 无色
+RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
+BLUE='\033[0;34m'; CYAN='\033[0;36m'; NC='\033[0m'
 
 # 显示暂停，按任意键继续，字体设置为绿色
 pause() {
@@ -172,69 +172,57 @@ system_update() {
 
 # 系统清理
 system_cleanup() {
-    echo -e "\n${GREEN}=== 系统清理 ===${NC}"
-    
-    # 检测系统类型
+
+    # 安全检查函数
+    check_safe_path() {
+        [[ "$1" == "/" || ! -d "$1" ]] && { echo -e "${RED}危险路径: $1${NC}"; return 1; }
+        return 0
+    }
+
+    # 显示空间使用
+    show_space_usage() {
+        echo -e "\n${CYAN}磁盘使用情况:${NC}"
+        df -h / | awk 'NR==2{printf "%-10s %s\n%-10s %s\n%-10s %s\n", "总空间:", $2, "已用:", $3, "可用:", $4}'
+    }
+
+    # 开始清理
+    echo -e "\n${GREEN}=== 系统清理开始 ===${NC}"
+    show_space_usage
+
+    # 发行版特定清理
     if [ -f /etc/os-release ]; then
         source /etc/os-release
         case $ID in
-            debian|ubuntu|raspbian)
-                echo -e "${BLUE}[Debian/Ubuntu] 正在清理...${NC}"
-                sudo apt-get autoremove -y
-                sudo apt-get autoclean -y
-                sudo apt-get clean -y
-                sudo rm -rf /var/cache/apt/archives/*
-                sudo journalctl --vacuum-time=7d  # 清理7天前的日志
+            debian|ubuntu)
+                echo -e "${BLUE}[Debian/Ubuntu] 清理中...${NC}"
+                sudo apt-get -qq autoremove --purge -y
+                check_safe_path "/var/cache/apt/archives" && sudo rm -rf /var/cache/apt/archives/*
                 ;;
-            centos|rhel|fedora|rocky|almalinux)
-                echo -e "${BLUE}[RHEL/CentOS] 正在清理...${NC}"
-                if command -v dnf >/dev/null; then
-                    sudo dnf autoremove -y
-                    sudo dnf clean all
-                else
-                    sudo yum autoremove -y
-                    sudo yum clean all
-                fi
-                sudo rm -rf /var/cache/yum/*
-                sudo journalctl --vacuum-time=7d
+            centos|rhel)
+                echo -e "${BLUE}[RHEL/CentOS] 清理中...${NC}"
+                sudo package-cleanup --oldkernels --count=1 -y
+                check_safe_path "/var/cache/yum" && sudo rm -rf /var/cache/yum/*
                 ;;
-            arch|manjaro)
-                echo -e "${BLUE}[Arch/Manjaro] 正在清理...${NC}"
-                sudo pacman -Rns $(pacman -Qdtq) --noconfirm 2>/dev/null  # 清理孤儿包
-                sudo pacman -Sc --noconfirm  # 清理缓存
-                sudo rm -rf /var/cache/pacman/pkg/*
-                sudo journalctl --vacuum-time=7d
-                ;;
-            alpine)
-                echo -e "${BLUE}[Alpine] 正在清理...${NC}"
-                sudo apk cache clean
-                sudo rm -rf /var/cache/apk/*
+            arch)
+                echo -e "${BLUE}[Arch] 清理中...${NC}"
+                sudo pacman -Qtdq | sudo pacman -Rns - --noconfirm 2>/dev/null
+                check_safe_path "/var/cache/pacman/pkg" && sudo rm -rf /var/cache/pacman/pkg/*
                 ;;
             *)
-                echo -e "${RED}不支持的Linux发行版: $ID${NC}"
-                return 1
+                echo -e "${YELLOW}未知发行版，执行通用清理${NC}"
                 ;;
         esac
-    elif [ "$(uname)" == "Darwin" ]; then
-        echo -e "${BLUE}[macOS] 正在清理...${NC}"
-        brew cleanup
-        brew autoremove
-        rm -rf ~/Library/Caches/*
-        sudo rm -rf /System/Library/Caches/*
-    else
-        echo -e "${RED}无法识别的操作系统${NC}"
-        return 1
     fi
 
-    # 通用清理（所有系统）
-    echo -e "${YELLOW}执行通用清理...${NC}"
-    sudo rm -rf /tmp/*
-    sudo find /var/log -type f -name "*.log" -exec truncate -s 0 {} \;
-    sudo find /var/tmp -type f -atime +7 -delete
+    # 通用清理
+    echo -e "${YELLOW}执行跨平台清理...${NC}"
+    check_safe_path "/tmp" && sudo find /tmp -type f -atime +7 -delete
+    sudo journalctl --vacuum-time=1d --vacuum-size=100M
 
-    echo -e "\n${GREEN}清理完成！${NC}"
-    echo -e "释放空间：$(df -h / | awk 'NR==2{print $4}') 可用"
-    pause
+    # 完成
+    echo -e "\n${GREEN}=== 清理完成 ===${NC}"
+    show_space_usage
+    echo -e "${GREEN}建议重启系统使所有更改生效${NC}"
 }
 
 # 删除模块
