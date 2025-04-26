@@ -222,8 +222,20 @@ system_update() {
     pause
 }
 
-# 系统清理
+# 系统清理函数
 system_cleanup() {
+    # 颜色定义
+    RED='\033[0;31m'
+    GREEN='\033[0;32m'
+    YELLOW='\033[1;33m'
+    BLUE='\033[0;34m'
+    CYAN='\033[0;36m'
+    NC='\033[0m' # No Color
+
+    # 暂停函数
+    pause() {
+        read -p "$(echo -e "${YELLOW}按回车键继续...${NC}")" dummy
+    }
 
     NEED_REBOOT=false
     REBOOT_MARKER="/var/run/reboot-required"
@@ -232,14 +244,6 @@ system_cleanup() {
     # 安全验证函数
     safe_clean() {
         local path="$1"
-        # 增加对危险路径的检查
-        SAFE_PATHS=("/etc" "/var" "/home")
-        for safe_path in "${SAFE_PATHS[@]}"; do
-            if [[ "$path" == "$safe_path"* ]]; then
-                echo -e "${RED}危险路径禁止操作: $path${NC}"
-                return 1
-            fi
-        done
         [[ "$path" == "/" ]] && { echo -e "${RED}危险路径禁止操作${NC}"; return 1; }
         [ -e "$path" ] || { echo -e "${YELLOW}路径不存在: $path${NC}"; return 1; }
         return 0
@@ -255,33 +259,6 @@ system_cleanup() {
             return 0
         fi
         return 1
-    }
-
-    # 清理旧内核
-    clean_old_kernels() {
-        echo -e "${CYAN}◆ 清理旧内核${NC}"
-        
-        # 对于 Debian 系列
-        if grep -qi "debian" /etc/os-release; then
-            sudo apt-get autoremove --purge -y
-        # 对于 CentOS 系列
-        elif grep -qi "centos|rhel" /etc/os-release; then
-            sudo package-cleanup --oldkernels --count=1 -y
-        fi
-    }
-
-    # 记录系统状态（清理前）
-    record_system_status() {
-        echo -e "\n${CYAN}=== 清理前系统状态 ===${NC}"
-        
-        echo -e "${CYAN}◆ 磁盘使用情况${NC}"
-        df -h
-
-        echo -e "\n${CYAN}◆ 日志目录大小${NC}"
-        du -sh /var/log
-
-        echo -e "\n${CYAN}◆ 临时文件目录大小${NC}"
-        du -sh /tmp /var/tmp
     }
 
     # 清理函数
@@ -305,27 +282,13 @@ system_cleanup() {
         # 3. 日志清理
         echo -e "\n${CYAN}◆ 系统日志清理${NC}"
         sudo journalctl --vacuum-time=7d
-        sudo find /var/log -type f -name "*.gz" -exec rm -f {} \;
-        sudo find /var/log -type f -name "*.old" -exec rm -f {} \;
-        sudo find /var/log -type f -name "*.log" -exec truncate -s 0 {} \;
+        sudo find /var/log -type f -name "*.gz" -delete
+        sudo find /var/log -type f -name "*.old" -delete
 
         # 4. 其他清理
         echo -e "\n${CYAN}◆ 其他资源清理${NC}"
+        sudo docker system prune -f 2>/dev/null
         sudo rm -f "$REBOOT_MARKER" 2>/dev/null
-    }
-
-    # 记录系统状态（清理后）
-    record_system_status_after() {
-        echo -e "\n${CYAN}=== 清理后系统状态 ===${NC}"
-
-        echo -e "${CYAN}◆ 磁盘使用情况${NC}"
-        df -h
-
-        echo -e "\n${CYAN}◆ 日志目录大小${NC}"
-        du -sh /var/log
-
-        echo -e "\n${CYAN}◆ 临时文件目录大小${NC}"
-        du -sh /tmp /var/tmp
     }
 
     # 重启检测函数
@@ -360,17 +323,8 @@ system_cleanup() {
         START_TIME=$(date +%s)
         echo "[$(date '+%F %T')] 清理开始" | sudo tee -a "$LOG_FILE"
 
-        # 记录清理前系统状态
-        record_system_status
-
-        # 清理旧内核
-        clean_old_kernels
-
         # 执行清理
         perform_clean
-
-        # 记录清理后系统状态
-        record_system_status_after
 
         # 检测重启需求
         check_reboot
