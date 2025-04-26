@@ -11,6 +11,10 @@ pause() {
     echo
 }
 
+# 定义仓库信息
+REPO_URL="https://raw.githubusercontent.com/dahuangying/dahuangying-toolbox"
+TOOLS_DIR="modules"  # 你可以根据需要修改这个目录名
+
 # 欢迎信息
 echo -e "${GREEN}  "大黄鹰-Linux服务器运维工具箱，是一款部署在github上开源的脚本工具，旨在为你提供简便的运维解决方案。"${NC}"
 echo -e "脚本链接： https://github.com/dahuangying/dahuangying-toolbox"
@@ -285,36 +289,20 @@ full_uninstall() {
     fi
 }
 
-# 模块下载目录
-MODULES_DIR="./modules"
-
-# 确保模块目录存在
-mkdir -p "$MODULES_DIR"
-
-# 自动下载模块
-download_module() {
-    MODULE_NAME=$1
-    MODULE_URL=$2
-
-    echo -e "${GREEN}正在下载模块: $MODULE_NAME${NC}"
-
-    # 使用 curl 下载模块文件
-    curl -fsSL "$MODULE_URL" -o "$MODULES_DIR/$MODULE_NAME"
-
-    # 检查下载是否成功
-    if [ -f "$MODULES_DIR/$MODULE_NAME" ]; then
-        echo -e "${GREEN}模块 $MODULE_NAME 下载成功！${NC}"
+# 下载工具函数
+function download_tool() {
+    local tool_name=$1
+    echo "正在下载 ${tool_name}..."
+    
+    # 使用 svn 拉取特定目录
+    svn checkout ${REPO_URL}/trunk/${TOOLS_DIR}/${tool_name} > /dev/null 2>&1
+    
+    if [ $? -eq 0 ]; then
+        echo "下载完成！工具已保存到当前目录的 ${tool_name}/"
     else
-        echo -e "${RED}模块 $MODULE_NAME 下载失败，请检查 URL 或网络连接！${NC}"
+        echo "下载失败，请检查网络或目录是否存在！"
     fi
 }
-
-# 下载所需模块（可以根据实际需要扩展更多模块）
-download_module "system.sh" "https://raw.githubusercontent.com/dahuangying/dahuangying-toolbox/main/modules/system.sh"
-download_module "docker.sh" "https://raw.githubusercontent.com/dahuangying/dahuangying-toolbox/main/modules/docker.sh"
-download_module "network.sh" "https://raw.githubusercontent.com/dahuangying/dahuangying-toolbox/main/modules/network.sh"
-download_module "nginx-proxy-manager.sh" "https://raw.githubusercontent.com/dahuangying/dahuangying-toolbox/main/modules/nginx-proxy-manager.sh"
-download_module "1Panel.sh" "https://raw.githubusercontent.com/dahuangying/dahuangying-toolbox/main/modules/1Panel.sh"
 
 # 为下载的模块赋予执行权限
 chmod +x "$MODULES_DIR"/*
