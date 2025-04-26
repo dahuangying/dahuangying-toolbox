@@ -12,7 +12,7 @@ pause() {
 }
 
 # 欢迎信息
-echo -e "${GREEN}  "大黄鹰-Linux服务器运维工具箱，是一款部署在github上开源的脚本工具，旨在为你提供简便的运维解决方案。"${NC}"
+echo -e "${GREEN}"大黄鹰-Linux服务器运维工具箱，是一款部署在github上开源的脚本工具，旨在为你提供简便的运维解决方案。"${NC}"
 echo -e "脚本链接： https://github.com/dahuangying/dahuangying-toolbox"
 
 # 显示菜单
@@ -165,6 +165,9 @@ show_system_info() {
 
 # 2. 系统更新
 system_update() {
+    local NEED_REBOOT=false
+    local KERNEL_REBOOT_FILE="/var/run/reboot-required.pkgs"
+    local REBOOT_REQUIRED_FILE="/var/run/reboot-required"
 
     echo -e "\n${GREEN}=== 系统更新开始 ===${NC}"
 
@@ -174,28 +177,62 @@ system_update() {
         case $ID in
             debian|ubuntu)
                 echo -e "${BLUE}[Debian/Ubuntu] 更新中...${NC}"
+                
+                # 记录当前内核版本
+                CURRENT_KERNEL=$(uname -r)
+                
+                # 执行更新
                 if ! sudo apt-get update; then
                     echo -e "${RED}更新软件源失败${NC}"
                     return 1
                 fi
-                sudo apt-get upgrade -y
-                sudo apt-get --only-upgrade install security-updates -y
                 
-                # 内核检查
-                if ls /boot/vmlinuz-* 2>/dev/null | grep -q vmlinuz; then
-                    echo -e "${YELLOW}当前内核版本: $(uname -r)${NC}"
+                # 获取可用的安全更新
+                SECURITY_UPDATES=$(sudo apt-get upgrade --dry-run | grep -i security | wc -l)
+                
+                # 执行更新
+                sudo apt-get upgrade -y
+                [ $SECURITY_UPDATES -gt 0 ] && sudo apt-get --only-upgrade install security-updates -y
+                
+                # 检查是否需要重启（更精确的判断）
+                if [ -f "$REBOOT_REQUIRED_FILE" ] || \
+                   [ -f "$KERNEL_REBOOT_FILE" ] || \
+                   [ "$(sudo needrestart -b 2>/dev/null | grep -c 'NEEDRESTART-KERNEL')" -gt 0 ]; then
+                    NEED_REBOOT=true
+                fi
+                
+                # 检查内核是否更新
+                NEW_KERNEL=$(ls -t /boot/vmlinuz-* | head -n1 | sed 's/.*vmlinuz-//')
+                if [ "$NEW_KERNEL" != "$CURRENT_KERNEL" ]; then
+                    echo -e "${YELLOW}内核已更新: ${CURRENT_KERNEL} → ${NEW_KERNEL}${NC}"
                     NEED_REBOOT=true
                 fi
                 ;;
 
             centos|rhel)
                 echo -e "${BLUE}[RHEL/CentOS] 更新中...${NC}"
+                # 记录当前内核
+                CURRENT_KERNEL=$(uname -r)
+                
+                # 执行更新
                 sudo yum update --security -y
-                NEED_REBOOT=true  # RHEL系更新通常需要重启
+                
+                # 检查内核是否更新
+                NEW_KERNEL=$(rpm -q kernel | tail -n1 | sed 's/kernel-//')
+                if [ "$NEW_KERNEL" != "$CURRENT_KERNEL" ]; then
+                    echo -e "${YELLOW}内核已更新: ${CURRENT_KERNEL} → ${NEW_KERNEL}${NC}"
+                    NEED_REBOOT=true
+                fi
+                
+                # 检查其他需要重启的更新
+                if sudo needs-restarting -r >/dev/null 2>&1; then
+                    NEED_REBOOT=true
+                fi
                 ;;
 
             arch)
                 echo -e "${BLUE}[Arch] 更新中...${NC}"
+                # Arch通常不需要专门重启
                 sudo pacman -Syu --noconfirm
                 ;;
         esac
@@ -207,14 +244,40 @@ system_update() {
 
     # 更新后处理
     echo -e "\n${GREEN}=== 更新完成 ===${NC}"
+    
+    # 更精确的重启判断
     if $NEED_REBOOT; then
-        read -p $'\033[33m需重启应用更新，是否立即重启？(y/N): \033[0m' choice
-        [[ "$choice" =~ ^[Yy]$ ]] && sudo reboot
+        echo -e "${YELLOW}系统需要重启以完成更新${NC}"
+        echo -e "以下更新需要重启:"
+        [ -f "$KERNEL_REBOOT_FILE" ] && cat "$KERNEL_REBOOT_FILE" | sed 's/^/• /'
+        [ -f "$REBOOT_REQUIRED_FILE" ] && cat "$REBOOT_REQUIRED_FILE" | sed 's/^/• /'
+        
+        read -p $'\033[33m是否立即重启？(y/N): \033[0m' choice
+        if [[ "$choice" =~ ^[Yy]$ ]]; then
+            echo -e "${GREEN}系统将在5秒后重启...${NC}"
+            # 清除重启标记
+            sudo rm -f "$REBOOT_REQUIRED_FILE" "$KERNEL_REBOOT_FILE" 2>/dev/null
+            sleep 5
+            sudo reboot
+        else
+            echo -e "${YELLOW}请稍后手动执行 reboot 命令${NC}"
+        fi
+    else
+        echo -e "${CYAN}无需重启，所有更新已实时生效${NC}"
     fi
 
-    echo -e "${CYAN}建议检查：${NC}"
-    echo "1. 待重启服务: sudo needrestart -b"
-    echo "2. 安全补丁: sudo apt list --upgradable 2>/dev/null"
+    # 更新后检查建议
+    echo -e "\n${CYAN}建议检查：${NC}"
+    case $ID in
+        debian|ubuntu)
+            echo "1. 待重启服务: sudo needrestart -b"
+            echo "2. 安全补丁: sudo apt list --upgradable 2>/dev/null"
+            ;;
+        centos|rhel)
+            echo "1. 需要重启的服务: sudo needs-restarting"
+            echo "2. 安全更新: sudo yum updateinfo list security"
+            ;;
+    esac
     pause
 }
 
