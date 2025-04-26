@@ -78,36 +78,64 @@ show_menu() {
 
 # 显示系统信息
 show_system_info() {
-    echo -e "${GREEN}系统信息查询${NC}"
-    echo "---------------------------"
+    
+    # 获取主网络接口
+    NET_IF=$(ip route | grep default | awk '{print $5}' | head -n1)
+    [ -z "$NET_IF" ] && NET_IF="eth0"
+
+    echo -e "\n${GREEN}============ 系统信息 ============${NC}"
+    
+    # 1. 基础信息
+    echo -e "${YELLOW}◆ 基础信息${NC}"
     echo "主机名: $(hostname)"
-    echo "系统版本: $(lsb_release -d | cut -f2- -d:)"
-    echo "Linux版本: $(uname -r)"
-    echo "---------------------------"
-    echo "CPU架构: $(uname -m)"
-    echo "CPU型号: $(lscpu | grep 'Model name' | cut -d: -f2)"
-    echo "CPU核心数: $(nproc)"
-    echo "CPU频率: $(lscpu | grep 'CPU MHz' | cut -d: -f2)"
-    echo "---------------------------"
-    echo "CPU占用: $(top -bn1 | grep "Cpu(s)" | sed "s/.*, *\([0-9.]*\)%* id.*/\1/" | awk '{print 100 - $1"%"}')"
-    echo "系统负载: $(uptime | cut -d' ' -f12)"
-    echo "物理内存: $(free -h | grep Mem | awk '{print $2}')"
-    echo "虚拟内存: $(free -h | grep Swap | awk '{print $2}')"
-    echo "硬盘占用: $(df -h | grep '/dev/root' | awk '{print $5}')"
-    echo "---------------------------"
-    echo "总接收: $(cat /sys/class/net/eth0/statistics/rx_bytes)"
-    echo "总发送: $(cat /sys/class/net/eth0/statistics/tx_bytes)"
-    echo "---------------------------"
-    echo "网络算法: $(sysctl -n net.ipv4.tcp_congestion_control)"
-    echo "---------------------------"
-    echo "运营商: $(curl -s ipinfo.io/org)"
-    echo "IPv4地址: $(curl -s ipinfo.io/ip)"
-    echo "DNS地址: $(cat /etc/resolv.conf | grep nameserver | awk '{print $2}')"
-    echo "地理位置: $(curl -s ipinfo.io/loc)"
-    echo "系统时间: $(date)"
-    echo "---------------------------"
+    echo "系统版本: $(cat /etc/os-release | grep PRETTY_NAME | cut -d'"' -f2)"
+    echo "内核版本: $(uname -r)"
     echo "运行时长: $(uptime -p)"
-    echo -e "${GREEN}---------------------------${NC}"
+    echo "系统时间: $(date +"%Y-%m-%d %T %Z")"
+
+    # 2. CPU信息
+    echo -e "\n${YELLOW}◆ CPU信息${NC}"
+    echo "架构: $(uname -m)"
+    echo "型号: $(lscpu | grep 'Model name' | cut -d: -f2 | xargs)"
+    echo "核心数: $(nproc)核"
+    echo "平均频率: $(grep 'MHz' /proc/cpuinfo | awk '{sum+=$4} END {print sum/NR " MHz"}')"
+    echo "负载: $(uptime | awk -F'load average: ' '{print $2}')"
+
+    # 3. 内存信息
+    echo -e "\n${YELLOW}◆ 内存信息${NC}"
+    free -h | awk '/Mem/{printf "物理内存: %s/%s (可用: %s)\n", $3, $2, $7}'
+    free -h | awk '/Swap/{printf "交换分区: %s/%s\n", $3, $2}'
+
+    # 4. 磁盘信息
+    echo -e "\n${YELLOW}◆ 存储信息${NC}"
+    lsblk -o NAME,SIZE,FSTYPE,MOUNTPOINT | grep -v loop
+    echo -e "\n挂载点使用率:"
+    df -hT | grep -v tmpfs | awk '{printf "%-20s %-10s %-10s %-10s\n", $7, $2, $6, $5}'
+
+    # 5. 网络信息
+    echo -e "\n${YELLOW}◆ 网络信息${NC}"
+    echo "主接口: $NET_IF"
+    echo "IP地址: $(hostname -I | awk '{print $1}')"
+    echo "公网IP: $(curl -s ipinfo.io/ip)"
+    echo "流量统计:"
+    echo "  接收: $(numfmt --to=iec $(cat /sys/class/net/$NET_IF/statistics/rx_bytes))"
+    echo "  发送: $(numfmt --to=iec $(cat /sys/class/net/$NET_IF/statistics/tx_bytes))"
+    echo "DNS: $(grep nameserver /etc/resolv.conf | awk '{print $2}' | tr '\n' ' ')"
+
+    # 6. 安全信息
+    echo -e "\n${YELLOW}◆ 安全信息${NC}"
+    echo "最后登录:"
+    last -n 3 | head -n -2
+    echo -e "\nSSH失败记录:"
+    journalctl -u sshd | grep Failed | tail -n 2 || echo "无记录"
+
+    # 7. 硬件信息
+    echo -e "\n${YELLOW}◆ 硬件信息${NC}"
+    echo "主板: $(dmidecode -t baseboard | grep "Manufacturer" | cut -d: -f2 | xargs)"
+    echo "BIOS版本: $(dmidecode -t bios | grep "Version" | cut -d: -f2 | xargs)"
+    lspci | grep -i --color 'vga\|3d\|2d'
+
+    echo -e "${GREEN}================================${NC}"
     pause
 }
 
