@@ -324,22 +324,46 @@ esac
 
 # 3. 系统清理
 system_cleanup() {
-    echo -e "\n${GREEN}=== 系统清理 ===${NC}"
-    
-    # 检测系统类型
+
+    # 安全清理函数
+    safe_clean() {
+        local path="$1"
+        [[ "$path" == "/" ]] && { echo -e "${RED}错误：禁止操作根目录${NC}"; return 1; }
+        [ -e "$path" ] || { echo -e "${YELLOW}警告：路径不存在 [$path]${NC}"; return 1; }
+        return 0
+    }
+
+    # 智能重启检测
+    check_reboot() {
+        local reboot_marker="/var/run/reboot-required"
+        local kernel_changed=$( [ "$(uname -r)" != "$(ls -t /boot/vmlinuz-* 2>/dev/null | head -n1 | sed 's/.*vmlinuz-//')" ] && echo 1 )
+        
+        if [ -f "$reboot_marker" ] || [ -n "$kernel_changed" ]; then
+            echo -e "\n${RED}⚠️ 需要重启以完成以下更新：${NC}"
+            [ -f "$reboot_marker" ] && cat "$reboot_marker" | sed 's/^/  /'
+            [ -n "$kernel_changed" ] && echo -e "  ${YELLOW}内核已更新${NC}"
+            return 0
+        fi
+        return 1
+    }
+
+    # 主清理流程
+    echo -e "\n${GREEN}=== 系统清理开始 ===${NC}"
+    local start_time=$(date +%s)
+    local disk_before=$(df -h / | awk 'NR==2{print $4}')
+
+    # 按发行版清理
     if [ -f /etc/os-release ]; then
         source /etc/os-release
         case $ID in
-            debian|ubuntu|raspbian)
-                echo -e "${BLUE}[Debian/Ubuntu] 正在清理...${NC}"
-                sudo apt-get autoremove -y
-                sudo apt-get autoclean -y
-                sudo apt-get clean -y
-                sudo rm -rf /var/cache/apt/archives/*
-                sudo journalctl --vacuum-time=7d  # 清理7天前的日志
+            debian|ubuntu)
+                echo -e "${CYAN}◆ Debian系清理${NC}"
+                sudo apt-get autoremove --purge -y
+                sudo apt-get clean
+                safe_clean "/var/lib/apt/lists/" && sudo rm -rf /var/lib/apt/lists/*
                 ;;
-            centos|rhel|fedora|rocky|almalinux)
-                echo -e "${BLUE}[RHEL/CentOS] 正在清理...${NC}"
+            centos|rhel)
+                echo -e "${CYAN}◆ RHEL系清理${NC}"
                 if command -v dnf >/dev/null; then
                     sudo dnf autoremove -y
                     sudo dnf clean all
@@ -347,45 +371,34 @@ system_cleanup() {
                     sudo yum autoremove -y
                     sudo yum clean all
                 fi
-                sudo rm -rf /var/cache/yum/*
-                sudo journalctl --vacuum-time=7d
-                ;;
-            arch|manjaro)
-                echo -e "${BLUE}[Arch/Manjaro] 正在清理...${NC}"
-                sudo pacman -Rns $(pacman -Qdtq) --noconfirm 2>/dev/null  # 清理孤儿包
-                sudo pacman -Sc --noconfirm  # 清理缓存
-                sudo rm -rf /var/cache/pacman/pkg/*
-                sudo journalctl --vacuum-time=7d
-                ;;
-            alpine)
-                echo -e "${BLUE}[Alpine] 正在清理...${NC}"
-                sudo apk cache clean
-                sudo rm -rf /var/cache/apk/*
-                ;;
-            *)
-                echo -e "${RED}不支持的Linux发行版: $ID${NC}"
-                return 1
+                safe_clean "/var/cache/yum" && sudo rm -rf /var/cache/yum/*
                 ;;
         esac
-    elif [ "$(uname)" == "Darwin" ]; then
-        echo -e "${BLUE}[macOS] 正在清理...${NC}"
-        brew cleanup
-        brew autoremove
-        rm -rf ~/Library/Caches/*
-        sudo rm -rf /System/Library/Caches/*
-    else
-        echo -e "${RED}无法识别的操作系统${NC}"
-        return 1
     fi
 
-    # 通用清理（所有系统）
-    echo -e "${YELLOW}执行通用清理...${NC}"
-    sudo rm -rf /tmp/*
-    sudo find /var/log -type f -name "*.log" -exec truncate -s 0 {} \;
-    sudo find /var/tmp -type f -atime +7 -delete
+    # 通用清理
+    echo -e "\n${CYAN}◆ 临时文件清理${NC}"
+    safe_clean "/tmp" && sudo find /tmp -type f -atime +1 -delete
+    safe_clean "/var/tmp" && sudo find /var/tmp -type f -atime +7 -delete
 
-    echo -e "\n${GREEN}清理完成！${NC}"
-    echo -e "释放空间：$(df -h / | awk 'NR==2{print $4}') 可用"
+    echo -e "\n${CYAN}◆ 日志清理${NC}"
+    sudo journalctl --vacuum-time=3d 2>/dev/null
+    safe_clean "/var/log" && sudo find /var/log -type f \( -name "*.gz" -o -name "*.old" \) -mtime +7 -delete
+
+    # 结果统计
+    local disk_after=$(df -h / | awk 'NR==2{print $4}')
+    echo -e "\n${GREEN}✓ 清理完成 [耗时: $(( $(date +%s) - start_time ))秒]${NC}"
+    echo -e "空间变化: ${disk_before} → ${disk_after}"
+
+    # 重启建议
+    if check_reboot; then
+        read -p "$(echo -e "${YELLOW}是否立即重启？(y/N): ${NC}")" choice
+        if [[ "$choice" =~ ^[Yy] ]]; then
+            echo -e "${GREEN}系统将在5秒后重启...${NC}"
+            sleep 5
+            sudo reboot
+        fi
+    fi
     pause
 }
 
