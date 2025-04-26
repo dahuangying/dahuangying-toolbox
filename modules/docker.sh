@@ -373,60 +373,173 @@ delete_all_volumes() {
     docker_volume_management
 }
 
-# Docker智能清理
+# Docker 智能清理
 confirm_action() {
     local prompt="$1"
-    local default="${2:-no}"  # 默认值 (yes/no)
-    
-    # 显示带颜色的提示
     read -p "$(echo -e "${YELLOW}${prompt} (y/N): ${NC}")" choice
+    [[ "$choice" =~ ^[Yy]$ ]] && return 0 || return 1
+}
+
+# 初始检查
+if ! command -v docker &>/dev/null; then
+    echo -e "${RED}错误：未检测到Docker环境${NC}"
+    exit 1
+fi
+
+# 1. 显示当前磁盘占用 (优化列对齐)
+show_disk_usage() {
+    echo -e "\n${CYAN}=== 当前Docker磁盘使用情况 ===${NC}"
+    docker system df --format '{
+        "类型": "{{.Type}}",
+        "总数": "{{.TotalCount}}",
+        "活跃数": "{{.ActiveCount}}",
+        "大小": "{{.Size}}",
+        "可回收": "{{.Reclaimable}}"
+    }' | awk -F'"' 'BEGIN {
+        printf "%-10s %-8s %-8s %-12s %-12s\n","类型","总数","活跃","大小","可回收"
+    }
+    NR>1 {
+        gsub(/^ +| +$/,"",$2); gsub(/^ +| +$/,"",$4)
+        gsub(/^ +| +$/,"",$6); gsub(/^ +| +$/,"",$8)
+        gsub(/^ +| +$/,"",$10)
+        printf "%-10s %-8s %-8s %-12s %-12s\n",$2,$4,$6,$8,$10
+    }'
+}
+
+# 2. 清理构建缓存 (原逻辑+错误抑制)
+clean_build_cache() {
+    echo -e "\n${GREEN}◆ 清理构建缓存...${NC}"
+    docker builder prune -f 2>/dev/null || echo -e "${YELLOW}构建缓存清理跳过${NC}"
+}
+
+# 3. 清理孤立网络 (增加存在性检查)
+clean_networks() {
+    echo -e "\n${GREEN}◆ 清理孤立网络...${NC}"
+    if [ $(docker network ls -q --filter dangling=true | wc -l) -gt 0 ]; then
+        docker network prune -f
+    else
+        echo -e "${CYAN}未找到可清理的网络${NC}"
+    fi
+}
+
+# 4. 镜像清理 (完全保留原逻辑)
+clean_images() {
+    echo -e "\n${CYAN}=== 镜像清理策略 ===${NC}"
+    echo -e "${YELLOW}1${NC}: 仅清理<none>悬空镜像 (安全)"
+    echo -e "${YELLOW}2${NC}: 清理所有未被容器引用的镜像"
+    echo -e "${YELLOW}3${NC}: 跳过镜像清理"
     
-    # 自动转换为小写比较
-    choice=$(echo "$choice" | tr '[:upper:]' '[:lower:]')
-    
-    case "$choice" in
-        y|yes) return 0 ;;
-        n|no)  return 1 ;;
-        *)     [[ "$default" == "yes" ]] && return 0 || return 1 ;;
-    esac
-}
-
-# 系统清理函数
-system_cleanup() {
-    echo -e "\n${GREEN}执行系统清理中...${NC}"
-    # 这里放置您的清理逻辑
-    sleep 1
-    echo -e "${GREEN}清理完成!${NC}"
-    pause
-}
-
-# 暂停函数
-pause() {
-    read -p "$(echo -e "${YELLOW}按回车键继续...${NC}")" dummy
-}
-
-# 主菜单显示
-show_main_menu() {
     while true; do
-        clear
-        echo -e "${BLUE}=== 主菜单 ===${NC}"
-        echo "1) 系统清理"
-        echo "2) 系统更新"
-        echo "3) Docker维护"
-        echo "q) 退出"
-        
-        # 直接读取选择，不需要先按y确认
-        read -p "$(echo -e "${CYAN}请输入选项数字: ${NC}")" choice
-        
-        case "$choice" in
-            1) system_cleanup ;;
-            2) echo "更新功能待实现"; pause ;;
-            3) echo "Docker功能待实现"; pause ;;
-            q|Q) exit 0 ;;
-            *) echo -e "${RED}无效选项，请重新输入${NC}"; sleep 1 ;;
+        read -p "请选择 (1/2/3): " img_choice
+        case $img_choice in
+            1)
+                echo -e "${GREEN}◆ 清理悬空镜像...${NC}"
+                docker image prune -f
+                break
+                ;;
+            2)
+                if confirm_action "确认清理所有未被使用的镜像？"; then
+                    echo -e "${GREEN}◆ 清理未使用镜像...${NC}"
+                    docker image prune -a -f
+                else
+                    echo -e "${YELLOW}已跳过镜像清理${NC}"
+                fi
+                break
+                ;;
+            3)
+                echo -e "${YELLOW}跳过镜像清理${NC}"
+                break
+                ;;
+            *)
+                echo -e "${RED}无效输入，请重新选择${NC}"
+                ;;
         esac
     done
 }
+
+# 5. 容器清理 (原样保留)
+clean_containers() {
+    echo -e "\n${CYAN}=== 容器清理策略 ===${NC}"
+    echo -e "停止的容器列表:"
+    docker ps -a --filter "status=exited" --format '{
+        "容器ID": "{{.ID}}",
+        "名称": "{{.Names}}",
+        "状态": "{{.Status}}",
+        "创建时间": "{{.CreatedAt}}"
+    }' | awk -F'"' 'NR==1 {
+        printf "%-15s %-20s %-25s %-20s\n","容器ID","名称","状态","创建时间"
+    }
+    NR>1 {
+        printf "%-15s %-20s %-25s %-20s\n",$4,$8,$12,$16
+    }'
+    
+    if confirm_action "是否清理所有停止的容器？"; then
+        echo -e "${GREEN}◆ 清理停止的容器...${NC}"
+        docker container prune -f
+    else
+        echo -e "${YELLOW}保留停止的容器${NC}"
+    fi
+}
+
+# 6. 卷清理 (增加空卷检测)
+clean_volumes() {
+    echo -e "\n${CYAN}=== 卷清理策略 ===${NC}"
+    local dangling_volumes=$(docker volume ls -qf dangling=true)
+    
+    if [ -z "$dangling_volumes" ]; then
+        echo -e "${CYAN}未找到可清理的卷${NC}"
+        return
+    fi
+    
+    echo -e "未被使用的卷:"
+    docker volume inspect --format '{
+        "卷名": "{{.Name}}",
+        "创建时间": "{{.CreatedAt}}",
+        "标签": "{{range $k,$v := .Labels}}{{$k}}={{$v}} {{end}}"
+    }' $dangling_volumes | awk -F'"' 'NR==1 {
+        printf "%-25s %-25s %-20s\n","卷名","创建时间","标签"
+    }
+    NR>1 {
+        printf "%-25s %-25s %-20s\n",$4,$8,$12
+    }'
+    
+    if confirm_action "是否清理未使用的卷？"; then
+        echo -e "${GREEN}◆ 清理孤立卷...${NC}"
+        docker volume prune -f
+    else
+        echo -e "${YELLOW}保留所有卷${NC}"
+    fi
+}
+
+# 主执行流程
+show_disk_usage
+clean_build_cache
+clean_networks
+clean_images
+clean_containers
+clean_volumes
+
+# 最终报告 (优化显示)
+echo -e "\n${GREEN}✓ 清理完成 ${NC}"
+echo -e "${CYAN}=== 清理后资源状态 ===${NC}"
+docker system df --format '{
+    "资源类型": "{{.Type}}",
+    "总数": "{{.TotalCount}}",
+    "使用中": "{{.ActiveCount}}",
+    "大小": "{{.Size}}",
+    "可回收": "{{.Reclaimable}}"
+}' | awk -F'"' 'BEGIN {
+    printf "%-10s %-6s %-6s %-12s %-12s\n","类型","总数","使用","大小","可回收"
+}
+NR>1 {
+    printf "%-10s %-6s %-6s %-12s %-12s\n",$2,$4,$6,$8,$10
+}'
+
+# 原样保留日志建议
+echo -e "\n${YELLOW}ℹ 日志管理建议:${NC}"
+echo "1. 查看日志: docker logs 容器名"
+echo "2. 限制大小: docker run --log-opt max-size=50m --log-opt max-file=3"
+echo "3. 手动清空: truncate -s 0 \$(docker inspect --format='{{.LogPath}}' 容器名)"
 
 # 卸载 Docker 环境的函数
 uninstall_docker_environment() {
