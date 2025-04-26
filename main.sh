@@ -219,7 +219,7 @@ system_update() {
 }
 
 # 系统清理
-
+system_cleanup() {
 NEED_REBOOT=false
 REBOOT_MARKER="/var/run/reboot-required"
 LOG_FILE="/var/log/dahuang_clean.log"
