@@ -266,18 +266,59 @@ system_update() {
         echo -e "${CYAN}无需重启，所有更新已实时生效${NC}"
     fi
 
-    # 更新后检查建议
-    echo -e "\n${CYAN}建议检查：${NC}"
-    case $ID in
-        debian|ubuntu)
-            echo "1. 待重启服务: sudo needrestart -b"
-            echo "2. 安全补丁: sudo apt list --upgradable 2>/dev/null"
-            ;;
-        centos|rhel)
-            echo "1. 需要重启的服务: sudo needs-restarting"
-            echo "2. 安全更新: sudo yum updateinfo list security"
-            ;;
-    esac
+# 在更新完成后的建议检查部分替换为：
+
+echo -e "\n${CYAN}=== 更新后健康检查 ===${NC}"
+
+case $ID in
+    debian|ubuntu)
+        # 1. 检查待重启服务（直接显示结果）
+        echo -e "${YELLOW}【待重启服务检测】${NC}"
+        if command -v needrestart >/dev/null; then
+            RESTART_NEEDED=$(sudo needrestart -b 2>/dev/null)
+            if [[ $RESTART_NEEDED == *"NEEDRESTART-KERNEL"* ]]; then
+                echo -e "${RED}→ 需要重启: 内核已更新${NC}"
+            elif [[ $RESTART_NEEDED == *"NEEDRESTART-SVC"* ]]; then
+                echo -e "${YELLOW}→ 需要重启服务:${NC}"
+                echo "$RESTART_NEEDED" | grep "NEEDRESTART-SVC" | cut -d: -f2
+            else
+                echo -e "${GREEN}→ 没有需要重启的服务${NC}"
+            fi
+        else
+            echo "安装needrestart工具获取更精确信息: sudo apt install needrestart"
+        fi
+
+        # 2. 检查残留安全更新（更精确的命令）
+        echo -e "\n${YELLOW}【安全更新检查】${NC}"
+        SECURITY_UPDATES=$(apt list --upgradable 2>/dev/null | grep -i security | wc -l)
+        if [ $SECURITY_UPDATES -gt 0 ]; then
+            echo -e "${RED}→ 发现未完成的安全更新:${NC}"
+            apt list --upgradable 2>/dev/null | grep -i security
+        else
+            echo -e "${GREEN}→ 没有未完成的安全更新${NC}"
+        fi
+
+        # 3. 新增检查（推荐）
+        echo -e "\n${YELLOW}【建议操作】${NC}"
+        if [ -f "/var/run/reboot-required" ]; then
+            echo -e "${RED}→ 系统要求重启以完成更新${NC}"
+            cat /var/run/reboot-required | sed 's/^/  /'
+        fi
+        ;;
+        
+    centos|rhel)
+        # RHEL系专用检查
+        echo -e "${YELLOW}【待重启服务检测】${NC}"
+        if command -v needs-restarting >/dev/null; then
+            sudo needs-restarting -r 2>/dev/null || echo -e "${RED}→ 系统需要重启${NC}"
+            echo -e "\n${YELLOW}【需要重启的服务】${NC}"
+            sudo needs-restarting -s
+        fi
+        
+        echo -e "\n${YELLOW}【安全更新检查】${NC}"
+        sudo yum updateinfo list sec 2>/dev/null || echo "无未完成的安全更新"
+        ;;
+esac
     pause
 }
 
