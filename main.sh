@@ -220,6 +220,7 @@ system_update() {
 
 # 系统清理
 system_cleanup() {
+
 NEED_REBOOT=false
 REBOOT_MARKER="/var/run/reboot-required"
 LOG_FILE="/var/log/dahuang_clean.log"
@@ -246,6 +247,7 @@ check_kernel() {
 
 # 清理函数
 perform_clean() {
+
     echo -e "\n${BLUE}=== 开始系统深度清理 ===${NC}"
     
     # 1. 包管理器清理
@@ -335,7 +337,6 @@ main() {
     echo "[$(date '+%F %T')] 清理完成" | sudo tee -a "$LOG_FILE"
     pause 
 }
-
 
 # 删除模块
 delete_module() {
