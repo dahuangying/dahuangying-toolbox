@@ -223,6 +223,7 @@ system_cleanup() {
     echo -e "\n${GREEN}=== 清理完成 ===${NC}"
     show_space_usage
     echo -e "${GREEN}建议重启系统使所有更改生效${NC}"
+    pause
 }
 
 # 删除模块
