@@ -294,11 +294,25 @@ function download_tool() {
     local tool_name=$1
     echo "正在下载 ${tool_name}..."
     
-    # 使用 svn 拉取特定目录
-    svn checkout ${REPO_URL}/trunk/${TOOLS_DIR}/${tool_name} > /dev/null 2>&1
+    # 使用 wget 递归下载目录
+    wget -r -np -nH --cut-dirs=3 -R "index.html*" "${REPO_URL}/${TOOLS_DIR}/${tool_name}/" -P "${tool_name}"
     
     if [ $? -eq 0 ]; then
         echo "下载完成！工具已保存到当前目录的 ${tool_name}/"
+    else
+        echo "下载失败，请检查网络或目录是否存在！"
+    fi
+}
+
+# 下载整个工具箱
+function download_all_tools() {
+    echo "正在下载完整工具箱..."
+    
+    # 使用 wget 递归下载整个 tools 目录
+    wget -r -np -nH --cut-dirs=3 -R "index.html*" "${REPO_URL}/${TOOLS_DIR}/" -P "dahuangying-toolbox"
+    
+    if [ $? -eq 0 ]; then
+        echo "下载完成！工具箱已保存到当前目录的 dahuangying-toolbox/"
     else
         echo "下载失败，请检查网络或目录是否存在！"
     fi
