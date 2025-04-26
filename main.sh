@@ -113,60 +113,56 @@ show_system_info() {
 
 # 系统更新
 system_update() {
-    echo -e "\n${GREEN}=== 系统更新 ===${NC}"
-    
-    # 检测系统类型
+
+    echo -e "\n${GREEN}=== 系统更新开始 ===${NC}"
+
+    # 系统检测
     if [ -f /etc/os-release ]; then
         source /etc/os-release
         case $ID in
-            debian|ubuntu|raspbian)
-                echo -e "${BLUE}检测到 Debian/Ubuntu 系统${NC}"
-                sudo apt-get update && sudo apt-get upgrade -y
-                sudo apt-get autoremove -y
-                ;;
-            centos|rhel|fedora|rocky|almalinux)
-                echo -e "${BLUE}检测到 RHEL/CentOS/Fedora 系统${NC}"
-                if command -v dnf >/dev/null; then
-                    sudo dnf upgrade -y
-                    sudo dnf autoremove -y
-                else
-                    sudo yum update -y
-                    sudo yum autoremove -y
+            debian|ubuntu)
+                echo -e "${BLUE}[Debian/Ubuntu] 更新中...${NC}"
+                if ! sudo apt-get update; then
+                    echo -e "${RED}更新软件源失败${NC}"
+                    return 1
+                fi
+                sudo apt-get upgrade -y
+                sudo apt-get --only-upgrade install security-updates -y
+                
+                # 内核检查
+                if ls /boot/vmlinuz-* 2>/dev/null | grep -q vmlinuz; then
+                    echo -e "${YELLOW}当前内核版本: $(uname -r)${NC}"
+                    NEED_REBOOT=true
                 fi
                 ;;
-            arch|manjaro)
-                echo -e "${BLUE}检测到 Arch/Manjaro 系统${NC}"
+
+            centos|rhel)
+                echo -e "${BLUE}[RHEL/CentOS] 更新中...${NC}"
+                sudo yum update --security -y
+                NEED_REBOOT=true  # RHEL系更新通常需要重启
+                ;;
+
+            arch)
+                echo -e "${BLUE}[Arch] 更新中...${NC}"
                 sudo pacman -Syu --noconfirm
-                sudo pacman -Qdtq | sudo pacman -Rs - --noconfirm 2>/dev/null
-                ;;
-            alpine)
-                echo -e "${BLUE}检测到 Alpine 系统${NC}"
-                sudo apk update && sudo apk upgrade
-                ;;
-            opensuse*|sles)
-                echo -e "${BLUE}检测到 openSUSE/SLES 系统${NC}"
-                sudo zypper refresh && sudo zypper update -y
-                ;;
-            *)
-                echo -e "${RED}不支持的Linux发行版: $ID${NC}"
-                return 1
                 ;;
         esac
-    elif [ "$(uname)" == "Darwin" ]; then
-        echo -e "${BLUE}检测到 macOS 系统${NC}"
-        brew update && brew upgrade
-        mas upgrade  # 更新Mac App Store应用
-    elif [ "$(uname -s)" == "FreeBSD" ]; then
-        echo -e "${BLUE}检测到 FreeBSD 系统${NC}"
-        sudo freebsd-update fetch install
-        sudo pkg update && sudo pkg upgrade -y
-    else
-        echo -e "${RED}无法识别的操作系统${NC}"
-        return 1
+
+        # 通用Flatpak/Snap更新
+        command -v flatpak >/dev/null && flatpak update -y
+        command -v snap >/dev/null && sudo snap refresh
     fi
 
-    echo -e "${GREEN}系统更新完成！${NC}"
-    echo -e "${YELLOW}建议重启系统以应用所有更新${NC}"
+    # 更新后处理
+    echo -e "\n${GREEN}=== 更新完成 ===${NC}"
+    if $NEED_REBOOT; then
+        read -p $'\033[33m需重启应用更新，是否立即重启？(y/N): \033[0m' choice
+        [[ "$choice" =~ ^[Yy]$ ]] && sudo reboot
+    fi
+
+    echo -e "${CYAN}建议检查：${NC}"
+    echo "1. 待重启服务: sudo needrestart -b"
+    echo "2. 安全补丁: sudo apt list --upgradable 2>/dev/null"
     pause
 }
 
