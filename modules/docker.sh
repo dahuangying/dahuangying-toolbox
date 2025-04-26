@@ -45,8 +45,8 @@ show_menu() {
         4) docker_image_management ;;
         5) docker_network_management ;;
         6) docker_volume_management ;;
-        7) confirm_action ;;
-		8) uninstall_docker_environment ;;
+        7) confirm_operation ;;
+	8) uninstall_docker_environment ;;
 		
         0) exit 0 ;;
         *) echo "无效的选项，请重新选择！" && sleep 2 && show_menu ;;
@@ -374,7 +374,7 @@ delete_all_volumes() {
 }
 
 # Docker智能清理脚本
-confirm_action() {
+confirm_operation() {
     local prompt="$1"
     read -p "$(echo -e "${YELLOW}${prompt} (y/N): ${NC}")" choice
     [[ "$choice" =~ ^[Yy]$ ]] && return 0 || return 1
