@@ -451,4 +451,4 @@ pause() {
 # 主程序入口
 while true; do
     show_menu
-done
+done  # 这里需要加上 done 来结束 while 循环
