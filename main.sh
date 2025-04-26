@@ -285,16 +285,47 @@ full_uninstall() {
     fi
 }
 
-# 粘贴拉取函数
-REPO_RAW="https://raw.githubusercontent.com/dahuangying/dahuangying-toolbox/main"
-function pull_module() {
-    local module="$1"
-    mkdir -p "modules"
-    if [[ ! -f "modules/$module.sh" ]]; then
-        wget -q "$REPO_RAW/modules/$module.sh" -O "modules/$module.sh" && \
-        chmod +x "modules/$module.sh"
+# 模块下载目录
+MODULES_DIR="./modules"
+
+# 颜色定义（保持原有样式）
+GREEN='\033[0;32m'
+RED='\033[0;31m'
+NC='\033[0m' # No Color
+
+# 静默下载模块
+download_module() {
+    MODULE_NAME=$1
+    MODULE_URL=$2
+
+    # 如果模块已存在且大小>0，跳过下载
+    if [ -s "$MODULES_DIR/$MODULE_NAME" ]; then
+        return 0
+    fi
+
+    # 静默下载（不显示进度，仅错误输出）
+    if ! curl -fsSL "$MODULE_URL" -o "$MODULES_DIR/$MODULE_NAME" 2>/dev/null; then
+        echo -e "${RED}错误: 模块 $MODULE_NAME 下载失败${NC}" >&2
+        return 1
+    fi
+
+    # 验证下载完整性（至少非空文件）
+    if [ ! -s "$MODULES_DIR/$MODULE_NAME" ]; then
+        echo -e "${RED}错误: 下载的模块 $MODULE_NAME 为空${NC}" >&2
+        rm -f "$MODULES_DIR/$MODULE_NAME"
+        return 1
     fi
 }
+
+# 初始化模块目录
+mkdir -p "$MODULES_DIR"
+
+# 静默下载所有模块（无输出提示）
+download_module "system.sh" "https://raw.githubusercontent.com/dahuangying/dahuangying-toolbox/main/modules/system.sh"
+download_module "docker.sh" "https://raw.githubusercontent.com/dahuangying/dahuangying-toolbox/main/modules/docker.sh"
+download_module "network.sh" "https://raw.githubusercontent.com/dahuangying/dahuangying-toolbox/main/modules/network.sh"
+download_module "nginx-proxy-manager.sh" "https://raw.githubusercontent.com/dahuangying/dahuangying-toolbox/main/modules/nginx-proxy-manager.sh"
+download_module "1Panel.sh" "https://raw.githubusercontent.com/dahuangying/dahuangying-toolbox/main/modules/1Panel.sh"
 
 # 为下载的模块赋予执行权限
 chmod +x "$MODULES_DIR"/*
