@@ -394,7 +394,7 @@ system_cleanup() {
         echo -e "\n${CYAN}清理完成，耗时: $(( $(date +%s) - START_TIME ))秒${NC}"
         echo "[$(date '+%F %T')] 清理完成" | sudo tee -a "$LOG_FILE"
         pause 
-    }
+    } 
 
 # 删除模块
 delete_module() {
