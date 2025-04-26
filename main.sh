@@ -140,7 +140,7 @@ show_system_info() {
     echo -e "\n${YELLOW}◆ 安全信息${NC}"
     echo "最后登录用户:"
     last -n 3 | head -n -2
-    echo -e "\nSSH登录失败记录:"
+    echo -e "\nSSH失败记录:"
     journalctl -u sshd | grep Failed | tail -n 3 2>/dev/null || echo "无记录"
     
     # 7. 硬件信息
