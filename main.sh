@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # 设置颜色
-GREEN='\033[0;32m'
-NC='\033[0m' # 无色
+RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
+BLUE='\033[0;34m'; CYAN='\033[0;36m'; NC='\033[0m'
 
 # 显示暂停，按任意键继续，字体设置为绿色
 pause() {
@@ -78,36 +78,88 @@ show_menu() {
 
 # 显示系统信息
 show_system_info() {
-    echo -e "${GREEN}系统信息查询${NC}"
-    echo "---------------------------"
+    
+    # 获取主网络接口
+    NET_IF=$(ip route | grep default | awk '{print $5}' | head -n1)
+    [ -z "$NET_IF" ] && NET_IF="eth0"
+
+    echo -e "\n${GREEN}============ 系统信息查询 ============${NC}"
+    
+    # 1. 基础信息
+    echo -e "${YELLOW}◆ 基础信息${NC}"
     echo "主机名: $(hostname)"
-    echo "系统版本: $(lsb_release -d | cut -f2- -d:)"
-    echo "Linux版本: $(uname -r)"
-    echo "---------------------------"
-    echo "CPU架构: $(uname -m)"
-    echo "CPU型号: $(lscpu | grep 'Model name' | cut -d: -f2)"
-    echo "CPU核心数: $(nproc)"
-    echo "CPU频率: $(lscpu | grep 'CPU MHz' | cut -d: -f2)"
-    echo "---------------------------"
-    echo "CPU占用: $(top -bn1 | grep "Cpu(s)" | sed "s/.*, *\([0-9.]*\)%* id.*/\1/" | awk '{print 100 - $1"%"}')"
-    echo "系统负载: $(uptime | cut -d' ' -f12)"
-    echo "物理内存: $(free -h | grep Mem | awk '{print $2}')"
-    echo "虚拟内存: $(free -h | grep Swap | awk '{print $2}')"
-    echo "硬盘占用: $(df -h | grep '/dev/root' | awk '{print $5}')"
-    echo "---------------------------"
-    echo "总接收: $(cat /sys/class/net/eth0/statistics/rx_bytes)"
-    echo "总发送: $(cat /sys/class/net/eth0/statistics/tx_bytes)"
-    echo "---------------------------"
-    echo "网络算法: $(sysctl -n net.ipv4.tcp_congestion_control)"
-    echo "---------------------------"
-    echo "运营商: $(curl -s ipinfo.io/org)"
-    echo "IPv4地址: $(curl -s ipinfo.io/ip)"
-    echo "DNS地址: $(cat /etc/resolv.conf | grep nameserver | awk '{print $2}')"
-    echo "地理位置: $(curl -s ipinfo.io/loc)"
-    echo "系统时间: $(date)"
-    echo "---------------------------"
+    echo "系统版本: $(lsb_release -d | cut -f2- 2>/dev/null || cat /etc/os-release | grep PRETTY_NAME | cut -d'"' -f2)"
+    echo "内核版本: $(uname -r)"
+    echo "系统时间: $(date +"%Y-%m-%d %T %Z")"
     echo "运行时长: $(uptime -p)"
-    echo -e "${GREEN}---------------------------${NC}"
+    
+    # 2. CPU信息
+    echo -e "\n${YELLOW}◆ CPU信息${NC}"
+    echo "架构: $(uname -m)"
+    echo "型号: $(lscpu | grep 'Model name' | cut -d: -f2 | xargs)"
+    echo "核心数: $(nproc)核"
+    echo "平均频率: $(lscpu | grep 'CPU MHz' | cut -d: -f2 | xargs) MHz"
+    echo "占用率: $(top -bn1 | grep "Cpu(s)" | sed "s/.*, *\([0-9.]*\)%* id.*/\1/" | awk '{print 100 - $1"%"}')"
+    echo "系统负载: $(uptime | awk -F'load average: ' '{print $2}')"
+    
+    # 3. 内存信息
+    echo -e "\n${YELLOW}◆ 内存信息${NC}"
+    free -h | awk '/Mem/{printf "物理内存: %s/%s (可用: %s)\n", $3, $2, $7}'
+    free -h | awk '/Swap/{printf "交换分区: %s/%s\n", $3, $2}'
+    
+    # 4. 磁盘信息
+    echo -e "\n${YELLOW}◆ 存储信息${NC}"
+    echo "根分区使用率: $(df -h / | awk 'NR==2{print $5}')"
+    lsblk -o NAME,SIZE,FSTYPE,MOUNTPOINT | grep -v loop
+    echo -e "\n挂载点使用情况:"
+    df -hT | grep -v tmpfs | awk '{printf "%-20s %-10s %-10s %-10s\n", $7, $2, $6, $5}'
+    
+    # 5. 网络信息（重点增强部分）
+    echo -e "\n${YELLOW}◆ 网络信息${NC}"
+    echo "主接口: $NET_IF"
+    echo "内网IP: $(hostname -I | awk '{print $1}')"
+    echo "公网IP: $(curl -s ipinfo.io/ip)"
+    echo "运营商: $(curl -s ipinfo.io/org)"
+    echo "地理位置: $(curl -s ipinfo.io/city), $(curl -s ipinfo.io/country)"
+    echo "DNS: $(grep nameserver /etc/resolv.conf | awk '{print $2}' | tr '\n' ' ')"
+    echo "流量统计:"
+    echo "  接收: $(numfmt --to=iec $(cat /sys/class/net/$NET_IF/statistics/rx_bytes))"
+    echo "  发送: $(numfmt --to=iec $(cat /sys/class/net/$NET_IF/statistics/tx_bytes))"
+    
+    # ▼▼▼ 增强的网络算法信息 ▼▼▼
+    echo -e "\n${BLUE}网络算法配置:${NC}"
+    echo "TCP拥塞控制: $(sysctl -n net.ipv4.tcp_congestion_control)"
+    echo "当前队列算法: $(sysctl -n net.core.default_qdisc)"
+    echo "可用拥塞算法: $(cat /proc/sys/net/ipv4/tcp_available_congestion_control)"
+    echo "内存缓冲区:"
+    echo "  TCP接收: $(sysctl -n net.ipv4.tcp_rmem | awk '{print $3/1024/1024"MB"}')"
+    echo "  TCP发送: $(sysctl -n net.ipv4.tcp_wmem | awk '{print $3/1024/1024"MB"}')"
+    # ▲▲▲ 新增内容结束 ▲▲▲
+    
+    # 6. 安全信息
+    echo -e "\n${YELLOW}◆ 安全信息${NC}"
+    echo "最后登录用户:"
+    last -n 3 | head -n -2
+    echo -e "\nSSH失败记录:"
+    journalctl -u sshd | grep Failed | tail -n 3 2>/dev/null || echo "无记录"
+    
+    # 7. 硬件信息
+    echo -e "\n${YELLOW}◆ 硬件信息${NC}"
+    echo "主板型号: $(dmidecode -t baseboard | grep "Product Name" | cut -d: -f2 | xargs 2>/dev/null || echo "未知")"
+    echo "BIOS版本: $(dmidecode -t bios | grep "Version" | cut -d: -f2 | xargs 2>/dev/null || echo "未知")"
+    echo "GPU信息: $(lspci | grep -i vga | cut -d: -f3 | xargs 2>/dev/null || echo "未检测到独立显卡")"
+    
+    # 8. 容器/虚拟化
+    echo -e "\n${YELLOW}◆ 运行环境${NC}"
+    if [ -f /.dockerenv ]; then
+        echo "Docker容器"
+    elif systemd-detect-virt -q 2>/dev/null; then
+        echo "虚拟化平台: $(systemd-detect-virt)"
+    else
+        echo "物理机"
+    fi
+    
+    echo -e "${GREEN}================================${NC}"
     pause
 }
 
@@ -172,70 +224,181 @@ system_update() {
 
 # 系统清理
 system_cleanup() {
-    echo -e "\n${GREEN}=== 系统清理 ===${NC}"
-    
-    # 检测系统类型
-    if [ -f /etc/os-release ]; then
-        source /etc/os-release
-        case $ID in
-            debian|ubuntu|raspbian)
-                echo -e "${BLUE}[Debian/Ubuntu] 正在清理...${NC}"
-                sudo apt-get autoremove -y
-                sudo apt-get autoclean -y
-                sudo apt-get clean -y
-                sudo rm -rf /var/cache/apt/archives/*
-                sudo journalctl --vacuum-time=7d  # 清理7天前的日志
-                ;;
-            centos|rhel|fedora|rocky|almalinux)
-                echo -e "${BLUE}[RHEL/CentOS] 正在清理...${NC}"
-                if command -v dnf >/dev/null; then
-                    sudo dnf autoremove -y
-                    sudo dnf clean all
-                else
-                    sudo yum autoremove -y
-                    sudo yum clean all
-                fi
-                sudo rm -rf /var/cache/yum/*
-                sudo journalctl --vacuum-time=7d
-                ;;
-            arch|manjaro)
-                echo -e "${BLUE}[Arch/Manjaro] 正在清理...${NC}"
-                sudo pacman -Rns $(pacman -Qdtq) --noconfirm 2>/dev/null  # 清理孤儿包
-                sudo pacman -Sc --noconfirm  # 清理缓存
-                sudo rm -rf /var/cache/pacman/pkg/*
-                sudo journalctl --vacuum-time=7d
-                ;;
-            alpine)
-                echo -e "${BLUE}[Alpine] 正在清理...${NC}"
-                sudo apk cache clean
-                sudo rm -rf /var/cache/apk/*
-                ;;
-            *)
-                echo -e "${RED}不支持的Linux发行版: $ID${NC}"
+
+    NEED_REBOOT=false
+    REBOOT_MARKER="/var/run/reboot-required"
+    LOG_FILE="/var/log/dahuang_clean.log"
+
+    # 安全验证函数
+    safe_clean() {
+        local path="$1"
+        # 增加对危险路径的检查
+        SAFE_PATHS=("/etc" "/var" "/home")
+        for safe_path in "${SAFE_PATHS[@]}"; do
+            if [[ "$path" == "$safe_path"* ]]; then
+                echo -e "${RED}危险路径禁止操作: $path${NC}"
                 return 1
-                ;;
-        esac
-    elif [ "$(uname)" == "Darwin" ]; then
-        echo -e "${BLUE}[macOS] 正在清理...${NC}"
-        brew cleanup
-        brew autoremove
-        rm -rf ~/Library/Caches/*
-        sudo rm -rf /System/Library/Caches/*
-    else
-        echo -e "${RED}无法识别的操作系统${NC}"
+            fi
+        done
+        [[ "$path" == "/" ]] && { echo -e "${RED}危险路径禁止操作${NC}"; return 1; }
+        [ -e "$path" ] || { echo -e "${YELLOW}路径不存在: $path${NC}"; return 1; }
+        return 0
+    }
+
+    # 内核检测函数
+    check_kernel() {
+        CURRENT_KERNEL=$(uname -r)
+        NEWEST_KERNEL=$(ls -t /boot/vmlinuz-* 2>/dev/null | head -n1 | sed 's/.*vmlinuz-//')
+        
+        if [ -n "$NEWEST_KERNEL" ] && [ "$CURRENT_KERNEL" != "$NEWEST_KERNEL" ]; then
+            echo -e "${YELLOW}⚠️ 内核待更新: ${CURRENT_KERNEL} → ${NEWEST_KERNEL}${NC}"
+            return 0
+        fi
         return 1
-    fi
+    }
 
-    # 通用清理（所有系统）
-    echo -e "${YELLOW}执行通用清理...${NC}"
-    sudo rm -rf /tmp/*
-    sudo find /var/log -type f -name "*.log" -exec truncate -s 0 {} \;
-    sudo find /var/tmp -type f -atime +7 -delete
+    # 清理旧内核
+    clean_old_kernels() {
+        echo -e "${CYAN}◆ 清理旧内核${NC}"
+        
+        # 对于 Debian 系列
+        if grep -qi "debian" /etc/os-release; then
+            sudo apt-get autoremove --purge -y
+        # 对于 CentOS 系列
+        elif grep -qi "centos|rhel" /etc/os-release; then
+            sudo package-cleanup --oldkernels --count=1 -y
+        fi
+    }
 
-    echo -e "\n${GREEN}清理完成！${NC}"
-    echo -e "释放空间：$(df -h / | awk 'NR==2{print $4}') 可用"
-    pause
-}
+    # 记录系统状态（清理前）
+    record_system_status() {
+        echo -e "\n${CYAN}=== 清理前系统状态 ===${NC}"
+        
+        echo -e "${CYAN}◆ 磁盘使用情况${NC}"
+        df -h
+
+        echo -e "\n${CYAN}◆ 日志目录大小${NC}"
+        du -sh /var/log
+
+        echo -e "\n${CYAN}◆ 临时文件目录大小${NC}"
+        du -sh /tmp /var/tmp
+    }
+
+    # 清理函数
+    perform_clean() {
+
+        echo -e "\n${BLUE}=== 开始系统深度清理 ===${NC}"
+        
+        # 1. 包管理器清理
+        echo -e "${CYAN}◆ 包缓存清理${NC}"
+        if grep -qi "debian" /etc/os-release; then
+            sudo apt clean && sudo apt autoremove -y
+        elif grep -qi "centos|rhel" /etc/os-release; then
+            sudo yum clean all || sudo dnf clean all
+        fi
+
+        # 2. 临时文件清理
+        echo -e "\n${CYAN}◆ 临时文件清理${NC}"
+        safe_clean "/tmp/*" && sudo rm -rf /tmp/*
+        safe_clean "/var/tmp/*" && sudo rm -rf /var/tmp/*
+
+        # 3. 日志清理
+        echo -e "\n${CYAN}◆ 系统日志清理${NC}"
+        sudo journalctl --vacuum-time=7d
+        sudo find /var/log -type f -name "*.gz" -exec rm -f {} \;
+        sudo find /var/log -type f -name "*.old" -exec rm -f {} \;
+        sudo find /var/log -type f -name "*.log" -exec truncate -s 0 {} \;
+
+        # 4. 其他清理
+        echo -e "\n${CYAN}◆ 其他资源清理${NC}"
+        sudo rm -f "$REBOOT_MARKER" 2>/dev/null
+    }
+
+    # 记录系统状态（清理后）
+    record_system_status_after() {
+        echo -e "\n${CYAN}=== 清理后系统状态 ===${NC}"
+
+        echo -e "${CYAN}◆ 磁盘使用情况${NC}"
+        df -h
+
+        echo -e "\n${CYAN}◆ 日志目录大小${NC}"
+        du -sh /var/log
+
+        echo -e "\n${CYAN}◆ 临时文件目录大小${NC}"
+        du -sh /tmp /var/tmp
+    }
+
+    # 重启检测函数
+    check_reboot() {
+        echo -e "\n${BLUE}=== 系统状态检测 ===${NC}"
+        
+        # 1. 内核检测
+        if check_kernel; then
+            NEED_REBOOT=true
+            echo -e "${YELLOW}• 新内核待激活${NC}"
+        fi
+
+        # 2. 系统标记检测
+        if [ -f "$REBOOT_MARKER" ]; then
+            NEED_REBOOT=true
+            echo -e "${YELLOW}• 系统关键更新待生效${NC}"
+            cat "$REBOOT_MARKER" | sed 's/^/  /'
+        fi
+
+        # 3. 服务检测
+        if command -v needrestart >/dev/null; then
+            if needrestart -b | grep -q "NEEDRESTART-KERNEL"; then
+                NEED_REBOOT=true
+                echo -e "${YELLOW}• 关键服务需重启${NC}"
+            fi
+        fi
+    }
+
+    # 主执行流程
+    main() {
+        # 记录开始时间
+        START_TIME=$(date +%s)
+        echo "[$(date '+%F %T')] 清理开始" | sudo tee -a "$LOG_FILE"
+
+        # 记录清理前系统状态
+        record_system_status
+
+        # 清理旧内核
+        clean_old_kernels
+
+        # 执行清理
+        perform_clean
+
+        # 记录清理后系统状态
+        record_system_status_after
+
+        # 检测重启需求
+        check_reboot
+
+        # 最终判断
+        if $NEED_REBOOT; then
+            echo -e "\n${RED}════════════ 重要提示 ════════════${NC}"
+            echo -e "以下更改需要重启生效："
+            check_reboot | grep "•"
+            
+            read -p $'\033[33m是否立即重启？(y/N): \033[0m' choice
+            if [[ "$choice" =~ ^[Yy]$ ]]; then
+                echo -e "${GREEN}系统将在5秒后重启...${NC}"
+                echo "[$(date '+%F %T')] 用户确认重启" | sudo tee -a "$LOG_FILE"
+                sleep 5
+                sudo reboot
+            else
+                echo -e "${YELLOW}请稍后手动执行 reboot 命令${NC}"
+            fi
+        else
+            echo -e "\n${GREEN}✓ 所有更改已实时生效，无需重启${NC}"
+        fi
+
+        # 计算耗时
+        echo -e "\n${CYAN}清理完成，耗时: $(( $(date +%s) - START_TIME ))秒${NC}"
+        echo "[$(date '+%F %T')] 清理完成" | sudo tee -a "$LOG_FILE"
+        pause 
+    }
 
 # 删除模块
 delete_module() {
@@ -285,31 +448,36 @@ full_uninstall() {
     fi
 }
 
-# 模块下载目录
+# 模块静默拉取下载
 MODULES_DIR="./modules"
 
-# 确保模块目录存在
-mkdir -p "$MODULES_DIR"
-
-# 自动下载模块
 download_module() {
     MODULE_NAME=$1
     MODULE_URL=$2
 
-    echo -e "${GREEN}正在下载模块: $MODULE_NAME${NC}"
+    # 如果模块已存在且大小>0，跳过下载
+    if [ -s "$MODULES_DIR/$MODULE_NAME" ]; then
+        return 0
+    fi
 
-    # 使用 curl 下载模块文件
-    curl -fsSL "$MODULE_URL" -o "$MODULES_DIR/$MODULE_NAME"
+    # 静默下载（不显示进度，仅错误输出）
+    if ! curl -fsSL "$MODULE_URL" -o "$MODULES_DIR/$MODULE_NAME" 2>/dev/null; then
+        echo -e "${RED}错误: 模块 $MODULE_NAME 下载失败${NC}" >&2
+        return 1
+    fi
 
-    # 检查下载是否成功
-    if [ -f "$MODULES_DIR/$MODULE_NAME" ]; then
-        echo -e "${GREEN}模块 $MODULE_NAME 下载成功！${NC}"
-    else
-        echo -e "${RED}模块 $MODULE_NAME 下载失败，请检查 URL 或网络连接！${NC}"
+    # 验证下载完整性（至少非空文件）
+    if [ ! -s "$MODULES_DIR/$MODULE_NAME" ]; then
+        echo -e "${RED}错误: 下载的模块 $MODULE_NAME 为空${NC}" >&2
+        rm -f "$MODULES_DIR/$MODULE_NAME"
+        return 1
     fi
 }
 
-# 下载所需模块（可以根据实际需要扩展更多模块）
+# 初始化模块目录
+mkdir -p "$MODULES_DIR"
+
+# 静默下载所有模块（无输出提示）
 download_module "system.sh" "https://raw.githubusercontent.com/dahuangying/dahuangying-toolbox/main/modules/system.sh"
 download_module "docker.sh" "https://raw.githubusercontent.com/dahuangying/dahuangying-toolbox/main/modules/docker.sh"
 download_module "network.sh" "https://raw.githubusercontent.com/dahuangying/dahuangying-toolbox/main/modules/network.sh"
@@ -330,5 +498,3 @@ pause() {
 while true; do
     show_menu
 done
-
-
