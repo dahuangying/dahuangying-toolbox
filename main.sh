@@ -11,10 +11,6 @@ pause() {
     echo
 }
 
-# 定义仓库信息
-REPO_URL="https://raw.githubusercontent.com/dahuangying/dahuangying-toolbox/main"
-TOOLS_DIR="modules"  # 你可以根据需要修改这个目录名
-
 # 欢迎信息
 echo -e "${GREEN}  "大黄鹰-Linux服务器运维工具箱，是一款部署在github上开源的脚本工具，旨在为你提供简便的运维解决方案。"${NC}"
 echo -e "脚本链接： https://github.com/dahuangying/dahuangying-toolbox"
@@ -289,34 +285,20 @@ full_uninstall() {
     fi
 }
 
-# 下载工具函数
-function download_tool() {
-    local tool_name=$1
-    echo "正在下载 ${tool_name}..."
-    
-    # 使用 wget 递归下载目录
-    wget -r -np -nH --cut-dirs=3 -R "index.html*" "${REPO_URL}/${TOOLS_DIR}/${tool_name}/" -P "${tool_name}"
-    
-    if [ $? -eq 0 ]; then
-        echo "下载完成！工具已保存到当前目录的 ${tool_name}/"
-    else
-        echo "下载失败，请检查网络或目录是否存在！"
+# 粘贴拉取函数
+REPO_RAW="https://raw.githubusercontent.com/dahuangying/dahuangying-toolbox/main"
+function pull_module() {
+    local module="$1"
+    mkdir -p "modules"
+    if [[ ! -f "modules/$module.sh" ]]; then
+        wget -q "$REPO_RAW/modules/$module.sh" -O "modules/$module.sh" && \
+        chmod +x "modules/$module.sh"
     fi
 }
 
-# 下载整个工具箱
-function download_all_tools() {
-    echo "正在下载完整工具箱..."
-    
-    # 使用 wget 递归下载整个 tools 目录
-    wget -r -np -nH --cut-dirs=3 -R "index.html*" "${REPO_URL}/${TOOLS_DIR}/" -P "dahuangying-toolbox"
-    
-    if [ $? -eq 0 ]; then
-        echo "下载完成！工具箱已保存到当前目录的 dahuangying-toolbox/"
-    else
-        echo "下载失败，请检查网络或目录是否存在！"
-    fi
-}
+# 调用示例
+pull_module "docker"
+source "modules/docker.sh"
 
 # 为下载的模块赋予执行权限
 chmod +x "$MODULES_DIR"/*
