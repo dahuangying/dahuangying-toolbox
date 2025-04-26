@@ -376,98 +376,103 @@ delete_all_volumes() {
 # Docker智能清理
 confirm_action() {
     local prompt="$1"
-    local default="${2:-no}"  # 默认值 (yes/no)
-    local timeout="${3:-0}"    # 超时自动选择 (秒)
-
-    # 超时处理
-    if [ "$timeout" -gt 0 ]; then
-        echo -e "${YELLOW}${prompt} (y/N, 自动选择 ${default} 在 ${timeout}秒后)...${NC}"
-        read -t "$timeout" -p " " choice || {
-            echo -e "\n${BLUE}超时，已选择默认选项: ${default}${NC}"
-            [[ "$default" =~ ^[Yy] ]] && return 0 || return 1
-        }
-    else
-        read -p "$(echo -e "${YELLOW}${prompt} (y/N): ${NC}")" choice
-    fi
-
-    case "$choice" in
-        [Yy]|[Yy][Ee][Ss]) return 0 ;;
-        [Nn]|[Nn][Oo]) return 1 ;;
-        *) [[ "$default" =~ ^[Yy] ]] && return 0 || return 1 ;;
-    esac
+    read -p "$(echo -e "${YELLOW}${prompt} (y/N): ${NC}")" choice
+    [[ "$choice" =~ ^[Yy]$ ]] && return 0 || return 1
 }
 
-# 多级菜单示例
-show_main_menu() {
-    while true; do
-        clear
-        echo -e "${BLUE}=== 主菜单 ===${NC}"
-        echo "1) 系统清理"
-        echo "2) Docker维护"
-        echo "3) 危险操作"
-        echo "q) 退出"
-        
-        if confirm_action "请选择菜单编号" "no" 30; then
-            read -p "请输入选项: " choice
-            case "$choice" in
-                1) run_system_clean ;;
-                2) run_docker_maintenance ;;
-                3) confirm_action "⚠️ 确认进入危险操作菜单？" "no" && show_danger_menu ;;
-                q) exit 0 ;;
-                *) echo -e "${RED}无效选项${NC}"; sleep 1 ;;
-            esac
+# 1. 显示当前磁盘占用
+echo -e "\n${CYAN}=== 当前Docker磁盘使用情况 ===${NC}"
+docker system df --format '{
+    "类型": "{{.Type}}",
+    "总数": "{{.TotalCount}}",
+    "活跃数": "{{.ActiveCount}}",
+    "大小": "{{.Size}}",
+    "可回收": "{{.Reclaimable}}"
+}' | column -t -s'",' | awk 'NR==1 || NR==2 || $0 ~ /[1-9]GB/'
+
+# 2. 清理构建缓存（完全安全）
+echo -e "\n${GREEN}◆ 清理构建缓存...${NC}"
+docker builder prune -f
+
+# 3. 清理临时网络（无容器使用的网络）
+echo -e "\n${GREEN}◆ 清理孤立网络...${NC}"
+docker network prune -f
+
+# 4. 智能清理镜像策略
+echo -e "\n${CYAN}=== 镜像清理策略 ===${NC}"
+echo -e "${YELLOW}选项1${NC}: 仅清理<none>悬空镜像 (安全)"
+echo -e "${YELLOW}选项2${NC}: 清理所有未被容器引用的镜像 (包括未运行的)"
+echo -e "${YELLOW}选项3${NC}: 跳过镜像清理"
+
+read -p "请选择镜像清理强度 (1/2/3): " img_choice
+
+case $img_choice in
+    1)
+        echo -e "${GREEN}◆ 清理悬空镜像...${NC}"
+        docker image prune -f
+        ;;
+    2)
+        if confirm_action "确认清理所有未被使用的镜像？"; then
+            echo -e "${GREEN}◆ 清理未使用镜像...${NC}"
+            docker image prune -a -f
         else
-            echo -e "${GREEN}返回上级菜单...${NC}"
-            sleep 1
+            echo -e "${YELLOW}已跳过镜像清理${NC}"
         fi
-    done
-}
+        ;;
+    *)
+        echo -e "${YELLOW}跳过镜像清理${NC}"
+        ;;
+esac
 
-# 系统清理菜单
-run_system_clean() {
-    echo -e "\n${CYAN}=== 系统清理子菜单 ===${NC}"
-    echo "1) 快速清理"
-    echo "2) 深度清理"
-    echo "b) 返回"
-    
-    read -p "请选择: " sub_choice
-    case "$sub_choice" in
-        1) confirm_action "确认执行快速清理？" && quick_clean ;;
-        2) confirm_action "⚠️ 深度清理需要重启，确认继续？" && deep_clean ;;
-        b) return ;;
-        *) echo -e "${RED}无效选择${NC}"; sleep 1 ;;
-    esac
-}
+# 5. 智能容器清理（保留手动停止的）
+echo -e "\n${CYAN}=== 容器清理策略 ===${NC}"
+echo -e "发现停止的容器:"
+docker ps -a --filter "status=exited" --format '{
+    "容器ID": "{{.ID}}",
+    "名称": "{{.Names}}",
+    "状态": "{{.Status}}",
+    "创建时间": "{{.CreatedAt}}"
+}' | column -t -s'",'
 
-# Docker维护菜单
-run_docker_maintenance() {
-    echo -e "\n${CYAN}=== Docker维护 ===${NC}"
-    if confirm_action "是否列出当前容器？"; then
-        docker ps -a
-    fi
-    
-    if confirm_action "执行安全清理？"; then
-        docker system prune -f
-    fi
-}
+if confirm_action "是否清理所有停止的容器？"; then
+    echo -e "${GREEN}◆ 清理停止的容器...${NC}"
+    docker container prune -f
+else
+    echo -e "${YELLOW}保留所有停止的容器${NC}"
+fi
 
-# 危险操作菜单（需二次确认）
-show_danger_menu() {
-    echo -e "\n${RED}⚠️ 危险操作菜单 ⚠️${NC}"
-    echo "1) 重置所有Docker数据"
-    echo "2) 删除所有日志"
-    echo "b) 返回"
-    
-    read -p "请选择: " danger_choice
-    case "$danger_choice" in
-        1) confirm_action "❗ 将删除所有容器/镜像/卷，确认？" && \
-           confirm_action "最后一次确认，不可恢复！" && \
-           docker system prune -a --volumes -f ;;
-        2) confirm_action "删除所有系统日志？" && sudo rm -rf /var/log/* ;;
-        b) return ;;
-        *) echo -e "${RED}无效选择${NC}"; sleep 1 ;;
-    esac
-}
+# 6. 卷清理（保留有标签的）
+echo -e "\n${CYAN}=== 卷清理策略 ===${NC}"
+echo -e "未被任何容器使用的卷:"
+docker volume ls -qf dangling=true | xargs -r docker volume inspect --format '{
+    "卷名": "{{.Name}}",
+    "创建时间": "{{.CreatedAt}}",
+    "标签": "{{.Labels}}"
+}' 2>/dev/null | column -t -s'",'
+
+if confirm_action "是否清理未使用的卷？"; then
+    echo -e "${GREEN}◆ 清理孤立卷...${NC}"
+    docker volume prune -f
+else
+    echo -e "${YELLOW}保留所有卷${NC}"
+fi
+
+# 7. 最终状态报告
+echo -e "\n${GREEN}✓ 清理完成 ${NC}"
+echo -e "${CYAN}=== 清理后资源状态 ===${NC}"
+docker system df --format '{
+    "类型": "{{.Type}}",
+    "总数": "{{.TotalCount}}",
+    "活跃数": "{{.ActiveCount}}",
+    "大小": "{{.Size}}",
+    "可回收": "{{.Reclaimable}}"
+}' | column -t -s'",' | awk 'NR==1 || NR==2 || $0 ~ /[1-9]GB/'
+
+# 8. 日志清理建议
+echo -e "\n${YELLOW}ℹ 日志管理建议:${NC}"
+echo "1. 运行中的容器日志: docker logs -f 容器名"
+echo "2. 限制日志大小: docker run --log-opt max-size=50m --log-opt max-file=3"
+echo "3. 手动清理日志: truncate -s 0 \$(docker inspect --format='{{.LogPath}}' 容器名)"
 
 # 卸载 Docker 环境的函数
 uninstall_docker_environment() {
