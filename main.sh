@@ -76,7 +76,7 @@ show_menu() {
     esac
 }
 
-# 显示系统信息
+# 1. 显示系统信息
 show_system_info() {
     
     # 获取主网络接口
@@ -163,7 +163,7 @@ show_system_info() {
     pause
 }
 
-# 系统更新
+# 2. 系统更新
 system_update() {
 
     echo -e "\n${GREEN}=== 系统更新开始 ===${NC}"
@@ -217,45 +217,6 @@ system_update() {
     echo "2. 安全补丁: sudo apt list --upgradable 2>/dev/null"
     pause
 }
-
-# 系统清理函数
-system_cleanup() {
-    # 颜色定义
-    RED='\033[0;31m'
-    GREEN='\033[0;32m'
-    YELLOW='\033[1;33m'
-    BLUE='\033[0;34m'
-    CYAN='\033[0;36m'
-    NC='\033[0m' # No Color
-
-    # 暂停函数
-    pause() {
-        read -p "$(echo -e "${YELLOW}按回车键继续...${NC}")" dummy
-    }
-
-    NEED_REBOOT=false
-    REBOOT_MARKER="/var/run/reboot-required"
-    LOG_FILE="/var/log/dahuang_clean.log"
-
-    # 安全验证函数
-    safe_clean() {
-        local path="$1"
-        [[ "$path" == "/" ]] && { echo -e "${RED}危险路径禁止操作${NC}"; return 1; }
-        [ -e "$path" ] || { echo -e "${YELLOW}路径不存在: $path${NC}"; return 1; }
-        return 0
-    }
-
-    # 内核检测函数
-    check_kernel() {
-        CURRENT_KERNEL=$(uname -r)
-        NEWEST_KERNEL=$(ls -t /boot/vmlinuz-* 2>/dev/null | head -n1 | sed 's/.*vmlinuz-//')
-        
-        if [ -n "$NEWEST_KERNEL" ] && [ "$CURRENT_KERNEL" != "$NEWEST_KERNEL" ]; then
-            echo -e "${YELLOW}⚠️ 内核待更新: ${CURRENT_KERNEL} → ${NEWEST_KERNEL}${NC}"
-            return 0
-        fi
-        return 1
-    }
 
 # 系统清理
 system_cleanup() {
