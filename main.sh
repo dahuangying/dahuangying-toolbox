@@ -219,84 +219,123 @@ system_update() {
 }
 
 # 系统清理
-system_cleanup() {
-    # 颜色定义
-    RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
-    BLUE='\033[0;34m'; CYAN='\033[0;36m'; NC='\033[0m'
+
+NEED_REBOOT=false
+REBOOT_MARKER="/var/run/reboot-required"
+LOG_FILE="/var/log/dahuang_clean.log"
+
+# 安全验证函数
+safe_clean() {
+    local path="$1"
+    [[ "$path" == "/" ]] && { echo -e "${RED}危险路径禁止操作${NC}"; return 1; }
+    [ -e "$path" ] || { echo -e "${YELLOW}路径不存在: $path${NC}"; return 1; }
+    return 0
+}
+
+# 内核检测函数
+check_kernel() {
+    CURRENT_KERNEL=$(uname -r)
+    NEWEST_KERNEL=$(ls -t /boot/vmlinuz-* 2>/dev/null | head -n1 | sed 's/.*vmlinuz-//')
     
-    # 新增重启判断变量
-    need_reboot=false
-
-    # 安全检查函数
-    check_safe_path() {
-        [[ "$1" == "/" || ! -d "$1" ]] && { echo -e "${RED}危险路径: $1${NC}"; return 1; }
+    if [ -n "$NEWEST_KERNEL" ] && [ "$CURRENT_KERNEL" != "$NEWEST_KERNEL" ]; then
+        echo -e "${YELLOW}⚠️ 内核待更新: ${CURRENT_KERNEL} → ${NEWEST_KERNEL}${NC}"
         return 0
-    }
+    fi
+    return 1
+}
 
-    # 显示空间使用
-    show_space_usage() {
-        echo -e "\n${CYAN}磁盘使用情况:${NC}"
-        df -h / | awk 'NR==2{printf "%-10s %s\n%-10s %s\n%-10s %s\n", "总空间:", $2, "已用:", $3, "可用:", $4}'
-    }
-
-    # 开始清理
-    echo -e "\n${GREEN}=== 系统清理开始 ===${NC}"
-    show_space_usage
-
-    # 发行版特定清理
-    if [ -f /etc/os-release ]; then
-        source /etc/os-release
-        case $ID in
-            debian|ubuntu)
-                echo -e "${BLUE}[Debian/Ubuntu] 清理中...${NC}"
-                sudo apt-get -qq autoremove --purge -y
-                # 内核检查
-                if sudo apt list --installed | grep -q 'linux-image-[0-9]'; then
-                    echo -e "${YELLOW}检测到内核变更，建议重启${NC}"
-                    need_reboot=true
-                fi
-                check_safe_path "/var/cache/apt/archives" && sudo rm -rf /var/cache/apt/archives/*
-                ;;
-            centos|rhel)
-                echo -e "${BLUE}[RHEL/CentOS] 清理中...${NC}"
-                sudo package-cleanup --oldkernels --count=1 -y
-                # 内核检查
-                if [ $(sudo rpm -qa | grep -c '^kernel-') -gt 1 ]; then
-                    echo -e "${YELLOW}检测到多内核存在，建议重启${NC}"
-                    need_reboot=true
-                fi
-                check_safe_path "/var/cache/yum" && sudo rm -rf /var/cache/yum/*
-                ;;
-            *)
-                echo -e "${YELLOW}未知发行版，执行通用清理${NC}"
-                ;;
-        esac
+# 清理函数
+perform_clean() {
+    echo -e "\n${BLUE}=== 开始系统深度清理 ===${NC}"
+    
+    # 1. 包管理器清理
+    echo -e "${CYAN}◆ 包缓存清理${NC}"
+    if grep -qi "debian" /etc/os-release; then
+        sudo apt clean && sudo apt autoremove -y
+    elif grep -qi "centos|rhel" /etc/os-release; then
+        sudo yum clean all || sudo dnf clean all
     fi
 
-    # 通用清理
-    echo -e "${YELLOW}执行跨平台清理...${NC}"
-    check_safe_path "/tmp" && sudo find /tmp -type f -atime +7 -delete
-    sudo journalctl --vacuum-time=1d --vacuum-size=100M
+    # 2. 临时文件清理
+    echo -e "\n${CYAN}◆ 临时文件清理${NC}"
+    safe_clean "/tmp/*" && sudo rm -rf /tmp/*
+    safe_clean "/var/tmp/*" && sudo rm -rf /var/tmp/*
 
-    # 最终重启提示（带确认）
-    sudo rm -f "$REBOOT_MARKER"
+    # 3. 日志清理
+    echo -e "\n${CYAN}◆ 系统日志清理${NC}"
+    sudo journalctl --vacuum-time=7d
+    sudo find /var/log -type f -name "*.gz" -delete
+    sudo find /var/log -type f -name "*.old" -delete
+
+    # 4. 其他清理
+    echo -e "\n${CYAN}◆ 其他资源清理${NC}"
+    sudo docker system prune -f 2>/dev/null
+    sudo rm -f "$REBOOT_MARKER" 2>/dev/null
+}
+
+# 重启检测函数
+check_reboot() {
+    echo -e "\n${BLUE}=== 系统状态检测 ===${NC}"
     
-    # 更新系统状态
-    command -v update-grub >/dev/null && sudo update-grub
-    
-    # 最终检测
-    if check_reboot_required; then
-        echo -e "\n${RED}需重启生效的项目：${NC}"
-        [ -f "$REBOOT_MARKER" ] && cat "$REBOOT_MARKER"
-        echo "内核版本: $(uname -r) → $(ls -t /boot/vmlinuz-* | head -n1 | sed 's/.*vmlinuz-//')"
+    # 1. 内核检测
+    if check_kernel; then
+        NEED_REBOOT=true
+        echo -e "${YELLOW}• 新内核待激活${NC}"
+    fi
+
+    # 2. 系统标记检测
+    if [ -f "$REBOOT_MARKER" ]; then
+        NEED_REBOOT=true
+        echo -e "${YELLOW}• 系统关键更新待生效${NC}"
+        cat "$REBOOT_MARKER" | sed 's/^/  /'
+    fi
+
+    # 3. 服务检测
+    if command -v needrestart >/dev/null; then
+        if needrestart -b | grep -q "NEEDRESTART-KERNEL"; then
+            NEED_REBOOT=true
+            echo -e "${YELLOW}• 关键服务需重启${NC}"
+        fi
+    fi
+}
+
+# 主执行流程
+main() {
+    # 记录开始时间
+    START_TIME=$(date +%s)
+    echo "[$(date '+%F %T')] 清理开始" | sudo tee -a "$LOG_FILE"
+
+    # 执行清理
+    perform_clean
+
+    # 检测重启需求
+    check_reboot
+
+    # 最终判断
+    if $NEED_REBOOT; then
+        echo -e "\n${RED}════════════ 重要提示 ════════════${NC}"
+        echo -e "以下更改需要重启生效："
+        check_reboot | grep "•"
         
         read -p $'\033[33m是否立即重启？(y/N): \033[0m' choice
-        [[ "$choice" =~ ^[Yy]$ ]] && sudo reboot
+        if [[ "$choice" =~ ^[Yy]$ ]]; then
+            echo -e "${GREEN}系统将在5秒后重启...${NC}"
+            echo "[$(date '+%F %T')] 用户确认重启" | sudo tee -a "$LOG_FILE"
+            sleep 5
+            sudo reboot
+        else
+            echo -e "${YELLOW}请稍后手动执行 reboot 命令${NC}"
+        fi
     else
-        echo -e "\n${GREEN}所有更改已实时生效，无需重启${NC}"
+        echo -e "\n${GREEN}✓ 所有更改已实时生效，无需重启${NC}"
     fi
-    pause
+
+    # 计算耗时
+    echo -e "\n${CYAN}清理完成，耗时: $(( $(date +%s) - START_TIME ))秒${NC}"
+    echo "[$(date '+%F %T')] 清理完成" | sudo tee -a "$LOG_FILE"
+    pause 
 }
+
 
 # 删除模块
 delete_module() {
