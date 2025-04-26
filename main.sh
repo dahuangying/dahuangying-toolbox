@@ -296,10 +296,6 @@ function pull_module() {
     fi
 }
 
-# 调用示例
-pull_module "docker"
-source "modules/docker.sh"
-
 # 为下载的模块赋予执行权限
 chmod +x "$MODULES_DIR"/*
 
