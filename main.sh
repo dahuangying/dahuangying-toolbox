@@ -279,22 +279,22 @@ system_cleanup() {
     sudo journalctl --vacuum-time=1d --vacuum-size=100M
 
     # 最终重启提示（带确认）
-    if $need_reboot; then
-        echo -e "\n${RED}重要：以下操作需要重启生效${NC}"
-        echo -e "1. 已执行内核更新或删除"
+    sudo rm -f "$REBOOT_MARKER"
+    
+    # 更新系统状态
+    command -v update-grub >/dev/null && sudo update-grub
+    
+    # 最终检测
+    if check_reboot_required; then
+        echo -e "\n${RED}需重启生效的项目：${NC}"
+        [ -f "$REBOOT_MARKER" ] && cat "$REBOOT_MARKER"
+        echo "内核版本: $(uname -r) → $(ls -t /boot/vmlinuz-* | head -n1 | sed 's/.*vmlinuz-//')"
         
-        read -p $'\033[33m是否立即重启系统？(y/N): \033[0m' reboot_choice
-        if [[ "$reboot_choice" =~ ^[Yy]$ ]]; then
-            echo -e "${GREEN}即将重启系统...${NC}"
-            sleep 3  # 给用户3秒中断机会
-            sudo reboot
-        else
-            echo -e "${YELLOW}您选择了不重启，请稍后手动执行 sudo reboot${NC}"
-        fi
+        read -p $'\033[33m是否立即重启？(y/N): \033[0m' choice
+        [[ "$choice" =~ ^[Yy]$ ]] && sudo reboot
     else
-        echo -e "\n${GREEN}所有清理已完成，无需重启${NC}"
+        echo -e "\n${GREEN}所有更改已实时生效，无需重启${NC}"
     fi
-
     pause
 }
 
