@@ -255,7 +255,6 @@ system_cleanup() {
             return 0
         fi
         return 1
-        pause
     }
 
 # 系统清理
