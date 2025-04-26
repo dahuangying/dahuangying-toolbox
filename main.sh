@@ -12,7 +12,7 @@ pause() {
 }
 
 # 定义仓库信息
-REPO_URL="https://raw.githubusercontent.com/dahuangying/dahuangying-toolbox"
+REPO_URL="https://raw.githubusercontent.com/dahuangying/dahuangying-toolbox/main"
 TOOLS_DIR="modules"  # 你可以根据需要修改这个目录名
 
 # 欢迎信息
