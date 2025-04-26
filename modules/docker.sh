@@ -1,8 +1,11 @@
 #!/bin/bash
 
-# 设置颜色
-GREEN="\033[0;32m"  # 绿色
-NC="\033[0m"        # 重置颜色
+# 颜色定义
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+CYAN='\033[0;36m'
+NC='\033[0m'
 
 # 显示主菜单
 show_menu() {
@@ -31,7 +34,7 @@ show_menu() {
     echo "4. Docker 镜像管理"
     echo "5. Docker 网络管理"
     echo "6. Docker 卷管理"
-    echo "7. 清理所有未使用的资源"
+    echo "7. Docker智能清理脚本"
 	echo "8. 卸载Docker环境"
     echo "0. 退出"
     read -p "请输入选项: " option
@@ -42,8 +45,8 @@ show_menu() {
         4) docker_image_management ;;
         5) docker_network_management ;;
         6) docker_volume_management ;;
-        7) clean_unused_resources ;;
-		8) uninstall_docker_environment ;;
+        7) confirm_action ;;
+	8) uninstall_docker_environment ;;
 		
         0) exit 0 ;;
         *) echo "无效的选项，请重新选择！" && sleep 2 && show_menu ;;
@@ -370,26 +373,100 @@ delete_all_volumes() {
     docker_volume_management
 }
 
-# 清理所有未使用的资源
-clean_unused_resources() {
-    confirm_action "清理所有未使用的资源" "docker system prune -a --volumes"
-    pause
-    show_menu
+# Docker智能清理
+confirm_action() {
+    local prompt="$1"
+    local default="${2:-no}"  # 默认值 (yes/no)
+    local timeout="${3:-0}"    # 超时自动选择 (秒)
+
+    # 超时处理
+    if [ "$timeout" -gt 0 ]; then
+        echo -e "${YELLOW}${prompt} (y/N, 自动选择 ${default} 在 ${timeout}秒后)...${NC}"
+        read -t "$timeout" -p " " choice || {
+            echo -e "\n${BLUE}超时，已选择默认选项: ${default}${NC}"
+            [[ "$default" =~ ^[Yy] ]] && return 0 || return 1
+        }
+    else
+        read -p "$(echo -e "${YELLOW}${prompt} (y/N): ${NC}")" choice
+    fi
+
+    case "$choice" in
+        [Yy]|[Yy][Ee][Ss]) return 0 ;;
+        [Nn]|[Nn][Oo]) return 1 ;;
+        *) [[ "$default" =~ ^[Yy] ]] && return 0 || return 1 ;;
+    esac
 }
 
-# 确认操作
-confirm_action() {
-    action_description=$1
-    command_to_run=$2
+# 多级菜单示例
+show_main_menu() {
+    while true; do
+        clear
+        echo -e "${BLUE}=== 主菜单 ===${NC}"
+        echo "1) 系统清理"
+        echo "2) Docker维护"
+        echo "3) 危险操作"
+        echo "q) 退出"
+        
+        if confirm_action "请选择菜单编号" "no" 30; then
+            read -p "请输入选项: " choice
+            case "$choice" in
+                1) run_system_clean ;;
+                2) run_docker_maintenance ;;
+                3) confirm_action "⚠️ 确认进入危险操作菜单？" "no" && show_danger_menu ;;
+                q) exit 0 ;;
+                *) echo -e "${RED}无效选项${NC}"; sleep 1 ;;
+            esac
+        else
+            echo -e "${GREEN}返回上级菜单...${NC}"
+            sleep 1
+        fi
+    done
+}
 
-    read -p "您确定要执行以下操作？$action_description [y/n]: " confirm
-    if [[ "$confirm" == "y" || "$confirm" == "Y" ]]; then
-        echo "正在执行操作..."
-        eval $command_to_run
-        echo "$action_description 已执行！"
-    else
-        echo "操作已取消。"
+# 系统清理菜单
+run_system_clean() {
+    echo -e "\n${CYAN}=== 系统清理子菜单 ===${NC}"
+    echo "1) 快速清理"
+    echo "2) 深度清理"
+    echo "b) 返回"
+    
+    read -p "请选择: " sub_choice
+    case "$sub_choice" in
+        1) confirm_action "确认执行快速清理？" && quick_clean ;;
+        2) confirm_action "⚠️ 深度清理需要重启，确认继续？" && deep_clean ;;
+        b) return ;;
+        *) echo -e "${RED}无效选择${NC}"; sleep 1 ;;
+    esac
+}
+
+# Docker维护菜单
+run_docker_maintenance() {
+    echo -e "\n${CYAN}=== Docker维护 ===${NC}"
+    if confirm_action "是否列出当前容器？"; then
+        docker ps -a
     fi
+    
+    if confirm_action "执行安全清理？"; then
+        docker system prune -f
+    fi
+}
+
+# 危险操作菜单（需二次确认）
+show_danger_menu() {
+    echo -e "\n${RED}⚠️ 危险操作菜单 ⚠️${NC}"
+    echo "1) 重置所有Docker数据"
+    echo "2) 删除所有日志"
+    echo "b) 返回"
+    
+    read -p "请选择: " danger_choice
+    case "$danger_choice" in
+        1) confirm_action "❗ 将删除所有容器/镜像/卷，确认？" && \
+           confirm_action "最后一次确认，不可恢复！" && \
+           docker system prune -a --volumes -f ;;
+        2) confirm_action "删除所有系统日志？" && sudo rm -rf /var/log/* ;;
+        b) return ;;
+        *) echo -e "${RED}无效选择${NC}"; sleep 1 ;;
+    esac
 }
 
 # 卸载 Docker 环境的函数
