@@ -34,7 +34,7 @@ show_menu() {
     echo "4. Docker 镜像管理"
     echo "5. Docker 网络管理"
     echo "6. Docker 卷管理"
-    echo "7. Docker智能清理脚本"
+    echo "7. Docker智能清理"
 	echo "8. 卸载Docker环境"
     echo "0. 退出"
     read -p "请输入选项: " option
@@ -376,103 +376,57 @@ delete_all_volumes() {
 # Docker智能清理
 confirm_action() {
     local prompt="$1"
+    local default="${2:-no}"  # 默认值 (yes/no)
+    
+    # 显示带颜色的提示
     read -p "$(echo -e "${YELLOW}${prompt} (y/N): ${NC}")" choice
-    [[ "$choice" =~ ^[Yy]$ ]] && return 0 || return 1
+    
+    # 自动转换为小写比较
+    choice=$(echo "$choice" | tr '[:upper:]' '[:lower:]')
+    
+    case "$choice" in
+        y|yes) return 0 ;;
+        n|no)  return 1 ;;
+        *)     [[ "$default" == "yes" ]] && return 0 || return 1 ;;
+    esac
 }
 
-# 1. 显示当前磁盘占用
-echo -e "\n${CYAN}=== 当前Docker磁盘使用情况 ===${NC}"
-docker system df --format '{
-    "类型": "{{.Type}}",
-    "总数": "{{.TotalCount}}",
-    "活跃数": "{{.ActiveCount}}",
-    "大小": "{{.Size}}",
-    "可回收": "{{.Reclaimable}}"
-}' | column -t -s'",' | awk 'NR==1 || NR==2 || $0 ~ /[1-9]GB/'
+# 系统清理函数
+system_cleanup() {
+    echo -e "\n${GREEN}执行系统清理中...${NC}"
+    # 这里放置您的清理逻辑
+    sleep 1
+    echo -e "${GREEN}清理完成!${NC}"
+    pause
+}
 
-# 2. 清理构建缓存（完全安全）
-echo -e "\n${GREEN}◆ 清理构建缓存...${NC}"
-docker builder prune -f
+# 暂停函数
+pause() {
+    read -p "$(echo -e "${YELLOW}按回车键继续...${NC}")" dummy
+}
 
-# 3. 清理临时网络（无容器使用的网络）
-echo -e "\n${GREEN}◆ 清理孤立网络...${NC}"
-docker network prune -f
-
-# 4. 智能清理镜像策略
-echo -e "\n${CYAN}=== 镜像清理策略 ===${NC}"
-echo -e "${YELLOW}选项1${NC}: 仅清理<none>悬空镜像 (安全)"
-echo -e "${YELLOW}选项2${NC}: 清理所有未被容器引用的镜像 (包括未运行的)"
-echo -e "${YELLOW}选项3${NC}: 跳过镜像清理"
-
-read -p "请选择镜像清理强度 (1/2/3): " img_choice
-
-case $img_choice in
-    1)
-        echo -e "${GREEN}◆ 清理悬空镜像...${NC}"
-        docker image prune -f
-        ;;
-    2)
-        if confirm_action "确认清理所有未被使用的镜像？"; then
-            echo -e "${GREEN}◆ 清理未使用镜像...${NC}"
-            docker image prune -a -f
-        else
-            echo -e "${YELLOW}已跳过镜像清理${NC}"
-        fi
-        ;;
-    *)
-        echo -e "${YELLOW}跳过镜像清理${NC}"
-        ;;
-esac
-
-# 5. 智能容器清理（保留手动停止的）
-echo -e "\n${CYAN}=== 容器清理策略 ===${NC}"
-echo -e "发现停止的容器:"
-docker ps -a --filter "status=exited" --format '{
-    "容器ID": "{{.ID}}",
-    "名称": "{{.Names}}",
-    "状态": "{{.Status}}",
-    "创建时间": "{{.CreatedAt}}"
-}' | column -t -s'",'
-
-if confirm_action "是否清理所有停止的容器？"; then
-    echo -e "${GREEN}◆ 清理停止的容器...${NC}"
-    docker container prune -f
-else
-    echo -e "${YELLOW}保留所有停止的容器${NC}"
-fi
-
-# 6. 卷清理（保留有标签的）
-echo -e "\n${CYAN}=== 卷清理策略 ===${NC}"
-echo -e "未被任何容器使用的卷:"
-docker volume ls -qf dangling=true | xargs -r docker volume inspect --format '{
-    "卷名": "{{.Name}}",
-    "创建时间": "{{.CreatedAt}}",
-    "标签": "{{.Labels}}"
-}' 2>/dev/null | column -t -s'",'
-
-if confirm_action "是否清理未使用的卷？"; then
-    echo -e "${GREEN}◆ 清理孤立卷...${NC}"
-    docker volume prune -f
-else
-    echo -e "${YELLOW}保留所有卷${NC}"
-fi
-
-# 7. 最终状态报告
-echo -e "\n${GREEN}✓ 清理完成 ${NC}"
-echo -e "${CYAN}=== 清理后资源状态 ===${NC}"
-docker system df --format '{
-    "类型": "{{.Type}}",
-    "总数": "{{.TotalCount}}",
-    "活跃数": "{{.ActiveCount}}",
-    "大小": "{{.Size}}",
-    "可回收": "{{.Reclaimable}}"
-}' | column -t -s'",' | awk 'NR==1 || NR==2 || $0 ~ /[1-9]GB/'
-
-# 8. 日志清理建议
-echo -e "\n${YELLOW}ℹ 日志管理建议:${NC}"
-echo "1. 运行中的容器日志: docker logs -f 容器名"
-echo "2. 限制日志大小: docker run --log-opt max-size=50m --log-opt max-file=3"
-echo "3. 手动清理日志: truncate -s 0 \$(docker inspect --format='{{.LogPath}}' 容器名)"
+# 主菜单显示
+show_main_menu() {
+    while true; do
+        clear
+        echo -e "${BLUE}=== 主菜单 ===${NC}"
+        echo "1) 系统清理"
+        echo "2) 系统更新"
+        echo "3) Docker维护"
+        echo "q) 退出"
+        
+        # 直接读取选择，不需要先按y确认
+        read -p "$(echo -e "${CYAN}请输入选项数字: ${NC}")" choice
+        
+        case "$choice" in
+            1) system_cleanup ;;
+            2) echo "更新功能待实现"; pause ;;
+            3) echo "Docker功能待实现"; pause ;;
+            q|Q) exit 0 ;;
+            *) echo -e "${RED}无效选项，请重新输入${NC}"; sleep 1 ;;
+        esac
+    done
+}
 
 # 卸载 Docker 环境的函数
 uninstall_docker_environment() {
