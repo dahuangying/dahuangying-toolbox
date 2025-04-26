@@ -34,7 +34,7 @@ show_menu() {
     echo "4. Docker 镜像管理"
     echo "5. Docker 网络管理"
     echo "6. Docker 卷管理"
-    echo "7. Docker智能清理"
+    echo "7.  Docker智能清理"
 	echo "8. 卸载Docker环境"
     echo "0. 退出"
     read -p "请输入选项: " option
@@ -46,7 +46,7 @@ show_menu() {
         5) docker_network_management ;;
         6) docker_volume_management ;;
         7) confirm_action ;;
-	8) uninstall_docker_environment ;;
+		8) uninstall_docker_environment ;;
 		
         0) exit 0 ;;
         *) echo "无效的选项，请重新选择！" && sleep 2 && show_menu ;;
@@ -373,7 +373,7 @@ delete_all_volumes() {
     docker_volume_management
 }
 
-# Docker 智能清理
+# Docker智能清理脚本
 confirm_action() {
     local prompt="$1"
     read -p "$(echo -e "${YELLOW}${prompt} (y/N): ${NC}")" choice
@@ -540,6 +540,21 @@ echo -e "\n${YELLOW}ℹ 日志管理建议:${NC}"
 echo "1. 查看日志: docker logs 容器名"
 echo "2. 限制大小: docker run --log-opt max-size=50m --log-opt max-file=3"
 echo "3. 手动清空: truncate -s 0 \$(docker inspect --format='{{.LogPath}}' 容器名)"
+
+# 确认操作
+confirm_action() {
+    action_description=$1
+    command_to_run=$2
+
+    read -p "您确定要执行以下操作？$action_description [y/n]: " confirm
+    if [[ "$confirm" == "y" || "$confirm" == "Y" ]]; then
+        echo "正在执行操作..."
+        eval $command_to_run
+        echo "$action_description 已执行！"
+    else
+        echo "操作已取消。"
+    fi
+}
 
 # 卸载 Docker 环境的函数
 uninstall_docker_environment() {
