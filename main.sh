@@ -285,15 +285,9 @@ full_uninstall() {
     fi
 }
 
-# 模块下载目录
+# 模块静默拉取下载
 MODULES_DIR="./modules"
 
-# 颜色定义（保持原有样式）
-GREEN='\033[0;32m'
-RED='\033[0;31m'
-NC='\033[0m' # No Color
-
-# 静默下载模块
 download_module() {
     MODULE_NAME=$1
     MODULE_URL=$2
