@@ -172,6 +172,12 @@ system_update() {
 
 # 系统清理
 system_cleanup() {
+    # 颜色定义
+    RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
+    BLUE='\033[0;34m'; CYAN='\033[0;36m'; NC='\033[0m'
+    
+    # 新增重启判断变量
+    need_reboot=false
 
     # 安全检查函数
     check_safe_path() {
@@ -196,17 +202,22 @@ system_cleanup() {
             debian|ubuntu)
                 echo -e "${BLUE}[Debian/Ubuntu] 清理中...${NC}"
                 sudo apt-get -qq autoremove --purge -y
+                # 内核检查
+                if sudo apt list --installed | grep -q 'linux-image-[0-9]'; then
+                    echo -e "${YELLOW}检测到内核变更，建议重启${NC}"
+                    need_reboot=true
+                fi
                 check_safe_path "/var/cache/apt/archives" && sudo rm -rf /var/cache/apt/archives/*
                 ;;
             centos|rhel)
                 echo -e "${BLUE}[RHEL/CentOS] 清理中...${NC}"
                 sudo package-cleanup --oldkernels --count=1 -y
+                # 内核检查
+                if [ $(sudo rpm -qa | grep -c '^kernel-') -gt 1 ]; then
+                    echo -e "${YELLOW}检测到多内核存在，建议重启${NC}"
+                    need_reboot=true
+                fi
                 check_safe_path "/var/cache/yum" && sudo rm -rf /var/cache/yum/*
-                ;;
-            arch)
-                echo -e "${BLUE}[Arch] 清理中...${NC}"
-                sudo pacman -Qtdq | sudo pacman -Rns - --noconfirm 2>/dev/null
-                check_safe_path "/var/cache/pacman/pkg" && sudo rm -rf /var/cache/pacman/pkg/*
                 ;;
             *)
                 echo -e "${YELLOW}未知发行版，执行通用清理${NC}"
@@ -219,10 +230,15 @@ system_cleanup() {
     check_safe_path "/tmp" && sudo find /tmp -type f -atime +7 -delete
     sudo journalctl --vacuum-time=1d --vacuum-size=100M
 
-    # 完成
-    echo -e "\n${GREEN}=== 清理完成 ===${NC}"
-    show_space_usage
-    echo -e "${GREEN}建议重启系统使所有更改生效${NC}"
+    # 重启提示
+    if $need_reboot; then
+        echo -e "\n${RED}重要：以下操作需要重启生效${NC}"
+        echo -e "1. 已执行内核更新或删除"
+        echo -e "2. 建议执行命令: ${GREEN}sudo reboot${NC}"
+    else
+        echo -e "\n${GREEN}所有清理已完成，无需重启${NC}"
+    fi
+
     pause
 }
 
