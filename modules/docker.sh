@@ -35,7 +35,7 @@ show_menu() {
     echo "5. Docker 网络管理"
     echo "6. Docker 卷管理"
     echo "7.  Docker智能清理"
-	echo "8. 卸载Docker环境"
+    echo "8. 卸载Docker环境"
     echo "0. 退出"
     read -p "请输入选项: " option
     case $option in
@@ -45,8 +45,8 @@ show_menu() {
         4) docker_image_management ;;
         5) docker_network_management ;;
         6) docker_volume_management ;;
-        7) docker_zhinengqingli ;;
-		8) uninstall_docker_environment ;;
+        7) confirm_operation ;;
+	8) uninstall_docker_environment ;;
 		
         0) exit 0 ;;
         *) echo "无效的选项，请重新选择！" && sleep 2 && show_menu ;;
@@ -113,7 +113,7 @@ docker_container_management() {
     echo "4. 停止所有容器"
     echo "5. 创建指定容器"
     echo "6. 删除指定容器"
-	echo "7. 删除所有容器"
+    echo "7. 删除所有容器"
     echo "0. 返回"
     read -p "请输入选项: " container_option
     case $container_option in
@@ -123,7 +123,7 @@ docker_container_management() {
         4) stop_all_containers ;;
         5) create_new_container ;;
         6) remove_specified_container ;;
-		7) remove_all_containers ;;
+	7) remove_all_containers ;;
         0) show_menu ;;
         *) echo "无效选项，请重新选择" && docker_container_management ;;
     esac
@@ -374,7 +374,7 @@ delete_all_volumes() {
 }
 
 # Docker智能清理脚本
-docker_zhinengqingli() {
+confirm_operation() {
     local prompt="$1"
     read -p "$(echo -e "${YELLOW}${prompt} (y/N): ${NC}")" choice
     [[ "$choice" =~ ^[Yy]$ ]] && return 0 || return 1
