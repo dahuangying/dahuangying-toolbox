@@ -111,7 +111,7 @@ install_update_docker() {
 update_menu() {
     while true; do
         clear
-        echo -e "${GREEN}=== Docker容器更新管理 ===${NC}"
+        echo -e "${GREEN}    Docker容器更新管理    ${NC}"
 	echo -e "${GREEN}=========================${NC}"
         echo "1. 手动选择更新容器"
         echo "2. 自动更新所有容器"
