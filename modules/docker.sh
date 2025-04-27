@@ -223,7 +223,7 @@ update_menu() {
                 safe_update_container "$target" false
                 ;;
             0)
-                $parent_menu  # 执行上级菜单函数
+                $show_menu  # 执行上级菜单函数
                 return
                 ;;
             *)
