@@ -34,8 +34,8 @@ show_menu() {
     echo "4. Docker 镜像管理"
     echo "5. Docker 网络管理"
     echo "6. Docker 卷管理"
-    echo "7. 清理所有未使用的资源"
-	echo "8. 卸载Docker环境"
+    echo "7. Docker智能清理"
+    echo "8. 卸载Docker环境"
     echo "0. 退出"
     read -p "请输入选项: " option
     case $option in
@@ -45,8 +45,8 @@ show_menu() {
         4) docker_image_management ;;
         5) docker_network_management ;;
         6) docker_volume_management ;;
-        7) clean_unused_resources ;;
-		8) uninstall_docker_environment ;;
+        7) docker_cleanup ;;
+	8) uninstall_docker_environment ;;
 		
         0) exit 0 ;;
         *) echo "无效的选项，请重新选择！" && sleep 2 && show_menu ;;
