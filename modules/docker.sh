@@ -106,100 +106,16 @@ install_update_docker() {
 }
 
 # 3.更新 Docker 容器
-confirm_action() {
-    local prompt="$1"
-    read -p "$(echo -e "${YELLOW}${prompt} (y/N): ${NC}")" choice
-    [[ "$choice" =~ ^[Yy]$ ]] && return 0 || return 1
-}
-
-# 安全更新容器函数
-safe_update_container() {
-    local container=$1
-    local auto_mode=${2:-false}
-
-    # 空容器名检查
-    if [ -z "$container" ]; then
-        echo -e "${RED}错误：未指定容器名称！${NC}"
-        return 1
-    fi
-
-    # 容器存在性检查
-    if ! docker inspect "$container" &>/dev/null; then
-        echo -e "${RED}错误：容器 '$container' 不存在！${NC}"
-        echo -e "${CYAN}可用容器列表："
-        docker ps -a --format '{{.ID}}\t{{.Names}}\t{{.Status}}' | column -t
-        echo -e "${NC}"
-        return 1
-    fi
-
-    echo -e "\n${CYAN}=== 正在处理容器: $container ===${NC}"
-
-    # 获取容器配置
-    local image=$(docker inspect --format '{{.Config.Image}}' "$container" | cut -d'@' -f1)
-    local volumes=($(docker inspect --format '{{ range .Mounts }}-v {{ .Source }}:{{ .Destination }} {{ end }}' "$container"))
-    local ports=($(docker inspect --format '{{ range $port, $binding := .NetworkSettings.Ports }}-p {{ index $binding 0.HostPort }}:{{ $port }} {{ end }}' "$container"))
-    local envs=($(docker inspect --format '{{ range .Config.Env }}--env {{ . }} {{ end }}' "$container"))
-    local restart_policy=$(docker inspect --format '{{.HostConfig.RestartPolicy.Name}}' "$container")
-    local network=$(docker inspect --format '{{.HostConfig.NetworkMode}}' "$container")
-
-    # 检查镜像更新
-    echo -e "${YELLOW}▶ 正在检查镜像更新...${NC}"
-    if ! docker pull "$image" >/dev/null 2>&1; then
-        echo -e "${RED}✖ 镜像拉取失败: $image${NC}"
-        return 1
-    fi
-
-    # 判断是否需要更新
-    local old_image_id=$(docker inspect --format '{{.Image}}' "$container")
-    local new_image_id=$(docker inspect --format '{{.Id}}' "$image")
-    if [ "$old_image_id" == "$new_image_id" ]; then
-        echo -e "${YELLOW}✔ 当前已是最新版本${NC}"
-        return 0
-    fi
-
-    # 手动模式确认
-    if [ "$auto_mode" = "false" ] && ! confirm_action "确认更新容器 $container 吗？"; then
-        return 0
-    fi
-
-    # 创建临时容器
-    local new_name="${container}_tmp_$(date +%s)"
-    echo -e "${CYAN}▶ 正在创建临时容器: $new_name${NC}"
-    if ! docker run -d \
-        --name "$new_name" \
-        --restart "$restart_policy" \
-        --network "$network" \
-        "${volumes[@]}" \
-        "${ports[@]}" \
-        "${envs[@]}" \
-        "$image" >/dev/null; then
-        
-        echo -e "${RED}✖ 临时容器创建失败！${NC}"
-        docker rm -f "$new_name" 2>/dev/null
-        return 1
-    fi
-
-    # 替换旧容器
-    echo -e "${CYAN}▶ 正在替换旧容器...${NC}"
-    docker stop "$container" >/dev/null && docker rm "$container" >/dev/null
-    docker rename "$new_name" "$container" >/dev/null
-
-    echo -e "${GREEN}✔ 容器 $container 更新成功！${NC}"
-}
-
-# 3.更新 Docker 容器
 
 容器菜单
 update_menu() {
-    local parent_menu="$1"  # 新增参数接收上级菜单函数名
-
     while true; do
         clear
         echo -e "${GREEN}=== Docker容器更新管理 ===${NC}"
         echo "1. 手动选择更新容器"
         echo "2. 自动更新所有容器"
         echo "3. 更新指定容器"
-        echo -e "${YELLOW}0. 返回上级菜单${NC}"
+        echo "0. 返回主菜单"
         
         read -p "请输入选项: " choice
         case $choice in
@@ -223,14 +139,13 @@ update_menu() {
                 safe_update_container "$target" false
                 ;;
             0)
-                show_menu  # 执行上级菜单函数
+               show_menu
                 ;;
             *)
                 echo -e "${RED}无效选项！${NC}"
                 ;;
         esac
-        
-        read -n 1 -s -r -p "$(echo -e ${YELLOW}按任意键继续...${NC})"
+        pause
     done
 }
 
