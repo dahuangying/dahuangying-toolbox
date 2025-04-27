@@ -105,17 +105,18 @@ install_update_docker() {
     show_menu
 }
 
-# 3.更新 Docker 容器
+# 3.更新Docker容器管理
 
 容器菜单
 update_menu() {
     while true; do
         clear
         echo -e "${GREEN}=== Docker容器更新管理 ===${NC}"
+	echo -e "${GREEN}=========================${NC}"
         echo "1. 手动选择更新容器"
         echo "2. 自动更新所有容器"
         echo "3. 更新指定容器"
-        echo "0. 返回主菜单"
+        echo "0. 返回"
         
         read -p "请输入选项: " choice
         case $choice in
