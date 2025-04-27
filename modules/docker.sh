@@ -1,7 +1,10 @@
 #!/bin/bash
 
-# 设置颜色
+# 设置颜色变量（新增黄色、青色、红色）
 GREEN="\033[0;32m"  # 绿色
+YELLOW="\033[1;33m" # 黄色
+CYAN="\033[0;36m"   # 青色
+RED="\033[0;31m"    # 红色
 NC="\033[0m"        # 重置颜色
 
 # 显示主菜单
@@ -370,26 +373,159 @@ delete_all_volumes() {
     docker_volume_management
 }
 
-# 7. 清理所有未使用的资源
-clean_unused_resources() {
-    confirm_action "清理所有未使用的资源" "docker system prune -a --volumes"
-    pause
-    show_menu
-}
-
-# 确认操作
-confirm_action() {
-    action_description=$1
-    command_to_run=$2
-
-    read -p "您确定要执行以下操作？$action_description [y/n]: " confirm
-    if [[ "$confirm" == "y" || "$confirm" == "Y" ]]; then
-        echo "正在执行操作..."
-        eval $command_to_run
-        echo "$action_description 已执行！"
-    else
-        echo "操作已取消。"
+# 7. Docker智能清理（完整集成）
+docker_cleanup() {
+    # 环境检查
+    if ! command -v docker &>/dev/null; then
+        echo -e "${RED}错误：未检测到Docker环境${NC}"
+        pause
+        show_menu
     fi
+
+    # 清理子菜单
+    show_cleanup_menu() {
+        clear
+        echo -e "${CYAN}=== Docker智能清理 ===${NC}"
+        echo "1. 显示磁盘使用情况"
+        echo "2. 执行全面清理"
+        echo "3. 自定义清理项目"
+        echo "0. 返回主菜单"
+        read -p "请输入选项: " sub_option
+        case $sub_option in
+            1) show_disk_usage ; pause ; show_cleanup_menu ;;
+            2) full_cleanup ;;
+            3) custom_cleanup ;;
+            0) show_menu ;;
+            *) echo -e "${RED}无效选项！${NC}" ; pause ; show_cleanup_menu ;;
+        esac
+    }
+
+    # 显示磁盘使用
+    show_disk_usage() {
+        echo -e "\n${CYAN}=== 当前Docker磁盘使用 ===${NC}"
+        docker system df --format '{
+            "类型": "{{.Type}}",
+            "总数": "{{.TotalCount}}",
+            "活跃数": "{{.ActiveCount}}",
+            "大小": "{{.Size}}",
+            "可回收": "{{.Reclaimable}}"
+        }' | awk -F'"' 'BEGIN {
+            printf "%-10s %-8s %-8s %-12s %-12s\n","类型","总数","活跃","大小","可回收"
+        }
+        NR>1 {
+            gsub(/^ +| +$/,"",$2); gsub(/^ +| +$/,"",$4)
+            gsub(/^ +| +$/,"",$6); gsub(/^ +| +$/,"",$8)
+            gsub(/^ +| +$/,"",$10)
+            printf "%-10s %-8s %-8s %-12s %-12s\n",$2,$4,$6,$8,$10
+        }'
+    }
+
+    # 全面清理
+    full_cleanup() {
+        if ! confirm_action "确认要进行全面清理吗？(包括容器/镜像/网络/卷)"; then
+            echo -e "${YELLOW}已取消全面清理${NC}"
+            pause
+            show_cleanup_menu
+            return
+        fi
+        
+        echo -e "${GREEN}◆ 开始全面清理...${NC}"
+        docker system prune -a --volumes -f
+        echo -e "${GREEN}✓ 全面清理完成！${NC}"
+        show_disk_usage
+        pause
+        show_cleanup_menu
+    }
+
+    # 自定义清理
+    custom_cleanup() {
+        clear
+        echo -e "${CYAN}=== 自定义清理选项 ===${NC}"
+        echo "1. 清理构建缓存"
+        echo "2. 清理停止的容器"
+        echo "3. 清理未使用镜像"
+        echo "4. 清理孤立网络"
+        echo "5. 清理未使用卷"
+        echo "0. 返回上级"
+        read -p "请选择要清理的项目: " custom_option
+        case $custom_option in
+            1) clean_build_cache ;;
+            2) clean_containers ;;
+            3) clean_images ;;
+            4) clean_networks ;;
+            5) clean_volumes ;;
+            0) show_cleanup_menu ;;
+            *) echo -e "${RED}无效选项！${NC}" ; pause ; custom_cleanup ;;
+        esac
+    }
+
+    # 清理构建缓存
+    clean_build_cache() {
+        echo -e "${GREEN}◆ 清理构建缓存...${NC}"
+        docker builder prune -f
+        echo -e "${GREEN}✓ 构建缓存已清理${NC}"
+        pause
+        custom_cleanup
+    }
+
+    # 清理停止的容器
+    clean_containers() {
+        if confirm_action "确定要清理所有停止的容器吗？"; then
+            echo -e "${GREEN}◆ 清理停止的容器...${NC}"
+            docker container prune -f
+        else
+            echo -e "${YELLOW}已取消容器清理${NC}"
+        fi
+        pause
+        custom_cleanup
+    }
+
+    # 清理镜像
+    clean_images() {
+        clear
+        echo -e "${CYAN}=== 镜像清理选项 ===${NC}"
+        echo "1. 仅清理悬空镜像"
+        echo "2. 清理所有未使用镜像"
+        echo "0. 返回上级"
+        read -p "请选择清理方式: " img_choice
+        case $img_choice in
+            1) docker image prune -f ; echo -e "${GREEN}✓ 悬空镜像已清理${NC}" ;;
+            2) docker image prune -a -f ; echo -e "${GREEN}✓ 未使用镜像已清理${NC}" ;;
+            0) custom_cleanup ; return ;;
+            *) echo -e "${RED}无效选择！${NC}" ;;
+        esac
+        pause
+        custom_cleanup
+    }
+
+    # 清理网络
+    clean_networks() {
+        echo -e "${GREEN}◆ 清理孤立网络...${NC}"
+        docker network prune -f
+        pause
+        custom_cleanup
+    }
+
+    # 清理卷
+    clean_volumes() {
+        if confirm_action "确定要清理未使用的卷吗？"; then
+            echo -e "${GREEN}◆ 清理未使用卷...${NC}"
+            docker volume prune -f
+        else
+            echo -e "${YELLOW}已取消卷清理${NC}"
+        fi
+        pause
+        custom_cleanup
+    }
+
+    # 确认对话框
+    confirm_action() {
+        local prompt="$1"
+        read -p "$(echo -e "${YELLOW}${prompt} (y/N): ${NC}")" choice
+        [[ "$choice" =~ ^[Yy]$ ]] && return 0 || return 1
+    }
+
+    show_cleanup_menu
 }
 
 # 8. 卸载 Docker 环境的函数
