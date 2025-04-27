@@ -42,8 +42,8 @@ show_menu() {
     case $option in
         1) show_docker_status ;;
         2) install_update_docker ;;
-		3) safe_update_container ;;
-		4) docker_cleanup ;;
+	3) confirm_action ;;
+	4) docker_cleanup ;;
         5) docker_container_management ;;
         6) docker_image_management ;;
         7) docker_network_management ;;
@@ -106,63 +106,65 @@ install_update_docker() {
 }
 
 # 3.更新 Docker 容器
+confirm_action() {
+    local prompt="$1"
+    read -p "$(echo -e "${YELLOW}${prompt} (y/N): ${NC}")" choice
+    [[ "$choice" =~ ^[Yy]$ ]] && return 0 || return 1
+}
+
+# 安全更新容器函数
 safe_update_container() {
     local container=$1
     local auto_mode=${2:-false}
 
-    # 容器存在性检查
-    if ! docker inspect "$container" &>/dev/null; then
-        echo -e "${RED}错误：容器 $container 不存在！${NC}"
+    # 空容器名检查
+    if [ -z "$container" ]; then
+        echo -e "${RED}错误：未指定容器名称！${NC}"
         return 1
     fi
 
-    echo -e "\n${CYAN}=== 正在更新容器: $container ===${NC}"
+    # 容器存在性检查
+    if ! docker inspect "$container" &>/dev/null; then
+        echo -e "${RED}错误：容器 '$container' 不存在！${NC}"
+        echo -e "${CYAN}可用容器列表："
+        docker ps -a --format '{{.ID}}\t{{.Names}}\t{{.Status}}' | column -t
+        echo -e "${NC}"
+        return 1
+    fi
 
-    # 获取容器基础配置
+    echo -e "\n${CYAN}=== 正在处理容器: $container ===${NC}"
+
+    # 获取容器配置
     local image=$(docker inspect --format '{{.Config.Image}}' "$container" | cut -d'@' -f1)
+    local volumes=($(docker inspect --format '{{ range .Mounts }}-v {{ .Source }}:{{ .Destination }} {{ end }}' "$container"))
+    local ports=($(docker inspect --format '{{ range $port, $binding := .NetworkSettings.Ports }}-p {{ index $binding 0.HostPort }}:{{ $port }} {{ end }}' "$container"))
+    local envs=($(docker inspect --format '{{ range .Config.Env }}--env {{ . }} {{ end }}' "$container"))
     local restart_policy=$(docker inspect --format '{{.HostConfig.RestartPolicy.Name}}' "$container")
     local network=$(docker inspect --format '{{.HostConfig.NetworkMode}}' "$container")
-    local cmd=$(docker inspect --format '{{.Config.Cmd}}' "$container")
 
-    # 获取动态配置（兼容数组处理）
-    local volumes=()
-    while IFS= read -r line; do
-        volumes+=("$line")
-    done < <(docker inspect --format '{{ range .Mounts }}-v {{ .Source }}:{{ .Destination }} {{ end }}' "$container")
+    # 检查镜像更新
+    echo -e "${YELLOW}▶ 正在检查镜像更新...${NC}"
+    if ! docker pull "$image" >/dev/null 2>&1; then
+        echo -e "${RED}✖ 镜像拉取失败: $image${NC}"
+        return 1
+    fi
 
-    local ports=()
-    while IFS= read -r line; do
-        ports+=("$line")
-    done < <(docker inspect --format '{{ range $port, $binding := .NetworkSettings.Ports }}-p {{ index $binding 0.HostPort }}:{{ $port }} {{ end }}' "$container")
+    # 判断是否需要更新
+    local old_image_id=$(docker inspect --format '{{.Image}}' "$container")
+    local new_image_id=$(docker inspect --format '{{.Id}}' "$image")
+    if [ "$old_image_id" == "$new_image_id" ]; then
+        echo -e "${YELLOW}✔ 当前已是最新版本${NC}"
+        return 0
+    fi
 
-    local envs=()
-    while IFS= read -r line; do
-        envs+=("$line")
-    done < <(docker inspect --format '{{ range .Config.Env }}--env {{ . }} {{ end }}' "$container")
-
-    # 镜像更新检查（带重试机制）
-    echo -e "${YELLOW}▶ 检查镜像更新...${NC}"
-    for attempt in {1..3}; do
-        if docker pull "$image" | grep -q "up to date"; then
-            [ "$auto_mode" = "false" ] && echo -e "${YELLOW}镜像已是最新版本${NC}"
-            return 0
-        else
-            echo -e "${GREEN}发现新版本镜像！${NC}"
-            break
-        fi
-        [ $attempt -eq 3 ] && { echo -e "${RED}镜像检查失败！${NC}"; return 1; }
-        sleep 2
-    done
-
-    # 手动模式需要确认
+    # 手动模式确认
     if [ "$auto_mode" = "false" ] && ! confirm_action "确认更新容器 $container 吗？"; then
         return 0
     fi
 
-    # 创建临时容器（带错误回滚）
+    # 创建临时容器
     local new_name="${container}_tmp_$(date +%s)"
-    echo -e "${CYAN}▶ 创建临时容器: $new_name${NC}"
-    
+    echo -e "${CYAN}▶ 正在创建临时容器: $new_name${NC}"
     if ! docker run -d \
         --name "$new_name" \
         --restart "$restart_policy" \
@@ -170,52 +172,26 @@ safe_update_container() {
         "${volumes[@]}" \
         "${ports[@]}" \
         "${envs[@]}" \
-        "$image" "$cmd"; then
+        "$image" >/dev/null; then
         
-        echo -e "${RED}✖ 容器创建失败！正在回滚...${NC}"
+        echo -e "${RED}✖ 临时容器创建失败！${NC}"
         docker rm -f "$new_name" 2>/dev/null
         return 1
     fi
 
-    # 替换旧容器（保留原始状态）
-    local old_state=$(docker inspect -f '{{.State.Status}}' "$container")
-    echo -e "${CYAN}▶ 替换旧容器...${NC}"
-    docker stop -t 60 "$container" >/dev/null && \
-    docker rm "$container" >/dev/null && \
+    # 替换旧容器
+    echo -e "${CYAN}▶ 正在替换旧容器...${NC}"
+    docker stop "$container" >/dev/null && docker rm "$container" >/dev/null
     docker rename "$new_name" "$container" >/dev/null
-
-    # 恢复原始运行状态
-    [ "$old_state" = "running" ] && docker start "$container" >/dev/null
 
     echo -e "${GREEN}✔ 容器 $container 更新成功！${NC}"
 }
 
-# 手动更新模式
-manual_update() {
-    echo -e "${CYAN}=== 可更新容器列表 ===${NC}"
-    docker ps --format "table {{.Names}}\t{{.Image}}\t{{.Status}}"
-    
-    read -p "输入要更新的容器名称（空格分隔多个容器）: " -a containers
-    for container in "${containers[@]}"; do
-        safe_update_container "$container" false
-    done
-}
-
-# 自动批量更新模式
-auto_update() {
-    echo -e "${CYAN}=== 开始批量更新 ===${NC}"
-    local containers=($(docker ps --format '{{.Names}}'))
-    for container in "${containers[@]}"; do
-        safe_update_container "$container" true
-    done
-    echo -e "${GREEN}✔ 批量更新完成！${NC}"
-}
-
-# 更新容器主菜单
+# 更新容器菜单
 update_menu() {
     while true; do
         clear
-        echo -e "${GREEN}=== Docker 容器更新 ===${NC}"
+        echo -e "${GREEN}=== Docker容器更新管理 ===${NC}"
         echo "1. 手动选择更新容器"
         echo "2. 自动更新所有容器"
         echo "3. 更新指定容器"
@@ -223,19 +199,34 @@ update_menu() {
         
         read -p "请输入选项: " choice
         case $choice in
-            1) manual_update ;;
-            2) auto_update ;;
-            3) 
-                read -p "输入容器名称: " target
+            1)
+                echo -e "${CYAN}正在运行的容器列表：${NC}"
+                docker ps --format "table {{.Names}}\t{{.Image}}\t{{.Status}}"
+                read -p "输入要更新的容器名称（多个用空格分隔）: " -a containers
+                for container in "${containers[@]}"; do
+                    safe_update_container "$container" false
+                done
+                ;;
+            2)
+                echo -e "${CYAN}正在批量更新所有容器...${NC}"
+                mapfile -t containers < <(docker ps -q)
+                for container in "${containers[@]}"; do
+                    safe_update_container "$(docker inspect --format '{{.Name}}' "$container" | sed 's/^\///')" true
+                done
+                ;;
+            3)
+                read -p "输入要更新的容器名称: " target
                 safe_update_container "$target" false
                 ;;
-            0) return 0 ;;
-            *) echo -e "${RED}无效选项！${NC}" ;;
+            0)
+                return 0
+                ;;
+            *)
+                echo -e "${RED}无效选项！${NC}"
+                ;;
         esac
         
-        if [ "$choice" != "0" ]; then
-            read -n 1 -s -r -p "$(echo -e ${YELLOW}"操作完成，按任意键继续..."${NC})"
-        fi
+        read -n 1 -s -r -p "$(echo -e ${YELLOW}按任意键继续...${NC})"
     done
 }
 
