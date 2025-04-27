@@ -34,7 +34,7 @@ show_menu() {
     echo "4. Docker 镜像管理"
     echo "5. Docker 网络管理"
     echo "6. Docker 卷管理"
-    echo "7. Docker智能清理"
+    echo "7. Docker 一键智能清理"
     echo "8. 卸载Docker环境"
     echo "0. 退出"
     read -p "请输入选项: " option
