@@ -30,13 +30,13 @@ show_menu() {
     echo -e "${GREEN}====================================================${NC}"
     echo "1. 查看 Docker 容器、镜像、卷和网络状态"
     echo "2. 安装/更新 Docker 环境"
-	echo "3. Docker 更新容器" 
-	echo "4. Docker 智能清理"
+    echo "3. 更新 Docker 容器" 
+    echo "4. 清理 Docker 容器"
     echo "5. Docker 容器管理"
     echo "6. Docker 镜像管理"
     echo "7. Docker 网络管理"
     echo "8. Docker 卷管理"
-    echo "9. Docker 卸载环境"
+    echo "9. 卸载 Docker 环境"
     echo "0. 退出"
     read -p "请输入选项: " option
     case $option in
