@@ -187,15 +187,19 @@ safe_update_container() {
     echo -e "${GREEN}✔ 容器 $container 更新成功！${NC}"
 }
 
-# 3. 更新容器菜单
+# 3.更新 Docker 容器
+
+容器菜单
 update_menu() {
+    local parent_menu="$1"  # 新增参数接收上级菜单函数名
+
     while true; do
         clear
         echo -e "${GREEN}=== Docker容器更新管理 ===${NC}"
         echo "1. 手动选择更新容器"
         echo "2. 自动更新所有容器"
         echo "3. 更新指定容器"
-        echo "0. 返回主菜单"
+        echo -e "${YELLOW}0. 返回上级菜单${NC}"
         
         read -p "请输入选项: " choice
         case $choice in
@@ -219,7 +223,8 @@ update_menu() {
                 safe_update_container "$target" false
                 ;;
             0)
-                return 0
+                $parent_menu  # 执行上级菜单函数
+                return
                 ;;
             *)
                 echo -e "${RED}无效选项！${NC}"
