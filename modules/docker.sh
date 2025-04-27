@@ -223,8 +223,7 @@ update_menu() {
                 safe_update_container "$target" false
                 ;;
             0)
-                $show_menu  # 执行上级菜单函数
-                return
+                show_menu  # 执行上级菜单函数
                 ;;
             *)
                 echo -e "${RED}无效选项！${NC}"
