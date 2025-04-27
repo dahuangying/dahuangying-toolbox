@@ -30,23 +30,25 @@ show_menu() {
     echo -e "${GREEN}====================================================${NC}"
     echo "1. 查看 Docker 容器、镜像、卷和网络状态"
     echo "2. 安装/更新 Docker 环境"
-    echo "3. Docker 容器管理"
-    echo "4. Docker 镜像管理"
-    echo "5. Docker 网络管理"
-    echo "6. Docker 卷管理"
-    echo "7. Docker 一键智能清理"
-    echo "8. 卸载Docker环境"
+	echo "3. Docker 更新容器" 
+	echo "4. Docker 智能清理"
+    echo "5. Docker 容器管理"
+    echo "6. Docker 镜像管理"
+    echo "7. Docker 网络管理"
+    echo "8. Docker 卷管理"
+    echo "9. Docker 卸载环境"
     echo "0. 退出"
     read -p "请输入选项: " option
     case $option in
         1) show_docker_status ;;
         2) install_update_docker ;;
-        3) docker_container_management ;;
-        4) docker_image_management ;;
-        5) docker_network_management ;;
-        6) docker_volume_management ;;
-        7) docker_cleanup ;;
-	8) uninstall_docker_environment ;;
+		3) confirm_action ;;
+		4) docker_cleanup ;;
+        5) docker_container_management ;;
+        6) docker_image_management ;;
+        7) docker_network_management ;;
+        8) docker_volume_management ;;
+	    9) uninstall_docker_environment ;;
 		
         0) exit 0 ;;
         *) echo "无效的选项，请重新选择！" && sleep 2 && show_menu ;;
@@ -103,277 +105,139 @@ install_update_docker() {
     show_menu
 }
 
-# 3. Docker 容器管理
-docker_container_management() {
-    echo -e "${GREEN}Docker容器管理${NC}"
-    echo -e "${GREEN}==============================${NC}"
-    echo "1. 启动容器"
-    echo "2. 停止容器"
-    echo "3. 启动所有容器"
-    echo "4. 停止所有容器"
-    echo "5. 创建指定容器"
-    echo "6. 删除指定容器"
-	echo "7. 删除所有容器"
-    echo "0. 返回"
-    read -p "请输入选项: " container_option
-    case $container_option in
-        1) start_container ;;
-        2) stop_container ;;
-        3) start_all_containers ;;
-        4) stop_all_containers ;;
-        5) create_new_container ;;
-        6) remove_specified_container ;;
-		7) remove_all_containers ;;
-        0) show_menu ;;
-        *) echo "无效选项，请重新选择" && docker_container_management ;;
+# 3. Docker 更新容器
+confirm_action() {
+
+# 安全确认函数
+    local prompt="$1"
+    read -p "$(echo -e "${YELLOW}${prompt} (y/N): ${NC}")" choice
+    [[ "$choice" =~ ^[Yy]$ ]] && return 0 || return 1
+}
+
+# 获取容器配置信息
+get_container_config() {
+    local container=$1
+    config=(
+        $(docker inspect --format '{{.Config.Image}}' "$container")
+        $(docker inspect --format '{{ range .Mounts }}-v {{ .Source }}:{{ .Destination }} {{ end }}' "$container" | xargs)
+        $(docker inspect --format '{{ range $port, $binding := .NetworkSettings.Ports }}-p {{ index $binding 0.HostPort }}:{{ $port }} {{ end }}' "$container" | xargs)
+        $(docker inspect --format '{{ range .Config.Env }}--env {{ printf "%q" . }} {{ end }}' "$container" | xargs)
+        $(docker inspect --format '{{.HostConfig.RestartPolicy.Name}}' "$container")
+        $(docker inspect --format '{{.HostConfig.NetworkMode}}' "$container")
+    )
+    echo "${config[@]}"
+}
+
+# 检查镜像更新
+check_image_update() {
+    local image=$1
+    echo -e "${CYAN}检测镜像: $image${NC}"
+    if ! docker pull "$image" | grep -q "up to date"; then
+        echo -e "${GREEN}发现新版本!${NC}"
+        return 0
+    else
+        echo -e "${YELLOW}已经是最新版本${NC}"
+        return 1
+    fi
+}
+
+# 安全更新容器
+safe_update_container() {
+    local container=$1
+    local auto_mode=${2:-false}
+    
+    echo -e "\n${CYAN}=== 处理容器: $container ===${NC}"
+    
+    # 获取容器配置
+    IFS=' ' read -ra config <<< "$(get_container_config "$container")"
+    local image=${config[0]}
+    local volumes=("${config[@]:1:${#config[@]}-6}")
+    local ports=("${config[@]:${#config[@]}-5:3}")
+    local envs=("${config[@]:${#config[@]}-3:2}")
+    local restart_policy=${config[-2]}
+    local network=${config[-1]}
+
+    # 检查更新
+    if ! check_image_update "$image"; then
+        [ "$auto_mode" = "true" ] && return 0 || continue
+    fi
+
+    # 自动模式直接更新，手动模式需要确认
+    if [ "$auto_mode" = "false" ]; then
+        confirm_action "是否更新容器 $container?" || return 0
+    fi
+
+    # 创建临时容器
+    local new_name="${container}_tmp_$(date +%s)"
+    echo -e "${CYAN}创建临时容器: $new_name${NC}"
+    
+    if ! docker run -d \
+        --name "$new_name" \
+        --restart "$restart_policy" \
+        --network "$network" \
+        "${volumes[@]}" \
+        "${ports[@]}" \
+        "${envs[@]}" \
+        "$image"; then
+        
+        echo -e "${RED}创建临时容器失败!${NC}"
+        return 1
+    fi
+
+    # 替换旧容器
+    echo -e "${CYAN}替换旧容器...${NC}"
+    docker stop "$container" >/dev/null && docker rm "$container" >/dev/null
+    docker rename "$new_name" "$container" >/dev/null
+
+    echo -e "${GREEN}成功更新容器: $container${NC}"
+}
+
+# 手动更新模式
+manual_update() {
+    echo -e "${CYAN}正在检查可更新容器...${NC}"
+    local containers=($(docker ps --format '{{.Names}}'))
+    
+    for container in "${containers[@]}"; do
+        safe_update_container "$container" false
+    done
+}
+
+# 自动批量更新模式
+auto_update() {
+    echo -e "${CYAN}开始自动批量更新...${NC}"
+    local containers=($(docker ps --format '{{.Names}}'))
+    
+    for container in "${containers[@]}"; do
+        safe_update_container "$container" true
+    done
+}
+
+# 主菜单
+update_menu() {
+    clear
+    echo -e "${GREEN}=== Docker容器更新管理器 ===${NC}"
+    echo "1. 手动选择更新容器"
+    echo "2. 自动批量更新所有容器"
+    echo "3. 更新指定容器"
+    echo "0. 退出"
+    
+    read -p "请输入选项: " choice
+    case $choice in
+        1) manual_update ;;
+        2) auto_update ;;
+        3) 
+            read -p "输入要更新的容器名称: " target
+            safe_update_container "$target" false
+            ;;
+        0) exit 0 ;;
+        *) echo -e "${RED}无效选项!${NC}" && sleep 1 ;;
     esac
+    
+    read -n 1 -s -r -p "按任意键返回菜单..."
+    update_menu
 }
 
-# 启动容器
-start_container() {
-    read -p "请输入要启动的容器 ID 或名称: " container_id
-    if [ -z "$container_id" ]; then
-        docker_container_management
-    fi
-    docker start $container_id
-    echo -e "${GREEN}容器 $container_id 已启动！${NC}"
-    pause
-    docker_container_management
-}
-
-# 停止容器
-stop_container() {
-    read -p "请输入要停止的容器 ID 或名称: " container_id
-    if [ -z "$container_id" ]; then
-        docker_container_management
-    fi
-    docker stop $container_id
-    echo -e "${GREEN}容器 $container_id 已停止！${NC}"
-    pause
-    docker_container_management
-}
-
-# 启动所有容器
-start_all_containers() {
-    docker start $(docker ps -a -q)
-    echo -e "${GREEN}所有容器已启动！${NC}"
-    pause
-    docker_container_management
-}
-
-# 停止所有容器
-stop_all_containers() {
-    docker stop $(docker ps -q)
-    echo -e "${GREEN}所有容器已停止！${NC}"
-    pause
-    docker_container_management
-}
-
-# 创建指定容器
-create_new_container() {
-    read -p "请输入新容器的镜像名称: " image_name
-    if [ -z "$image_name" ]; then
-        docker_container_management
-    fi
-    read -p "请输入新容器的名称（可选）: " container_name
-    if [ -z "$container_name" ]; then
-        docker_container_management
-    fi
-    docker run -d --name $container_name $image_name
-    echo -e "${GREEN}新容器已创建！${NC}"
-    pause
-    docker_container_management
-}
-
-# 删除指定容器
-remove_specified_container() {
-    read -p "请输入要删除的容器 ID 或名称: " container_id
-    if [ -z "$container_id" ]; then
-        docker_container_management
-    fi
-    docker rm -f $container_id
-    echo -e "${GREEN}容器 $container_id 已删除！${NC}"
-    pause
-    docker_container_management
-}
-
-# 删除所有容器
-remove_all_containers() {
-    read -p "您确定要删除所有容器吗？[y/n]: " confirm
-    if [[ "$confirm" == "y" || "$confirm" == "Y" ]]; then
-        docker rm -f $(docker ps -a -q)  # 强制删除所有容器
-        echo -e "${GREEN}所有容器已删除！${NC}"
-   
-    fi
-    pause
-    docker_container_management  # 返回容器管理菜单
-}
-
-#4. Docker 镜像管理
-docker_image_management() {
-    echo -e "${GREEN}Docker镜像管理${NC}"
-    echo -e "${GREEN}==============================${NC}"
-    echo "1. 删除指定镜像"
-    echo "2. 创建指定容器"
-    echo "3. 删除所有镜像"
-    echo "0. 返回"
-    read -p "请输入选项: " image_option
-    case $image_option in
-        1) remove_specified_image ;;
-        2) create_new_container ;;
-        3) remove_all_images ;;
-        0) show_menu ;;
-        *) echo "无效选项，请重新选择" && docker_image_management ;;
-    esac
-}
-
-# 删除指定镜像
-remove_specified_image() {
-    read -p "请输入要删除的镜像 ID 或名称: " image_id
-    if [ -z "$image_id" ]; then
-        docker_image_management
-    fi
-    docker rmi -f $image_id
-    echo -e "${GREEN}镜像 $image_id 已删除！${NC}"
-    pause
-    docker_image_management
-}
-
-# 删除所有镜像
-remove_all_images() {
-    docker rmi -f $(docker images -q)
-    echo -e "${GREEN}所有镜像已删除！${NC}"
-    pause
-    docker_image_management
-}
-
-# 5. Docker 网络管理
-docker_network_management() {
-    echo -e "${GREEN}Docker网络管理${NC}"
-    echo -e "${GREEN}==============================${NC}"
-    echo "1. 创建网络"
-    echo "2. 加入网络"
-    echo "3. 退出网络"
-    echo "4. 删除网络"
-    echo "0. 返回"
-    read -p "请输入选项: " network_option
-    case $network_option in
-        1) create_network ;;
-        2) join_network ;;
-        3) leave_network ;;
-        4) delete_network ;;
-        0) show_menu ;;
-        *) echo "无效选项，请重新选择" && docker_network_management ;;
-    esac
-}
-
-# 创建 Docker 网络
-create_network() {
-    read -p "请输入要创建的网络名称: " network_name
-    if [ -z "$network_name" ]; then
-        docker_network_management
-    fi
-    docker network create $network_name
-    echo -e "${GREEN}网络 $network_name 已创建！${NC}"
-    pause
-    docker_network_management
-}
-
-# 加入 Docker 网络
-join_network() {
-    read -p "请输入要加入的容器 ID 或名称: " container_id
-    if [ -z "$container_id" ]; then
-        docker_network_management
-    fi
-    read -p "请输入要加入的网络名称: " network_name
-    if [ -z "$network_name" ]; then
-        docker_network_management
-    fi
-    docker network connect $network_name $container_id
-    echo -e "${GREEN}容器 $container_id 已加入网络 $network_name！${NC}"
-    pause
-    docker_network_management
-}
-
-# 退出 Docker 网络
-leave_network() {
-    read -p "请输入要退出的容器 ID 或名称: " container_id
-    if [ -z "$container_id" ]; then
-        docker_network_management
-    fi
-    read -p "请输入要退出的网络名称: " network_name
-    if [ -z "$network_name" ]; then
-        docker_network_management
-    fi
-    docker network disconnect $network_name $container_id
-    echo -e "${GREEN}容器 $container_id 已退出网络 $network_name！${NC}"
-    pause
-    docker_network_management
-}
-
-# 删除 Docker 网络
-delete_network() {
-    read -p "请输入要删除的网络名称: " network_name
-    if [ -z "$network_name" ]; then
-        docker_network_management
-    fi
-    docker network rm $network_name
-    echo -e "${GREEN}网络 $network_name 已删除！${NC}"
-    pause
-    docker_network_management
-}
-
-# 6. Docker 卷管理
-docker_volume_management() {
-    echo -e "${GREEN}Docker卷管理${NC}"
-    echo -e "${GREEN}==============================${NC}"
-    echo "1. 创建新卷"
-    echo "2. 删除指定卷"
-    echo "3. 删除所有卷"
-    echo "0. 返回"
-    read -p "请输入选项: " volume_option
-    case $volume_option in
-        1) create_volume ;;
-        2) delete_specified_volume ;;
-        3) delete_all_volumes ;;
-        0) show_menu ;;
-        *) echo "无效选项，请重新选择" && docker_volume_management ;;
-    esac
-}
-
-# 创建新卷
-create_volume() {
-    read -p "请输入要创建的新卷名称: " volume_name
-    if [ -z "$volume_name" ]; then
-        docker_volume_management
-    fi
-    docker volume create $volume_name
-    echo -e "${GREEN}新卷 $volume_name 已创建！${NC}"
-    pause
-    docker_volume_management
-}
-
-# 删除指定卷
-delete_specified_volume() {
-    read -p "请输入要删除的卷名称: " volume_name
-    if [ -z "$volume_name" ]; then
-        docker_volume_management
-    fi
-    docker volume rm $volume_name
-    echo -e "${GREEN}卷 $volume_name 已删除！${NC}"
-    pause
-    docker_volume_management
-}
-
-# 删除所有卷
-delete_all_volumes() {
-    docker volume rm $(docker volume ls -q)
-    echo -e "${GREEN}所有卷已删除！${NC}"
-    pause
-    docker_volume_management
-}
-
-# 7. Docker智能清理（完整集成）
+# 4. Docker智能清理（完整集成）
 docker_cleanup() {
     # 环境检查
     if ! command -v docker &>/dev/null; then
@@ -528,7 +392,277 @@ docker_cleanup() {
     show_cleanup_menu
 }
 
-# 8. 卸载 Docker 环境的函数
+# 5. Docker 容器管理
+docker_container_management() {
+    echo -e "${GREEN}Docker容器管理${NC}"
+    echo -e "${GREEN}==============================${NC}"
+    echo "1. 启动容器"
+    echo "2. 停止容器"
+    echo "3. 启动所有容器"
+    echo "4. 停止所有容器"
+    echo "5. 创建指定容器"
+    echo "6. 删除指定容器"
+	echo "7. 删除所有容器"
+    echo "0. 返回"
+    read -p "请输入选项: " container_option
+    case $container_option in
+        1) start_container ;;
+        2) stop_container ;;
+        3) start_all_containers ;;
+        4) stop_all_containers ;;
+        5) create_new_container ;;
+        6) remove_specified_container ;;
+		7) remove_all_containers ;;
+        0) show_menu ;;
+        *) echo "无效选项，请重新选择" && docker_container_management ;;
+    esac
+}
+
+# 启动容器
+start_container() {
+    read -p "请输入要启动的容器 ID 或名称: " container_id
+    if [ -z "$container_id" ]; then
+        docker_container_management
+    fi
+    docker start $container_id
+    echo -e "${GREEN}容器 $container_id 已启动！${NC}"
+    pause
+    docker_container_management
+}
+
+# 停止容器
+stop_container() {
+    read -p "请输入要停止的容器 ID 或名称: " container_id
+    if [ -z "$container_id" ]; then
+        docker_container_management
+    fi
+    docker stop $container_id
+    echo -e "${GREEN}容器 $container_id 已停止！${NC}"
+    pause
+    docker_container_management
+}
+
+# 启动所有容器
+start_all_containers() {
+    docker start $(docker ps -a -q)
+    echo -e "${GREEN}所有容器已启动！${NC}"
+    pause
+    docker_container_management
+}
+
+# 停止所有容器
+stop_all_containers() {
+    docker stop $(docker ps -q)
+    echo -e "${GREEN}所有容器已停止！${NC}"
+    pause
+    docker_container_management
+}
+
+# 创建指定容器
+create_new_container() {
+    read -p "请输入新容器的镜像名称: " image_name
+    if [ -z "$image_name" ]; then
+        docker_container_management
+    fi
+    read -p "请输入新容器的名称（可选）: " container_name
+    if [ -z "$container_name" ]; then
+        docker_container_management
+    fi
+    docker run -d --name $container_name $image_name
+    echo -e "${GREEN}新容器已创建！${NC}"
+    pause
+    docker_container_management
+}
+
+# 删除指定容器
+remove_specified_container() {
+    read -p "请输入要删除的容器 ID 或名称: " container_id
+    if [ -z "$container_id" ]; then
+        docker_container_management
+    fi
+    docker rm -f $container_id
+    echo -e "${GREEN}容器 $container_id 已删除！${NC}"
+    pause
+    docker_container_management
+}
+
+# 删除所有容器
+remove_all_containers() {
+    read -p "您确定要删除所有容器吗？[y/n]: " confirm
+    if [[ "$confirm" == "y" || "$confirm" == "Y" ]]; then
+        docker rm -f $(docker ps -a -q)  # 强制删除所有容器
+        echo -e "${GREEN}所有容器已删除！${NC}"
+   
+    fi
+    pause
+    docker_container_management  # 返回容器管理菜单
+}
+
+# 6. Docker 镜像管理
+docker_image_management() {
+    echo -e "${GREEN}Docker镜像管理${NC}"
+    echo -e "${GREEN}==============================${NC}"
+    echo "1. 删除指定镜像"
+    echo "2. 创建指定容器"
+    echo "3. 删除所有镜像"
+    echo "0. 返回"
+    read -p "请输入选项: " image_option
+    case $image_option in
+        1) remove_specified_image ;;
+        2) create_new_container ;;
+        3) remove_all_images ;;
+        0) show_menu ;;
+        *) echo "无效选项，请重新选择" && docker_image_management ;;
+    esac
+}
+
+# 删除指定镜像
+remove_specified_image() {
+    read -p "请输入要删除的镜像 ID 或名称: " image_id
+    if [ -z "$image_id" ]; then
+        docker_image_management
+    fi
+    docker rmi -f $image_id
+    echo -e "${GREEN}镜像 $image_id 已删除！${NC}"
+    pause
+    docker_image_management
+}
+
+# 删除所有镜像
+remove_all_images() {
+    docker rmi -f $(docker images -q)
+    echo -e "${GREEN}所有镜像已删除！${NC}"
+    pause
+    docker_image_management
+}
+
+# 7. Docker 网络管理
+docker_network_management() {
+    echo -e "${GREEN}Docker网络管理${NC}"
+    echo -e "${GREEN}==============================${NC}"
+    echo "1. 创建网络"
+    echo "2. 加入网络"
+    echo "3. 退出网络"
+    echo "4. 删除网络"
+    echo "0. 返回"
+    read -p "请输入选项: " network_option
+    case $network_option in
+        1) create_network ;;
+        2) join_network ;;
+        3) leave_network ;;
+        4) delete_network ;;
+        0) show_menu ;;
+        *) echo "无效选项，请重新选择" && docker_network_management ;;
+    esac
+}
+
+# 创建 Docker 网络
+create_network() {
+    read -p "请输入要创建的网络名称: " network_name
+    if [ -z "$network_name" ]; then
+        docker_network_management
+    fi
+    docker network create $network_name
+    echo -e "${GREEN}网络 $network_name 已创建！${NC}"
+    pause
+    docker_network_management
+}
+
+# 加入 Docker 网络
+join_network() {
+    read -p "请输入要加入的容器 ID 或名称: " container_id
+    if [ -z "$container_id" ]; then
+        docker_network_management
+    fi
+    read -p "请输入要加入的网络名称: " network_name
+    if [ -z "$network_name" ]; then
+        docker_network_management
+    fi
+    docker network connect $network_name $container_id
+    echo -e "${GREEN}容器 $container_id 已加入网络 $network_name！${NC}"
+    pause
+    docker_network_management
+}
+
+# 退出 Docker 网络
+leave_network() {
+    read -p "请输入要退出的容器 ID 或名称: " container_id
+    if [ -z "$container_id" ]; then
+        docker_network_management
+    fi
+    read -p "请输入要退出的网络名称: " network_name
+    if [ -z "$network_name" ]; then
+        docker_network_management
+    fi
+    docker network disconnect $network_name $container_id
+    echo -e "${GREEN}容器 $container_id 已退出网络 $network_name！${NC}"
+    pause
+    docker_network_management
+}
+
+# 删除 Docker 网络
+delete_network() {
+    read -p "请输入要删除的网络名称: " network_name
+    if [ -z "$network_name" ]; then
+        docker_network_management
+    fi
+    docker network rm $network_name
+    echo -e "${GREEN}网络 $network_name 已删除！${NC}"
+    pause
+    docker_network_management
+}
+
+# 8. Docker 卷管理
+docker_volume_management() {
+    echo -e "${GREEN}Docker卷管理${NC}"
+    echo -e "${GREEN}==============================${NC}"
+    echo "1. 创建新卷"
+    echo "2. 删除指定卷"
+    echo "3. 删除所有卷"
+    echo "0. 返回"
+    read -p "请输入选项: " volume_option
+    case $volume_option in
+        1) create_volume ;;
+        2) delete_specified_volume ;;
+        3) delete_all_volumes ;;
+        0) show_menu ;;
+        *) echo "无效选项，请重新选择" && docker_volume_management ;;
+    esac
+}
+
+# 创建新卷
+create_volume() {
+    read -p "请输入要创建的新卷名称: " volume_name
+    if [ -z "$volume_name" ]; then
+        docker_volume_management
+    fi
+    docker volume create $volume_name
+    echo -e "${GREEN}新卷 $volume_name 已创建！${NC}"
+    pause
+    docker_volume_management
+}
+
+# 删除指定卷
+delete_specified_volume() {
+    read -p "请输入要删除的卷名称: " volume_name
+    if [ -z "$volume_name" ]; then
+        docker_volume_management
+    fi
+    docker volume rm $volume_name
+    echo -e "${GREEN}卷 $volume_name 已删除！${NC}"
+    pause
+    docker_volume_management
+}
+
+# 删除所有卷
+delete_all_volumes() {
+    docker volume rm $(docker volume ls -q)
+    echo -e "${GREEN}所有卷已删除！${NC}"
+    pause
+    docker_volume_management
+}
+
+# 9. 卸载 Docker 环境的函数
 uninstall_docker_environment() {
     read -p "您确定要卸载 Docker 吗？此操作将删除所有 Docker 容器、镜像及数据。请输入 y 确认：" confirm
     if [[ "$confirm" == "y" || "$confirm" == "Y" ]]; then
