@@ -42,7 +42,7 @@ show_menu() {
     case $option in
         1) show_docker_status ;;
         2) install_update_docker ;;
-	3) confirm_action ;;
+	3) safe_update_container ;;
 	4) docker_cleanup ;;
         5) docker_container_management ;;
         6) docker_image_management ;;
