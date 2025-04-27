@@ -374,18 +374,6 @@ delete_all_volumes() {
 }
 
 # Docker智能清理脚本
-confirm_operation() {
-    local prompt="$1"
-    read -p "$(echo -e "${YELLOW}${prompt} (y/N): ${NC}")" choice
-    [[ "$choice" =~ ^[Yy]$ ]] && return 0 || return 1
-}
-
-# 初始检查
-if ! command -v docker &>/dev/null; then
-    echo -e "${RED}错误：未检测到Docker环境${NC}"
-    exit 1
-fi
-
 # 1. 显示当前磁盘占用 (优化列对齐)
 show_disk_usage() {
     echo -e "\n${CYAN}=== 当前Docker磁盘使用情况 ===${NC}"
@@ -422,13 +410,17 @@ clean_networks() {
     fi
 }
 
-# 4. 镜像清理 (完全保留原逻辑)
+# 4. 镜像清理 (完全保留原逻辑 + 显示更多信息)
 clean_images() {
     echo -e "\n${CYAN}=== 镜像清理策略 ===${NC}"
     echo -e "${YELLOW}1${NC}: 仅清理<none>悬空镜像 (安全)"
     echo -e "${YELLOW}2${NC}: 清理所有未被容器引用的镜像"
     echo -e "${YELLOW}3${NC}: 跳过镜像清理"
     
+    # 显示当前镜像信息
+    echo -e "\n${CYAN}=== 当前Docker镜像 ===${NC}"
+    docker images --format 'table {{.Repository}}\t{{.Tag}}\t{{.ID}}\t{{.CreatedAt}}\t{{.Size}}'
+
     while true; do
         read -p "请选择 (1/2/3): " img_choice
         case $img_choice in
@@ -457,7 +449,7 @@ clean_images() {
     done
 }
 
-# 5. 容器清理 (原样保留)
+# 5. 容器清理 (原样保留 + 显示更多信息)
 clean_containers() {
     echo -e "\n${CYAN}=== 容器清理策略 ===${NC}"
     echo -e "停止的容器列表:"
@@ -481,7 +473,7 @@ clean_containers() {
     fi
 }
 
-# 6. 卷清理 (增加空卷检测)
+# 6. 卷清理 (增加空卷检测 + 显示卷信息)
 clean_volumes() {
     echo -e "\n${CYAN}=== 卷清理策略 ===${NC}"
     local dangling_volumes=$(docker volume ls -qf dangling=true)
