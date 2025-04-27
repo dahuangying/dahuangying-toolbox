@@ -28,7 +28,7 @@ show_menu() {
     echo "5. 应用脚本"
     echo "6. Docker 管理"
     echo "7. 卸载模块"
-    echo "8. 卸载脚本"
+    echo "8. 卸载 Linux脚本"
     echo "0. 退出"
     read -p "请输入选项编号: " choice
     case $choice in
