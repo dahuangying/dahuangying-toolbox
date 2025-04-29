@@ -204,11 +204,10 @@ show_port_status() {
 }
 
 # 5. 开放所有端口
-# open_all_ports 函数 - 开放非关键端口
+# 5. 开放所有端口（保持22端口开放）
 open_all_ports() {
     echo -e "\n${RED}=== 警告：将开放非系统关键端口 ===${NC}"
     echo -e "${YELLOW}以下端口仍受保护："
-    echo -e "• 22/tcp    (SSH)"
     echo -e "• 53/udp    (DNS)"
     echo -e "• 161/udp   (SNMP)"
     echo -e "• 389/tcp   (LDAP)"
@@ -217,152 +216,46 @@ open_all_ports() {
     echo -e "• 6379/tcp  (Redis)"
     echo -e "• 内部网络通信端口${NC}"
     
-    read -p "确定继续操作吗？(y/n): " confirm
-    if [ "$confirm" != "y" ]; then
-        echo -e "${RED}操作已取消${NC}"
-        exit 0
-    fi
-    
-    # 安全确认后执行防火墙设置
-    echo -e "${YELLOW}正在设置防火墙规则...${NC}"
+    read -p "确定继续吗？(y/n): " confirm
+    [ "$confirm" != "y" ] && return
 
     if command -v ufw >/dev/null; then
-        # UFW方案：先放行所有再保护关键端口
         ufw --force reset
         ufw default allow incoming
-        ufw deny proto tcp to any port $PROTECTED_PORTS
-        ufw deny proto udp to any port $PROTECTED_UDP_PORTS
-
-        # 允许内部网络全访问
+        # 仅保护其他端口，不限制22端口
+        ufw deny proto tcp to any port 53,161,389,3306,5432,6379
+        ufw deny proto udp to any port 53,161
         for net in $(echo $INTERNAL_NETWORK | tr ',' ' '); do
             ufw allow from $net
         done
-
-        # 创建逃生通道
-        ufw allow proto tcp to any port $SSH_ALT_PORT
-        echo -e "• 已创建备用SSH端口: ${SSH_ALT_PORT}/tcp"
-
         ufw --force enable
         ufw reload
 
     elif command -v firewall-cmd >/dev/null; then
-        # Firewalld方案：设置默认开放但拒绝关键端口
-        firewall-cmd --zone=public --remove-rich-rule='rule' --permanent
-        firewall-cmd --zone=public --add-rich-rule="rule family='ipv4' port port='$PROTECTED_PORTS' protocol='tcp' reject" --permanent
-        firewall-cmd --zone=public --add-rich-rule="rule family='ipv4' port port='$PROTECTED_UDP_PORTS' protocol='udp' reject" --permanent
-
-        # 允许内部网络访问
-        for net in $(echo $INTERNAL_NETWORK | tr ',' ' '); do
-            firewall-cmd --zone=public --add-source=$net --permanent
-        done
-
-        # 创建逃生通道
-        firewall-cmd --zone=public --add-port=$SSH_ALT_PORT/tcp --permanent
+        firewall-cmd --permanent --zone=public --set-target=ACCEPT
+        firewall-cmd --permanent --zone=public --add-rich-rule="rule family='ipv4' port port='53,161,389,3306,5432,6379' protocol='tcp' reject"
+        firewall-cmd --permanent --zone=public --add-rich-rule="rule family='ipv4' port port='53,161' protocol='udp' reject"
         firewall-cmd --reload
 
     else
-        # iptables方案：先开放后限制
         iptables -P INPUT ACCEPT
         iptables -P FORWARD ACCEPT
         iptables -P OUTPUT ACCEPT
         iptables -F
-
-        # 保护关键端口
-        iptables -A INPUT -p tcp -m multiport --dports $PROTECTED_PORTS -j DROP
-        iptables -A INPUT -p udp -m multiport --dports $PROTECTED_UDP_PORTS -j DROP
-
-        # 允许内部网络
+        # 不限制22端口
+        iptables -A INPUT -p tcp -m multiport --dports 53,161,389,3306,5432,6379 -j DROP
+        iptables -A INPUT -p udp -m multiport --dports 53,161 -j DROP
         for net in $(echo $INTERNAL_NETWORK | tr ',' ' '); do
             iptables -I INPUT -s $net -j ACCEPT
         done
-
-        # 保存规则
-        if command -v iptables-save >/dev/null; then
-            iptables-save > /etc/iptables/rules.v4
-            ip6tables-save > /etc/iptables/rules.v6
-        fi
+        iptables-save > /etc/iptables.rules 2>/dev/null
     fi
+    
+    echo -e "${GREEN}非关键端口已开放！${NC}"
+    echo -e "${YELLOW}受保护的端口："
+    ss -tulnp | grep -E '53|161|389|3306|5432|6379'
+    wait_key
 }
-
-# 预检测防止锁定
-check_ssh_safety() {
-    current_ip=$(echo $SSH_CONNECTION | awk '{print $1}')
-    if [ -z "$current_ip" ]; then
-        echo -e "${RED}错误：非SSH会话执行，禁止操作！${NC}"
-        exit 1
-    fi
-    echo -e "${YELLOW}检测到当前SSH客户端IP: $current_ip"
-}
-
-# 检查是否以root身份运行
-check_root() {
-    if [ "$(id -u)" -ne 0 ]; then
-        echo -e "${RED}此脚本必须以root身份运行！${NC}"
-        exit 1
-    fi
-}
-
-# 智能备份当前配置
-backup_firewall_rules() {
-    backup_dir="/var/firewall_backup_$(date +%s)"
-    mkdir -p $backup_dir
-    echo -e "${YELLOW}正在备份当前配置到 $backup_dir ..."
-
-    if command -v ufw >/dev/null; then
-        ufw status verbose > $backup_dir/ufw.rules
-    elif command -v firewall-cmd >/dev/null; then
-        firewall-cmd --list-all-zones > $backup_dir/firewalld.rules
-    else
-        iptables-save > $backup_dir/iptables.rules
-        ip6tables-save > $backup_dir/ip6tables.rules
-    fi
-}
-
-# 安全警告提示
-echo -e "\n${RED}=== 高级端口管理脚本 (安全增强版) ===${NC}"
-echo -e "${YELLOW}设计原则："
-echo -e "• 开放所有非敏感端口"
-echo -e "• 智能保护核心服务端口"
-echo -e "• 保障内部网络通信"
-echo -e "• 防止管理通道中断${NC}"
-
-# 配置参数（用户可根据需要修改）
-PROTECTED_PORTS="22,53,161,389,3306,5432,6379"  # 受保护TCP端口
-PROTECTED_UDP_PORTS="53,161"                    # 受保护UDP端口
-INTERNAL_NETWORK="10.0.0.0/8,192.168.0.0/16"    # 内部网络范围
-SSH_ALT_PORT="2222"                             # SSH备用端口
-
-# 用户确认流程
-read -p "确定继续操作吗？(y/n): " confirm
-if [ "$confirm" != "y" ]; then
-    echo -e "${RED}操作已取消${NC}"
-    exit 0
-fi
-
-check_root
-check_ssh_safety
-backup_firewall_rules
-
-# 调用 open_all_ports 函数
-open_all_ports
-
-# 配置后验证
-echo -e "\n${GREEN}=== 验证配置 ==="
-echo -e "${YELLOW}当前开放的敏感端口状态："
-if command -v ufw >/dev/null; then
-    ufw status | grep -E "$PROTECTED_PORTS|$PROTECTED_UDP_PORTS"
-elif command -v firewall-cmd >/dev/null; then
-    firewall-cmd --zone=public --list-all
-else
-    iptables -L INPUT -n --line-numbers | grep -E 'DROP|REJECT'
-fi
-
-echo -e "\n${GREEN}操作成功完成！${NC}"
-echo -e "${YELLOW}重要提示："
-echo -e "1. 立即测试备用SSH端口: ssh -p $SSH_ALT_PORT $(hostname)"
-echo -e "2. 内部网络已获得完全访问权限"
-echo -e "3. 受保护端口：$PROTECTED_PORTS (TCP), $PROTECTED_UDP_PORTS (UDP)"
-echo -e "4. 备份文件保存在: $backup_dir${NC}"
 
 # 6. 关闭所有端口
 close_all_ports() {
