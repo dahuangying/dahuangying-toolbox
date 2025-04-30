@@ -203,7 +203,7 @@ show_port_status() {
     wait_key
 }
 
-# 5. 开放所有端口
+# 5. 开放所有端口（关键端口不开放）
 open_all_ports() {
     clear
     echo -e "\n${RED}=== 警告：将开放非系统关键端口 ===${NC}"
@@ -219,68 +219,77 @@ open_all_ports() {
     read -p "确定继续吗？(y/n): " confirm
     [[ "$confirm" != "y" ]] && return
 
-    # 动态获取内部网络
+    # 自动检测内部网络
+    auto_detect_internal_network() {
+        echo -e "${YELLOW}正在自动检测内部网络...${NC}"
+        detected_nets=$(ip -o -4 addr show | awk '
+            /^[0-9]+: (eth|en|wl|em)[0-9]/ && !/(docker|virbr|veth|br-)/ {
+                split($4, ip, "/")
+                if (ip[2] >= 24) print $4
+            }' | sort -u | xargs | tr ' ' ',')
+        
+        [ -z "$detected_nets" ] && detected_nets="10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
+        
+        read -p "使用检测网络：${detected_nets} [Y/n]? " confirm
+        [[ "$confirm" =~ ^[Nn] ]] && read -p "输入自定义网络(CIDR逗号分隔): " detected_nets
+        
+        INTERNAL_NETWORK="${detected_nets// /,}"
+    }
+
     if [ -z "$INTERNAL_NETWORK" ]; then
-        echo -e "${YELLOW}请输入内部网络地址（CIDR格式，逗号分隔）"
-        read -p "例如: 192.168.1.0/24,10.0.0.0/8 : " INTERNAL_NETWORK
+        auto_detect_internal_network
+    else
+        echo -e "${GREEN}使用预定义内部网络：$INTERNAL_NETWORK${NC}"
     fi
 
-    # 根据防火墙工具执行配置
+    # 防火墙规则配置
     if command -v ufw >/dev/null; then
-        echo -e "${GREEN}检测到 UFW，开始配置...${NC}"
-
+        echo -e "${GREEN}使用 UFW 配置...${NC}"
         ufw --force reset
         ufw default allow incoming
 
-        # 允许内部网络（优先规则）
+        # 允许内部网络
         for net in $(tr ',' ' ' <<< "$INTERNAL_NETWORK"); do
             ufw allow from "$net"
         done
 
-        # 逐个拒绝被保护端口（外部访问）
+        # 逐个拒绝关键端口（外部）
         for port in 53 161 389 3306 5432 6379; do
             ufw deny proto tcp to any port "$port"
-        done
-        for port in 53 161; do
-            ufw deny proto udp to any port "$port"
+            [ $port -le 161 ] && ufw deny proto udp to any port "$port"
         done
 
         ufw --force enable
         ufw reload
 
     elif command -v firewall-cmd >/dev/null; then
-        echo -e "${GREEN}检测到 firewalld，开始配置...${NC}"
-
-        # 配置可信区域（内部网络）
+        echo -e "${GREEN}使用 Firewalld 配置...${NC}"
+        # 创建可信区域
         firewall-cmd --permanent --new-zone=trusted_internal >/dev/null 2>&1
         firewall-cmd --permanent --zone=trusted_internal --set-target=ACCEPT
         firewall-cmd --permanent --zone=trusted_internal --add-source="$INTERNAL_NETWORK"
 
-        # 配置公共区域（外部访问限制）
+        # 公共区域限制
         firewall-cmd --permanent --zone=public --set-target=ACCEPT
         for port in 53 161 389 3306 5432 6379; do
             firewall-cmd --permanent --zone=public --add-rich-rule="rule family='ipv4' port port='$port' protocol='tcp' reject"
+            [ $port -le 161 ] && firewall-cmd --permanent --zone=public --add-rich-rule="rule family='ipv4' port port='$port' protocol='udp' reject"
         done
-        for port in 53 161; do
-            firewall-cmd --permanent --zone=public --add-rich-rule="rule family='ipv4' port port='$port' protocol='udp' reject"
-        done
-
         firewall-cmd --reload
 
     else
         echo -e "${GREEN}使用 iptables 配置...${NC}"
-
         iptables -P INPUT ACCEPT
         iptables -P FORWARD ACCEPT
         iptables -P OUTPUT ACCEPT
         iptables -F
 
-        # 允许内部网络（优先规则）
+        # 允许内部网络
         for net in $(tr ',' ' ' <<< "$INTERNAL_NETWORK"); do
             iptables -A INPUT -s "$net" -j ACCEPT
         done
 
-        # 拒绝外部访问被保护端口
+        # 拒绝外部访问关键端口
         iptables -A INPUT -p tcp -m multiport --dports 53,161,389,3306,5432,6379 -j DROP
         iptables -A INPUT -p udp -m multiport --dports 53,161 -j DROP
 
@@ -290,19 +299,18 @@ open_all_ports() {
         ip6tables-save > /etc/iptables/rules.v6
     fi
 
-    # 显示结果
-    echo -e "\n${GREEN}配置完成！当前防火墙状态：${NC}"
+    # 显示配置结果
+    echo -e "\n${GREEN}配置完成！当前开放状态：${NC}"
     if command -v ufw >/dev/null; then
         ufw status numbered | grep -E '\[允许|拒绝\]'
     elif command -v firewall-cmd >/dev/null; then
-        echo "[公共区域规则]"
+        echo "[公共区域]"
         firewall-cmd --zone=public --list-all
-        echo -e "\n[内部网络区域规则]"
+        echo -e "\n[内部区域]"
         firewall-cmd --zone=trusted_internal --list-all
     else
-        iptables -L INPUT -n -v --line-numbers
+        iptables -L INPUT -n -v --line-numbers | grep -E 'DROP|ACCEPT'
     fi
-
     wait_key
 }
 
