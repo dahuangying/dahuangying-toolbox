@@ -203,8 +203,9 @@ show_port_status() {
     wait_key
 }
 
-# 5. 开放所有端口（保持22端口开放）
+# 5. 开放所有端口
 open_all_ports() {
+    clear
     echo -e "\n${RED}=== 警告：将开放非系统关键端口 ===${NC}"
     echo -e "${YELLOW}以下端口仍受保护："
     echo -e "• 53/udp    (DNS)"
@@ -216,43 +217,92 @@ open_all_ports() {
     echo -e "• 内部网络通信端口${NC}"
     
     read -p "确定继续吗？(y/n): " confirm
-    [ "$confirm" != "y" ] && return
+    [[ "$confirm" != "y" ]] && return
 
+    # 动态获取内部网络
+    if [ -z "$INTERNAL_NETWORK" ]; then
+        echo -e "${YELLOW}请输入内部网络地址（CIDR格式，逗号分隔）"
+        read -p "例如: 192.168.1.0/24,10.0.0.0/8 : " INTERNAL_NETWORK
+    fi
+
+    # 根据防火墙工具执行配置
     if command -v ufw >/dev/null; then
+        echo -e "${GREEN}检测到 UFW，开始配置...${NC}"
+
         ufw --force reset
         ufw default allow incoming
-        # 仅保护其他端口，不限制22端口
-        ufw deny proto tcp to any port 53,161,389,3306,5432,6379
-        ufw deny proto udp to any port 53,161
-        for net in $(echo $INTERNAL_NETWORK | tr ',' ' '); do
-            ufw allow from $net
+
+        # 允许内部网络（优先规则）
+        for net in $(tr ',' ' ' <<< "$INTERNAL_NETWORK"); do
+            ufw allow from "$net"
         done
+
+        # 逐个拒绝被保护端口（外部访问）
+        for port in 53 161 389 3306 5432 6379; do
+            ufw deny proto tcp to any port "$port"
+        done
+        for port in 53 161; do
+            ufw deny proto udp to any port "$port"
+        done
+
         ufw --force enable
         ufw reload
 
     elif command -v firewall-cmd >/dev/null; then
+        echo -e "${GREEN}检测到 firewalld，开始配置...${NC}"
+
+        # 配置可信区域（内部网络）
+        firewall-cmd --permanent --new-zone=trusted_internal >/dev/null 2>&1
+        firewall-cmd --permanent --zone=trusted_internal --set-target=ACCEPT
+        firewall-cmd --permanent --zone=trusted_internal --add-source="$INTERNAL_NETWORK"
+
+        # 配置公共区域（外部访问限制）
         firewall-cmd --permanent --zone=public --set-target=ACCEPT
-        firewall-cmd --permanent --zone=public --add-rich-rule="rule family='ipv4' port port='53,161,389,3306,5432,6379' protocol='tcp' reject"
-        firewall-cmd --permanent --zone=public --add-rich-rule="rule family='ipv4' port port='53,161' protocol='udp' reject"
+        for port in 53 161 389 3306 5432 6379; do
+            firewall-cmd --permanent --zone=public --add-rich-rule="rule family='ipv4' port port='$port' protocol='tcp' reject"
+        done
+        for port in 53 161; do
+            firewall-cmd --permanent --zone=public --add-rich-rule="rule family='ipv4' port port='$port' protocol='udp' reject"
+        done
+
         firewall-cmd --reload
 
     else
+        echo -e "${GREEN}使用 iptables 配置...${NC}"
+
         iptables -P INPUT ACCEPT
         iptables -P FORWARD ACCEPT
         iptables -P OUTPUT ACCEPT
         iptables -F
-        # 不限制22端口
+
+        # 允许内部网络（优先规则）
+        for net in $(tr ',' ' ' <<< "$INTERNAL_NETWORK"); do
+            iptables -A INPUT -s "$net" -j ACCEPT
+        done
+
+        # 拒绝外部访问被保护端口
         iptables -A INPUT -p tcp -m multiport --dports 53,161,389,3306,5432,6379 -j DROP
         iptables -A INPUT -p udp -m multiport --dports 53,161 -j DROP
-        for net in $(echo $INTERNAL_NETWORK | tr ',' ' '); do
-            iptables -I INPUT -s $net -j ACCEPT
-        done
-        iptables-save > /etc/iptables.rules 2>/dev/null
+
+        # 持久化规则
+        mkdir -p /etc/iptables
+        iptables-save > /etc/iptables/rules.v4
+        ip6tables-save > /etc/iptables/rules.v6
     fi
-    
-    echo -e "${GREEN}非关键端口已开放！${NC}"
-    echo -e "${YELLOW}受保护的端口："
-    ss -tulnp | grep -E '53|161|389|3306|5432|6379'
+
+    # 显示结果
+    echo -e "\n${GREEN}配置完成！当前防火墙状态：${NC}"
+    if command -v ufw >/dev/null; then
+        ufw status numbered | grep -E '\[允许|拒绝\]'
+    elif command -v firewall-cmd >/dev/null; then
+        echo "[公共区域规则]"
+        firewall-cmd --zone=public --list-all
+        echo -e "\n[内部网络区域规则]"
+        firewall-cmd --zone=trusted_internal --list-all
+    else
+        iptables -L INPUT -n -v --line-numbers
+    fi
+
     wait_key
 }
 
