@@ -43,7 +43,7 @@ wait_key() {
 show_menu() {
     clear
     echo -e "${GREEN}====================================================${NC}"
-    echo -e "${GREEN}大黄鹰-Linux服务器运维工具箱菜单-Docker 系统工具${NC}"
+    echo -e "${GREEN}大黄鹰-Linux服务器运维工具箱菜单 - 系统工具${NC}"
     echo -e "欢迎使用本脚本，请根据菜单选择操作："
     echo -e "${GREEN}====================================================${NC}"
     echo -e "1. 启用ROOT密码登录模式"
@@ -203,7 +203,6 @@ show_port_status() {
     wait_key
 }
 
-# 5. 开放所有端口
 # 5. 开放所有端口（保持22端口开放）
 open_all_ports() {
     echo -e "\n${RED}=== 警告：将开放非系统关键端口 ===${NC}"
