@@ -517,24 +517,62 @@ stop_firewall() {
 
 # 13. 开启防火墙
 start_firewall() {
-    echo -e "\n${GREEN}=== 开启防火墙 ===${NC}"
-    case $(detect_firewall) in
+    echo -e "\n${GREEN}=== 开启防火墙（默认开放 22 端口） ===${NC}"
+    
+    local firewall_type=$(detect_firewall)
+    
+    case $firewall_type in
         ufw)
-            ufw enable
+            echo -e "${YELLOW}检测到使用 UFW 防火墙${NC}"
+            if ! ufw allow 22/tcp; then
+                echo -e "${RED}错误：无法添加 22 端口规则！${NC}" >&2
+                wait_key
+                return 1
+            fi
+            if ufw enable; then
+                echo -e "${GREEN}UFW 已启用，22 端口已开放！${NC}"
+            else
+                echo -e "${RED}错误：UFW 启用失败！${NC}" >&2
+                return 1
+            fi
             ;;
         firewalld)
-            systemctl start firewalld
+            echo -e "${YELLOW}检测到使用 Firewalld 防火墙${NC}"
+            if ! firewall-cmd --permanent --add-service=ssh >/dev/null; then
+                echo -e "${RED}错误：无法添加 SSH 服务规则！${NC}" >&2
+                return 1
+            fi
+            if firewall-cmd --reload >/dev/null && systemctl start firewalld; then
+                echo -e "${GREEN}Firewalld 已启用，SSH 服务已开放！${NC}"
+            else
+                echo -e "${RED}错误：Firewalld 启动失败！${NC}" >&2
+                return 1
+            fi
             ;;
         iptables)
-            echo -e "${YELLOW}iptables需要手动配置规则${NC}"
+            echo -e "${YELLOW}检测到使用 iptables${NC}"
+            echo -e "${YELLOW}正在添加 22 端口规则...${NC}"
+            iptables -A INPUT -p tcp --dport 22 -j ACCEPT
+            if service iptables save &>/dev/null; then
+                echo -e "${GREEN}iptables 规则已保存！${NC}"
+            else
+                echo -e "${RED}警告：无法自动保存 iptables 规则，请手动保存！${NC}" >&2
+            fi
+            if service iptables restart &>/dev/null; then
+                echo -e "${GREEN}iptables 已重启，22 端口已开放！${NC}"
+            else
+                echo -e "${RED}错误：iptables 重启失败！${NC}" >&2
+                return 1
+            fi
             ;;
         none)
             echo -e "${RED}未检测到可管理防火墙！${NC}"
             wait_key
-            return
+            return 1
             ;;
     esac
-    echo -e "${GREEN}防火墙已启动！${NC}"
+
+    echo -e "\n${YELLOW}提示：如需开放其他端口（如 80/443），请通过菜单添加！${NC}"
     wait_key
 }
 
