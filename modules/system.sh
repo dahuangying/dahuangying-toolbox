@@ -128,7 +128,6 @@ restart_ssh_service() {
 
 # 1. 启用ROOT密码登录
 enable_root_login() {
-    
     echo -e "\n${YELLOW}=== 启用ROOT密码登录模式 ===${NC}"
     
     # 检查是否已经启用
@@ -163,7 +162,8 @@ enable_root_login() {
         return
     fi
 
-    if restart_ssh_service; then
+    # 仅修改这一行：增加ssh服务名兼容
+    if systemctl restart sshd 2>/dev/null || systemctl restart ssh 2>/dev/null; then
         echo -e "${GREEN}ROOT密码登录已成功启用！${NC}"
     else
         echo -e "${RED}SSH服务重启失败，请检查日志：journalctl -u sshd${NC}"
