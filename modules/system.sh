@@ -130,61 +130,44 @@ restart_ssh_service() {
 enable_root_login() {
     echo -e "\n${YELLOW}=== 启用ROOT密码登录 ===${NC}"
     
-    # 1. 设置root密码
-    echo -e "\n${GREEN}[1/4] 设置ROOT用户密码${NC}"
-    echo -e "${YELLOW}请输入ROOT用户的新密码：${NC}"
-    passwd root
-    if [ $? -ne 0 ]; then
-        echo -e "${RED}ROOT密码设置失败，请检查错误信息！${NC}"
+    # 1. 前台只显示密码设置
+    echo -e "${GREEN}请设置ROOT用户密码：${NC}"
+    if ! passwd root; then
+        echo -e "${RED}密码设置失败！${NC}"
         wait_key
         return 1
     fi
+
+    # 2-3. 后台自动配置（不显示过程）
+    (
+        # 确保配置项存在并启用
+        sed -i 's/^#\?PermitRootLogin.*/PermitRootLogin yes/g' /etc/ssh/sshd_config
+        sed -i 's/^#\?PasswordAuthentication.*/PasswordAuthentication yes/g' /etc/ssh/sshd_config
+        grep -q '^PermitRootLogin' /etc/ssh/sshd_config || echo "PermitRootLogin yes" >> /etc/ssh/sshd_config
+        grep -q '^PasswordAuthentication' /etc/ssh/sshd_config || echo "PasswordAuthentication yes" >> /etc/ssh/sshd_config
+        
+        # 静默重启SSH服务
+        systemctl restart sshd &>/dev/null || service sshd restart &>/dev/null
+    ) &
     
-    # 2. 修改SSH配置
-    echo -e "\n${GREEN}[2/4] 修改SSH配置文件${NC}"
-    echo -e "${BLUE}正在允许ROOT登录和密码认证...${NC}"
+    # 4. 自动检测是否需要重启
+    echo -e "\n${GREEN}正在应用配置...${NC}"
+    sleep 2  # 给后台进程执行时间
     
-    # 确保配置项存在
-    grep -q '^PermitRootLogin' /etc/ssh/sshd_config || echo "PermitRootLogin yes" >> /etc/ssh/sshd_config
-    grep -q '^PasswordAuthentication' /etc/ssh/sshd_config || echo "PasswordAuthentication yes" >> /etc/ssh/sshd_config
-    
-    # 强制设置为yes
-    sed -i 's/^#\?PermitRootLogin.*/PermitRootLogin yes/g' /etc/ssh/sshd_config
-    sed -i 's/^#\?PasswordAuthentication.*/PasswordAuthentication yes/g' /etc/ssh/sshd_config
-    
-    # 3. 重启SSH服务
-    echo -e "\n${GREEN}[3/4] 重启SSH服务${NC}"
-    if systemctl restart sshd 2>/dev/null || service sshd restart 2>/dev/null; then
-        echo -e "${GREEN}SSH服务重启成功！${NC}"
+    if ! ss -tlpn | grep -q sshd; then
+        echo -e "${RED}检测到SSH服务异常，需要重启服务器！${NC}"
+        read -p "是否立即重启？(y/N): " choice
+        if [[ "$choice" =~ ^[Yy]$ ]]; then
+            echo -e "${RED}服务器将在5秒后重启...${NC}"
+            echo -e "${YELLOW}按 Ctrl+C 取消${NC}"
+            sleep 5
+            reboot
+        else
+            echo -e "${YELLOW}请手动重启服务器使配置生效${NC}"
+        fi
     else
-        echo -e "${RED}SSH服务重启失败！${NC}"
-        echo -e "${YELLOW}请尝试手动执行：systemctl restart sshd${NC}"
-        wait_key
-        return 1
+        echo -e "${GREEN}配置已完成！可通过新终端测试ROOT登录${NC}"
     fi
-    
-    # 4. 提示重启服务器
-    echo -e "\n${GREEN}[4/4] 服务器重启检查${NC}"
-    echo -e "${YELLOW}多数情况下无需重启服务器，但若配置未生效，可能需要重启。${NC}"
-    
-    read -p "是否立即重启服务器？(y/N): " choice
-    if [[ "$choice" =~ ^[Yy]$ ]]; then
-        echo -e "${RED}服务器将在5秒后重启...${NC}"
-        echo -e "${YELLOW}按Ctrl+C取消${NC}"
-        sleep 5
-        reboot
-    else
-        echo -e "${GREEN}配置已完成！请新建终端窗口测试ROOT登录。${NC}"
-        echo -e "${YELLOW}若无法登录，请考虑手动重启服务器。${NC}"
-    fi
-    
-    # 安全警告
-    echo -e "\n${RED}安全警告：${NC}"
-    echo -e "1. 已开启ROOT密码登录，系统安全性降低！"
-    echo -e "2. 建议立即执行以下加固措施："
-    echo -e "   - 设置SSH密钥认证"
-    echo -e "   - 配置fail2ban防止暴力破解"
-    echo -e "   - 修改默认SSH端口(22)"
     
     wait_key
 }
