@@ -128,13 +128,24 @@ restart_ssh_service() {
 
 # 1. 启用ROOT密码登录
 enable_root_login() {
+    
     echo -e "\n${YELLOW}=== 启用ROOT密码登录模式 ===${NC}"
+    
+    # 检查是否已经启用
+    if grep -q "^PermitRootLogin yes" /etc/ssh/sshd_config; then
+        echo -e "${YELLOW}ROOT登录已经启用，无需重复操作${NC}"
+        wait_key
+        return
+    fi
+
+    # 备份原始文件
+    cp /etc/ssh/sshd_config /etc/ssh/sshd_config.bak
     
     # 使用系统passwd命令修改密码
     echo -e "${BLUE}请设置ROOT用户的新密码（直接回车取消）：${NC}"
     passwd root
     if [ $? -ne 0 ]; then
-        echo -e "${YELLOW}已取消密码设置${NC}"
+        echo -e "${RED}密码设置失败，请检查密码复杂度要求${NC}"
         wait_key
         return
     fi
@@ -144,10 +155,18 @@ enable_root_login() {
     sed -i 's/^#*PermitRootLogin.*/PermitRootLogin yes/g' /etc/ssh/sshd_config
     sed -i 's/^#*PasswordAuthentication.*/PasswordAuthentication yes/g' /etc/ssh/sshd_config
 
+    # 检查配置语法
+    if ! sshd -t; then
+        echo -e "${RED}SSH配置有误，已恢复备份文件${NC}"
+        cp /etc/ssh/sshd_config.bak /etc/ssh/sshd_config
+        wait_key
+        return
+    fi
+
     if restart_ssh_service; then
         echo -e "${GREEN}ROOT密码登录已成功启用！${NC}"
     else
-        echo -e "${RED}SSH服务重启失败，请手动执行：systemctl restart sshd${NC}"
+        echo -e "${RED}SSH服务重启失败，请检查日志：journalctl -u sshd${NC}"
     fi
     wait_key
 }
