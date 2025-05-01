@@ -130,45 +130,53 @@ restart_ssh_service() {
 enable_root_login() {
     echo -e "\n${YELLOW}=== 启用ROOT密码登录 ===${NC}"
     
-    # 1. 前台只显示密码设置
-    echo -e "${GREEN}请设置ROOT用户密码：${NC}"
-    if ! passwd root; then
-        echo -e "${RED}密码设置失败！${NC}"
+    # 1. 设置root密码
+    echo -e "${GREEN}请输入root用户的新密码：${NC}"
+    passwd root
+    if [ $? -ne 0 ]; then
+        echo -e "${RED}设置root密码失败！${NC}"
         wait_key
         return 1
     fi
 
-    # 2-3. 后台自动配置（不显示过程）
-    (
-        # 确保配置项存在并启用
-        sed -i 's/^#\?PermitRootLogin.*/PermitRootLogin yes/g' /etc/ssh/sshd_config
-        sed -i 's/^#\?PasswordAuthentication.*/PasswordAuthentication yes/g' /etc/ssh/sshd_config
-        grep -q '^PermitRootLogin' /etc/ssh/sshd_config || echo "PermitRootLogin yes" >> /etc/ssh/sshd_config
-        grep -q '^PasswordAuthentication' /etc/ssh/sshd_config || echo "PasswordAuthentication yes" >> /etc/ssh/sshd_config
-        
-        # 静默重启SSH服务
-        systemctl restart sshd &>/dev/null || service sshd restart &>/dev/null
-    ) &
+    # 2. 修改SSH配置
+    echo -e "\n${YELLOW}=== 修改SSH配置，启用root密码登录 ===${NC}"
     
-    # 4. 自动检测是否需要重启
-    echo -e "\n${GREEN}正在应用配置...${NC}"
-    sleep 2  # 给后台进程执行时间
-    
-    if ! ss -tlpn | grep -q sshd; then
-        echo -e "${RED}检测到SSH服务异常，需要重启服务器！${NC}"
-        read -p "是否立即重启？(y/N): " choice
-        if [[ "$choice" =~ ^[Yy]$ ]]; then
-            echo -e "${RED}服务器将在5秒后重启...${NC}"
-            echo -e "${YELLOW}按 Ctrl+C 取消${NC}"
-            sleep 5
-            reboot
-        else
-            echo -e "${YELLOW}请手动重启服务器使配置生效${NC}"
-        fi
-    else
-        echo -e "${GREEN}配置已完成！可通过新终端测试ROOT登录${NC}"
+    # 备份原始配置
+    if [ ! -f /etc/ssh/sshd_config.bak ]; then
+        cp /etc/ssh/sshd_config /etc/ssh/sshd_config.bak
+        echo -e "${BLUE}已备份原始配置到/etc/ssh/sshd_config.bak${NC}"
     fi
     
+    # 确保配置项存在并设置为yes
+    sed -i 's/^#\?PermitRootLogin.*/PermitRootLogin yes/g' /etc/ssh/sshd_config
+    sed -i 's/^#\?PasswordAuthentication.*/PasswordAuthentication yes/g' /etc/ssh/sshd_config
+
+    # 3. 重启SSH服务
+    echo -e "\n${YELLOW}=== 重启SSH服务使配置生效 ===${NC}"
+    if systemctl restart sshd 2>/dev/null || service sshd restart 2>/dev/null; then
+        echo -e "${GREEN}SSH服务已成功重启！${NC}"
+    else
+        echo -e "${RED}重启SSH服务失败，请检查！${NC}"
+        wait_key
+        return 1
+    fi
+
+    # 4. 提示重启服务器
+    echo -e "\n${YELLOW}=== 是否重启服务器？（此操作会断开当前连接） ===${NC}"
+    read -p "请输入y重启服务器，其他键取消：" choice
+    if [ "$choice" == "y" ]; then
+        echo -e "\n${GREEN}正在重启服务器...${NC}"
+        reboot
+    else
+        echo -e "${GREEN}已取消重启服务器。${NC}"
+    fi
+
+    echo -e "\n${GREEN}root用户SSH密码登录已启用！${NC}"
+    echo -e "${YELLOW}安全提示：建议完成后立即："
+    echo -e "1. 设置SSH密钥认证"
+    echo -e "2. 修改默认SSH端口"
+    echo -e "3. 配置fail2ban防暴力破解${NC}"
     wait_key
 }
 
