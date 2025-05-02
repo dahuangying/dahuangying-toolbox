@@ -111,20 +111,6 @@ main() {
     done
 }
 
-# SSH服务管理
-restart_ssh_service() {
-    if systemctl list-unit-files | grep -q 'sshd.service'; then
-        systemctl restart sshd
-    elif systemctl list-unit-files | grep -q 'ssh.service'; then
-        systemctl restart ssh
-    elif [ -f /etc/init.d/ssh ]; then
-        /etc/init.d/ssh restart
-    else
-        echo -e "${RED}无法确定SSH服务名称，请手动重启！${NC}"
-        return 1
-    fi
-}
-
 # 1. 启用ROOT密码登录
 enable_root_login() {
     clear
