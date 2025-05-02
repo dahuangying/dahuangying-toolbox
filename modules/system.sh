@@ -128,55 +128,46 @@ restart_ssh_service() {
 
 # 1. 启用ROOT密码登录
 enable_root_login() {
-    echo -e "\n${YELLOW}=== 启用ROOT密码登录 ===${NC}"
     
-    # 1. 设置root密码
-    echo -e "${GREEN}请输入root用户的新密码：${NC}"
+    echo -e "\n${YELLOW}=== 启用ROOT密码登录模式 ===${NC}"
+    
+    # 检查是否已经启用
+    if grep -q "^PermitRootLogin yes" /etc/ssh/sshd_config; then
+        echo -e "${YELLOW}ROOT登录已经启用，无需重复操作${NC}"
+        wait_key
+        return
+    fi
+
+    # 备份原始文件
+    cp /etc/ssh/sshd_config /etc/ssh/sshd_config.bak
+    
+    # 使用系统passwd命令修改密码
+    echo -e "${BLUE}请设置ROOT用户的新密码（直接回车取消）：${NC}"
     passwd root
     if [ $? -ne 0 ]; then
-        echo -e "${RED}设置root密码失败！${NC}"
+        echo -e "${RED}密码设置失败，请检查密码复杂度要求${NC}"
         wait_key
-        return 1
+        return
     fi
 
-    # 2. 修改SSH配置
-    echo -e "\n${YELLOW}=== 修改SSH配置，启用root密码登录 ===${NC}"
-    
-    # 备份原始配置
-    if [ ! -f /etc/ssh/sshd_config.bak ]; then
-        cp /etc/ssh/sshd_config /etc/ssh/sshd_config.bak
-        echo -e "${BLUE}已备份原始配置到/etc/ssh/sshd_config.bak${NC}"
-    fi
-    
-    # 确保配置项存在并设置为yes
-    sed -i 's/^#\?PermitRootLogin.*/PermitRootLogin yes/g' /etc/ssh/sshd_config
-    sed -i 's/^#\?PasswordAuthentication.*/PasswordAuthentication yes/g' /etc/ssh/sshd_config
+    # 启用SSH的ROOT登录
+    echo -e "${BLUE}正在启用SSH的ROOT登录...${NC}"
+    sed -i 's/^#*PermitRootLogin.*/PermitRootLogin yes/g' /etc/ssh/sshd_config
+    sed -i 's/^#*PasswordAuthentication.*/PasswordAuthentication yes/g' /etc/ssh/sshd_config
 
-    # 3. 重启SSH服务
-    echo -e "\n${YELLOW}=== 重启SSH服务使配置生效 ===${NC}"
-    if systemctl restart sshd 2>/dev/null || service sshd restart 2>/dev/null; then
-        echo -e "${GREEN}SSH服务已成功重启！${NC}"
-    else
-        echo -e "${RED}重启SSH服务失败，请检查！${NC}"
+    # 检查配置语法
+    if ! sshd -t; then
+        echo -e "${RED}SSH配置有误，已恢复备份文件${NC}"
+        cp /etc/ssh/sshd_config.bak /etc/ssh/sshd_config
         wait_key
-        return 1
+        return
     fi
 
-    # 4. 提示重启服务器
-    echo -e "\n${YELLOW}=== 是否重启服务器？（此操作会断开当前连接） ===${NC}"
-    read -p "请输入y重启服务器，其他键取消：" choice
-    if [ "$choice" == "y" ]; then
-        echo -e "\n${GREEN}正在重启服务器...${NC}"
-        reboot
+    if restart_ssh_service; then
+        echo -e "${GREEN}ROOT密码登录已成功启用！${NC}"
     else
-        echo -e "${GREEN}已取消重启服务器。${NC}"
+        echo -e "${RED}SSH服务重启失败，请检查日志：journalctl -u sshd${NC}"
     fi
-
-    echo -e "\n${GREEN}root用户SSH密码登录已启用！${NC}"
-    echo -e "${YELLOW}安全提示：建议完成后立即："
-    echo -e "1. 设置SSH密钥认证"
-    echo -e "2. 修改默认SSH端口"
-    echo -e "3. 配置fail2ban防暴力破解${NC}"
     wait_key
 }
 
