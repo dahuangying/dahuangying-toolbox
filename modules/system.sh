@@ -113,47 +113,25 @@ main() {
 
 # 1. 启用ROOT密码登录模式
 enable_root_login() {
-    echo "开始设置 ROOT 密码并启用密码登录..."
+    clear
+    echo -e "${GREEN}=== 启用ROOT登录 ===${NC}"
     
-    # 设置 root 密码
-    sudo passwd root
-    if [ $? -eq 0 ]; then
-        echo "Root 密码设置成功！"
-    else
-        echo "密码设置失败，请重试！"
-        return 1
-    fi
+    passwd root || { echo -e "${RED}密码设置失败${NC}"; return 1; }
 
-    # 修改 /etc/ssh/sshd_config 启用 root 登录和密码认证
-    echo "修改 SSH 配置文件以启用 root 登录和密码认证..."
-    sudo sed -i 's/^#PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config
-    sudo sed -i 's/^#PasswordAuthentication.*/PasswordAuthentication yes/' /etc/ssh/sshd_config
-    if [ $? -eq 0 ]; then
-        echo "SSH 配置文件已修改！"
-    else
-        echo "SSH 配置文件修改失败，请检查权限！"
-        return 1
-    fi
+    # 处理云平台覆盖
+    [ -d /etc/cloud ] && echo -e "ssh_pwauth: 1\ndisable_root: false" > /etc/cloud/cloud.cfg.d/99-root.cfg
 
-    # 重启 SSH 服务以应用配置更改
-    echo "重启 SSH 服务以应用更改..."
-    sudo systemctl restart ssh
-    if [ $? -eq 0 ]; then
-        echo "SSH 服务已成功重启！"
-    else
-        echo "SSH 服务重启失败，请检查日志！"
-        return 1
-    fi
+    # 修改配置
+    sed -i '/^#*PermitRootLogin/c\PermitRootLogin yes' /etc/ssh/sshd_config
+    sed -i '/^#*PasswordAuthentication/c\PasswordAuthentication yes' /etc/ssh/sshd_config
+    sed -i '/^#*PubkeyAuthentication/c\ PubkeyAuthentication yes' /etc/ssh/sshd_config
 
-    # 提示用户是否需要重启系统
-    read -p "需要重启服务器吗？(Y/N): " choice
-    case "$choice" in
-      y|Y) sudo reboot ;;
-      *) echo "已取消重启。" ;;
-    esac
+    # 重启服务
+    systemctl restart ssh 2>/dev/null || systemctl restart sshd 2>/dev/null || service ssh restart 2>/dev/null
+
+    echo -e "${GREEN}✔ 已启用ROOT登录${NC}"
     wait_key
 }
-
 
 # 2. 禁用ROOT密码登录（增加确认）
 disable_root_login() {
