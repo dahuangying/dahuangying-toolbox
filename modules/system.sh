@@ -35,7 +35,7 @@ safe_input() {
 
 # 等待任意键继续
 wait_key() {
-    echo -e "\n${GREEN}按任意键返回主菜单...${NC}"
+    echo -e "\n${GREEN}操作完成，按任意键继续...${NC}"
     read -n 1 -s -r
 }
 
@@ -115,13 +115,14 @@ main() {
 enable_root_login() {
     clear
     echo -e "${GREEN}=== 启用ROOT密码登录模式 ===${NC}"
-    
+
     # 设置密码
     passwd root || { 
         echo -e "${RED}密码设置失败${NC}" 
-        read -n 1 -s -r -p "按任意键继续..."  # 等待用户按任意键继续
+        wait_key  # 等待用户按任意键继续
         return 1
-     }
+    }
+
     # 修改配置（兼容所有系统）
     sed -i '/^\s*#\?\s*PermitRootLogin/c\PermitRootLogin yes' /etc/ssh/sshd_config
     sed -i '/^\s*#\?\s*PasswordAuthentication/c\PasswordAuthentication yes' /etc/ssh/sshd_config
@@ -144,7 +145,7 @@ enable_root_login() {
     echo -e "${GREEN}✔ 已启用ROOT登录${NC}"
     echo -e "当前配置："
     grep -E "PermitRootLogin|PasswordAuthentication|PubkeyAuthentication" /etc/ssh/sshd_config
-    wait_key
+    wait_key  # 等待用户按任意键继续
 }
 
 # 2. 禁用ROOT密码登录（增加确认）
