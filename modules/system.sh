@@ -119,8 +119,8 @@ enable_root_login() {
         # 修改 SSH 配置，启用 root 登录和密码认证
         sed -i 's/^#\?PermitRootLogin.*/PermitRootLogin yes/g' /etc/ssh/sshd_config
         sed -i 's/^#\?PasswordAuthentication.*/PasswordAuthentication yes/g' /etc/ssh/sshd_config
-        # 重启 SSH 服务
-        systemctl restart sshd
+        # 重启 SSH 服务（尝试多种服务名称）
+        systemctl restart ssh || systemctl restart sshd
         if [ $? -eq 0 ]; then
             echo "ROOT登录设置完毕！"
         else
@@ -135,7 +135,7 @@ enable_root_login() {
     else
         echo "密码设置失败，请重试！"
     fi
-    wait_key
+   wait_key 
 }
 
 # 2. 禁用ROOT密码登录（增加确认）
