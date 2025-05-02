@@ -145,7 +145,7 @@ disable_root_login() {
         return
     fi
 
-    sed -i 's/^#*PermitRootLogin.*/#PermitRootLogin no/g' /etc/ssh/sshd_config
+    sed -i 's/^#*PermitRootLogin.*/#PermitRootLogin no/g' /etc/ssh/ssh_config
     
     if restart_ssh_service; then
         echo -e "${GREEN}ROOT密码登录已禁用！${NC}"
