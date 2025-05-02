@@ -128,48 +128,45 @@ restart_ssh_service() {
 
 # 1. 启用ROOT密码登录
 enable_root_login() {
-    
-    echo -e "\n${YELLOW}=== 启用ROOT密码登录模式 ===${NC}"
-    
-    # 检查是否已经启用
-    if grep -q "^PermitRootLogin yes" /etc/ssh/sshd_config; then
-        echo -e "${YELLOW}ROOT登录已经启用，无需重复操作${NC}"
-        wait_key
-        return
+    # 确保以root权限运行
+    if [ "$(id -u)" -ne 0 ]; then
+        echo "请以 root 用户运行此脚本！"
+        exit 1
     fi
 
-    # 备份原始文件
+    # 设置root密码
+    echo "请输入root用户的新密码："
+    passwd
+
+    # 修改SSH配置文件
+    echo "正在修改 /etc/ssh/sshd_config 配置文件..."
+
+    # 备份原始配置文件
     cp /etc/ssh/sshd_config /etc/ssh/sshd_config.bak
-    
-    # 使用系统passwd命令修改密码
-    echo -e "${BLUE}请设置ROOT用户的新密码（直接回车取消）：${NC}"
-    passwd root
-    if [ $? -ne 0 ]; then
-        echo -e "${RED}密码设置失败，请检查密码复杂度要求${NC}"
-        wait_key
-        return
-    fi
 
-    # 启用SSH的ROOT登录
-    echo -e "${BLUE}正在启用SSH的ROOT登录...${NC}"
-    sed -i 's/^#*PermitRootLogin.*/PermitRootLogin yes/g' /etc/ssh/sshd_config
-    sed -i 's/^#*PasswordAuthentication.*/PasswordAuthentication yes/g' /etc/ssh/sshd_config
+    # 修改配置文件内容
+    sed -i 's/^#PermitRootLogin .*/PermitRootLogin yes/' /etc/ssh/sshd_config
+    sed -i 's/^#PasswordAuthentication .*/PasswordAuthentication yes/' /etc/ssh/sshd_config
 
-    # 检查配置语法
-    if ! sshd -t; then
-        echo -e "${RED}SSH配置有误，已恢复备份文件${NC}"
-        cp /etc/ssh/sshd_config.bak /etc/ssh/sshd_config
-        wait_key
-        return
-    fi
+    # 重新加载SSH配置（不需要重启服务器）
+    echo "配置文件已修改，正在重载SSH服务..."
+    systemctl restart sshd
 
-    if restart_ssh_service; then
-        echo -e "${GREEN}ROOT密码登录已成功启用！${NC}"
+    # 提示重启
+    echo "SSH配置已更新，重启服务器以生效。"
+    echo "是否重启服务器？(y/n)"
+    read -p "请输入: " REBOOT
+
+    if [ "$REBOOT" == "y" ] || [ "$REBOOT" == "Y" ]; then
+        reboot
     else
-        echo -e "${RED}SSH服务重启失败，请检查日志：journalctl -u sshd${NC}"
+        echo "重启操作已取消。"
     fi
+
+    echo "脚本执行完毕！"
     wait_key
 }
+
 
 # 2. 禁用ROOT密码登录（增加确认）
 disable_root_login() {
