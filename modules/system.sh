@@ -171,11 +171,11 @@ enable_root_login() {
 
     # 6. 验证配置
     echo -e "\n${GREEN}当前配置状态：${NC}"
-    if sshd -T 2>/dev/null | grep -E "permitrootlogin|passwordauthentication"; then
+    if sshd -T 2>/dev/null | grep -E "permitrootlogin|passwordauthentication|PubkeyAuthentication"; then
         echo -e "${GREEN}✔ 配置已生效${NC}"
     else
         echo -e "${YELLOW}⚠ 使用备用验证方式...${NC}"
-        grep -E "^PermitRootLogin|^PasswordAuthentication" "$SSHD_CONFIG"
+        grep -E "^PermitRootLogin|^PasswordAuthentication|^PubkeyAuthentication" "$SSHD_CONFIG"
     fi
 
     # 7. 安全提醒
