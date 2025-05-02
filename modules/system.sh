@@ -114,53 +114,66 @@ main() {
 # 1. 启用ROOT密码登录
 enable_root_login() {
     clear
-    echo -e "${GREEN}=== AWS EC2 专用ROOT登录修复 ===${NC}"
+    echo -e "${GREEN}=== 启用ROOT密码登录（全兼容版） ===${NC}"
     
-    # 1. 禁用EC2 Instance Connect干扰
-    echo -e "${YELLOW}禁用EC2 Instance Connect...${NC}"
-    sudo systemctl stop ec2-instance-connect
-    sudo systemctl disable ec2-instance-connect
-    sudo rm -f /usr/lib/systemd/system/ssh.service.d/ec2-instance-connect.conf
+    # 1. 检查root权限
+    [ "$(id -u)" -eq 0 ] || { echo -e "${RED}错误：此功能需要root权限！${NC}"; return 1; }
 
-    # 2. 强制写入配置（最高优先级）
-    echo -e "${BLUE}写入强制配置...${NC}"
-    sudo tee /etc/ssh/sshd_config.d/10-override.conf >/dev/null <<EOF
-# 优先级最高配置
-Port 22
-PermitRootLogin yes
-PasswordAuthentication yes
-ChallengeResponseAuthentication yes
-UsePAM yes
-EOF
+    # 2. 设置root密码（带3次尝试）
+    echo -e "${YELLOW}请设置root密码：${NC}"
+    for i in {1..3}; do
+        if passwd root; then
+            break
+        else
+            [ $i -eq 3 ] && { echo -e "${RED}密码设置失败次数过多！${NC}"; return 1; }
+            echo -e "${YELLOW}密码设置失败，请重试（剩余$((3-i))次）${NC}"
+        fi
+    done
 
-    # 3. 清理可能冲突的配置
-    sudo rm -f /etc/ssh/sshd_config.d/60-cloudimg-settings.conf
+    # 3. 智能配置SSH（兼容所有系统）
+    echo -e "${BLUE}正在配置SSH...${NC}"
+    
+    # 确定配置文件位置
+    SSHD_CONFIG=""
+    for conf in /etc/ssh/sshd_config /etc/sshd_config; do
+        [ -f "$conf" ] && SSHD_CONFIG="$conf" && break
+    done
+    [ -z "$SSHD_CONFIG" ] && { echo -e "${RED}找不到SSH配置文件！${NC}"; return 1; }
 
-    # 4. 重载系统配置
-    echo -e "${YELLOW}重置系统配置...${NC}"
-    sudo systemctl daemon-reload
-    sudo systemctl reset-failed ssh
+    # 备份配置（带时间戳）
+    BACKUP_FILE="${SSHD_CONFIG}.bak_$(date +%s)"
+    cp "$SSHD_CONFIG" "$BACKUP_FILE" || { echo -e "${RED}配置备份失败！${NC}"; return 1; }
 
-    # 5. 重启服务（带容错）
-    echo -e "${BLUE}重启SSH服务...${NC}"
-    if ! sudo systemctl restart ssh; then
-        echo -e "${RED}主服务重启失败，尝试备选方案...${NC}"
-        sudo /usr/sbin/sshd -t && sudo /usr/sbin/sshd -D &
+    # 修改配置（兼容注释和不同写法）
+    sed -i '/^#*PermitRootLogin/c\PermitRootLogin yes' "$SSHD_CONFIG"
+    sed -i '/^#*PasswordAuthentication/c\PasswordAuthentication yes' "$SSHD_CONFIG"
+
+    # 4. 智能服务重启
+    echo -e "${YELLOW}正在重启SSH服务...${NC}"
+    if systemctl restart sshd 2>/dev/null || \
+       systemctl restart ssh 2>/dev/null || \
+       service sshd restart 2>/dev/null || \
+       service ssh restart 2>/dev/null; then
+        echo -e "${GREEN}✔ ROOT登录已启用${NC}"
+    else
+        echo -e "${RED}✖ 服务重启失败，正在恢复配置...${NC}"
+        cp "$BACKUP_FILE" "$SSHD_CONFIG"
+        echo -e "${YELLOW}已恢复原始配置，请手动执行：${NC}"
+        echo "Ubuntu/Debian: sudo systemctl restart ssh"
+        echo "CentOS/RHEL:   sudo systemctl restart sshd"
+        return 1
     fi
 
-    # 6. 验证配置
-    echo -e "\n${GREEN}验证当前配置：${NC}"
-    sudo sshd -T | grep -E "permitrootlogin|passwordauthentication" || {
-        echo -e "${YELLOW}配置加载异常，直接检查文件...${NC}"
-        sudo grep -r "PermitRootLogin" /etc/ssh/
-    }
+    # 5. 显示配置状态
+    echo -e "\n${GREEN}当前配置状态：${NC}"
+    grep -E "^PermitRootLogin|^PasswordAuthentication" "$SSHD_CONFIG"
 
-    # 7. 安全建议
-    echo -e "\n${RED}⚠ 临时生效命令（无需重启）：${NC}"
-    echo "sudo kill -HUP $(pgrep -f 'sshd:')"
-    echo -e "\n${YELLOW}⚠ 请立即测试登录，完成后建议：${NC}"
-    echo "1. 恢复PAM限制：sudo pam-auth-update"
-    echo "2. 改回密钥认证：PermitRootLogin prohibit-password"
+    # 6. 安全提醒
+    echo -e "\n${RED}⚠ 安全警告：${NC}"
+    echo "1. 此配置允许密码登录，建议完成后改为："
+    echo "   PermitRootLogin prohibit-password"
+    echo "2. 立即检查登录状态："
+    echo -e "${BLUE}   tail -f /var/log/auth.log${NC}"
 
     wait_key
 }
