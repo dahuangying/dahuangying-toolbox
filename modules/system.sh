@@ -117,32 +117,33 @@ enable_root_login() {
     echo -e "${GREEN}=== 启用ROOT密码登录模式 ===${NC}"
     
     # 设置密码
-    passwd root || { echo -e "${RED}密码设置失败${NC}"; return 1; }
+    passwd root || { 
+        echo -e "${RED}密码设置失败${NC}" 
+        read -n 1 -s -r -p "按任意键继续..."  # 等待用户按任意键继续
+        return 1
 
     # 修改配置（兼容所有系统）
     sed -i '/^\s*#\?\s*PermitRootLogin/c\PermitRootLogin yes' /etc/ssh/sshd_config
     sed -i '/^\s*#\?\s*PasswordAuthentication/c\PasswordAuthentication yes' /etc/ssh/sshd_config
     sed -i '/^\s*#\?\s*PubkeyAuthentication/c\PubkeyAuthentication yes' /etc/ssh/sshd_config
 
-    #  尝试重启 SSH 服务（兼容 Ubuntu、CentOS）
-    echo -e "\n${YELLOW}🔄 正在重启SSH服务...${NC}"
-    if systemctl restart ssh 2>/dev/null; then
-        echo -e "   ${GREEN}✓ 成功重启 ssh.service (Ubuntu/Debian)${NC}"
-    elif systemctl restart sshd 2>/dev/null; then
-        echo -e "   ${GREEN}✓ 成功重启 sshd.service (CentOS/RHEL)${NC}"
-    elif service ssh restart 2>/dev/null; then
-        echo -e "   ${GREEN}✓ 成功通过service命令重启${NC}"
+    # 重启服务（全兼容）
+    echo -e "${YELLOW}正在重启SSH服务...${NC}"
+    if systemctl restart ssh 2>/dev/null || \
+       systemctl restart sshd 2>/dev/null || \
+       service ssh restart 2>/dev/null || \
+       service sshd restart 2>/dev/null; then
+        echo -e "${GREEN}服务重启成功${NC}"
     else
-        echo -e "   ${RED}✗ 服务重启失败，请手动执行："
-        echo -e "   Ubuntu/Debian: ${CYAN}sudo systemctl restart ssh${NC}"
-        echo -e "   CentOS/RHEL:   ${CYAN}sudo systemctl restart sshd${NC}"
+        echo -e "${RED}服务重启失败，请手动执行：${NC}"
+        echo "Ubuntu/Debian: systemctl restart ssh"
+        echo "CentOS/RHEL:   systemctl restart sshd"
         return 1
     fi
 
     echo -e "${GREEN}✔ 已启用ROOT登录${NC}"
     echo -e "当前配置："
     grep -E "PermitRootLogin|PasswordAuthentication|PubkeyAuthentication" /etc/ssh/sshd_config
-
     wait_key
 }
 
