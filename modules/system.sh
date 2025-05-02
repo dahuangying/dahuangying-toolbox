@@ -130,52 +130,80 @@ restart_ssh_service() {
 enable_root_login() {
     # 检查root权限
     if [ "$(id -u)" -ne 0 ]; then
-        echo "错误：此脚本需要root权限执行" >&2
+        echo -e "\033[31m错误：此脚本需要root权限执行\033[0m" >&2
         exit 1
     fi
 
-    # 备份原始SSH配置
+    # 定义变量
     SSHD_CONFIG="/etc/ssh/sshd_config"
     BACKUP_FILE="/etc/ssh/sshd_config.bak_$(date +%Y%m%d%H%M%S)"
-    
-    echo "正在备份SSH配置文件到 $BACKUP_FILE"
-    cp "$SSHD_CONFIG" "$BACKUP_FILE" || {
-        echo "备份失败" >&2
-        exit 1
-    }
 
-    # 设置root密码
-    echo "请设置root密码："
+    # 1. 检查OpenSSH是否安装
+    if ! command -v sshd &>/dev/null && [ ! -f "$SSHD_CONFIG" ]; then
+        echo -e "\033[33m未检测到OpenSSH服务，正在尝试安装...\033[0m"
+        
+        if command -v apt-get &>/dev/null; then
+            apt-get update && apt-get install -y openssh-server
+        elif command -v yum &>/dev/null; then
+            yum install -y openssh-server
+        elif command -v dnf &>/dev/null; then
+            dnf install -y openssh-server
+        elif command -v pacman &>/dev/null; then
+            pacman -Sy --noconfirm openssh
+        else
+            echo -e "\033[31m无法识别包管理器，请手动安装openssh-server\033[0m" >&2
+            exit 1
+        fi
+    fi
+
+    # 2. 设置root密码
+    echo -e "\033[36m请设置root密码：\033[0m"
     passwd root || {
-        echo "设置root密码失败" >&2
+        echo -e "\033[31m设置root密码失败\033[0m" >&2
         exit 1
     }
 
-    # 修改SSH配置
-    echo "修改SSH配置..."
+    # 3. 备份并修改配置
+    echo "正在备份SSH配置到 $BACKUP_FILE"
+    cp "$SSHD_CONFIG" "$BACKUP_FILE" || {
+        echo -e "\033[31m备份失败\033[0m" >&2
+        exit 1
+    }
+
     sed -i '/^#*PermitRootLogin[[:space:]]/c\PermitRootLogin yes' "$SSHD_CONFIG"
     sed -i '/^#*PasswordAuthentication[[:space:]]/c\PasswordAuthentication yes' "$SSHD_CONFIG"
 
-    # 可选：限制root登录IP（示例：只允许192.168.1.100）
-    # echo "Match Address 192.168.1.100" >> "$SSHD_CONFIG"
-    # echo "    PermitRootLogin yes" >> "$SSHD_CONFIG"
+    # 4. 智能重启SSH服务
+    restart_ssh() {
+        # 尝试所有已知的服务名称和重启方式
+        for service_name in ssh sshd; do
+            if systemctl restart "$service_name" 2>/dev/null || 
+               service "$service_name" restart 2>/dev/null; then
+                echo -e "\033[32mSSH服务重启成功 (使用服务名: $service_name)\033[0m"
+                return 0
+            fi
+        done
+        return 1
+    }
 
-    # 重启SSH服务
-    if systemctl restart sshd; then
-        echo "成功启用root登录"
-        echo "警告：已允许root通过密码远程登录，建议完成后改为密钥认证！"
-    else
-        echo "SSH服务重启失败，正在恢复备份..."
+    if ! restart_ssh; then
+        echo -e "\033[31m无法重启SSH服务，正在恢复备份...\033[0m" >&2
         cp "$BACKUP_FILE" "$SSHD_CONFIG"
-        systemctl restart sshd
-        echo "已恢复原始配置"
+        echo -e "\033[33m已恢复原始配置，请手动尝试以下命令：\033[0m"
+        echo "Debian/Ubuntu: sudo systemctl restart ssh"
+        echo "RHEL/CentOS:   sudo systemctl restart sshd"
         exit 1
     fi
-    wait_key
-    # 显示新IP限制提示（如果添加了IP限制）
-    # echo "Root登录仅允许从指定IP访问"
-}
 
+    # 5. 安全建议
+    echo -e "\n\033[35m√ 已启用root登录，但请注意以下安全建议：\033[0m"
+    echo "1. 建议改用密钥认证："
+    echo "   - 设置 PermitRootLogin prohibit-password"
+    echo "   - 设置 PasswordAuthentication no"
+    echo "2. 建议安装fail2ban防止暴力破解"
+    echo "3. 或者限制root登录IP（示例配置已注释在脚本中）"
+    wait_key
+}
 
 # 2. 禁用ROOT密码登录（增加确认）
 disable_root_login() {
