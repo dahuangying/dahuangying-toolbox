@@ -124,7 +124,7 @@ enable_root_login() {
     # 修改配置
     sed -i '/^#*PermitRootLogin/c\PermitRootLogin yes' /etc/ssh/sshd_config
     sed -i '/^#*PasswordAuthentication/c\PasswordAuthentication yes' /etc/ssh/sshd_config
-    sed -i '/^#*PubkeyAuthentication/c\ PubkeyAuthentication yes' /etc/ssh/sshd_config
+    sed -i '/^#*PubkeyAuthentication/c\PubkeyAuthentication yes' /etc/ssh/sshd_config
 
     # 重启服务
     systemctl restart ssh 2>/dev/null || systemctl restart sshd 2>/dev/null || service ssh restart 2>/dev/null
