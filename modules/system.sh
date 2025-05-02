@@ -116,25 +116,30 @@ enable_root_login() {
     clear
     echo -e "${GREEN}=== 启用ROOT密码登录模式 ===${NC}"
 
-    # 设置密码
+    # 设置 root 密码
     passwd root || { 
         echo -e "${RED}密码设置失败${NC}" 
-        wait_key  # 等待用户按任意键继续
+        wait_key "按任意键继续...
         return 1
     }
 
-    # 修改配置（避免重复，保持兼容）
-    for key in PermitRootLogin PasswordAuthentication PubkeyAuthentication; do
-        sed -i "/^\s*#\?\s*${key}/d" /etc/ssh/sshd_config  # 删除旧配置
-    done
+    # 修改主配置文件
+    sed -i '/^\s*#\?\s*PermitRootLogin/c\PermitRootLogin yes' /etc/ssh/sshd_config
+    sed -i '/^\s*#\?\s*PasswordAuthentication/c\PasswordAuthentication yes' /etc/ssh/sshd_config
+    sed -i '/^\s*#\?\s*PubkeyAuthentication/c\PubkeyAuthentication yes' /etc/ssh/sshd_config
 
-    {
-        echo "PermitRootLogin yes"
-        echo "PasswordAuthentication yes"
-        echo "PubkeyAuthentication yes"
-    } >> /etc/ssh/sshd_config  # 追加新配置
+    # 修复 sshd_config.d/*.conf 中的 PasswordAuthentication no
+    if [ -d /etc/ssh/sshd_config.d ]; then
+        for file in /etc/ssh/sshd_config.d/*.conf; do
+            [ -f "$file" ] || continue
+            if grep -qE "^\s*PasswordAuthentication\s+no" "$file"; then
+                echo -e "${YELLOW}检测到 $file 中禁用了密码登录，正在修改为允许...${NC}"
+                sed -i 's/^\s*PasswordAuthentication\s\+no/PasswordAuthentication yes/' "$file"
+            fi
+        done
+    fi
 
-    # 重启服务（全兼容）
+    # 重启 SSH 服务
     echo -e "${YELLOW}正在重启SSH服务...${NC}"
     if systemctl restart ssh 2>/dev/null || \
        systemctl restart sshd 2>/dev/null || \
@@ -142,20 +147,19 @@ enable_root_login() {
        service sshd restart 2>/dev/null; then
         echo -e "${GREEN}服务重启成功${NC}"
     else
-        echo -e "${RED}服务重启失败，请手动执行：${NC}"
+        echo -e "${RED}服务重启失败，请手动执行以下命令：${NC}"
         echo "Ubuntu/Debian: systemctl restart ssh"
         echo "CentOS/RHEL:   systemctl restart sshd"
         return 1
     fi
 
+    # 输出当前有效配置
     echo -e "${GREEN}✔ 已启用ROOT登录${NC}"
-    echo -e "当前配置（文件内容）："
+    echo -e "当前配置文件中内容："
     grep -E "PermitRootLogin|PasswordAuthentication|PubkeyAuthentication" /etc/ssh/sshd_config
-
-    echo -e "${GREEN}当前生效配置（sshd 实际加载）：${NC}"
-    sshd -T 2>/dev/null | grep -E "permitrootlogin|passwordauthentication|pubkeyauthentication"
-
-    wait_key  # 等待用户按任意键继续
+    echo -e "\n当前 sshd 实际加载配置："
+    sshd -T | grep -E "permitrootlogin|passwordauthentication|pubkeyauthentication"
+    wait_key "按任意键继续..."
 }
 
 # 2. 禁用ROOT密码登录（增加确认）
