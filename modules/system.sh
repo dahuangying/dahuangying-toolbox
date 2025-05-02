@@ -39,6 +39,20 @@ wait_key() {
     read -n 1 -s -r
 }
 
+# SSH服务管理
+restart_ssh_service() {
+    if systemctl list-unit-files | grep -q 'sshd.service'; then
+        systemctl restart sshd
+    elif systemctl list-unit-files | grep -q 'ssh.service'; then
+        systemctl restart ssh
+    elif [ -f /etc/init.d/ssh ]; then
+        /etc/init.d/ssh restart
+    else
+        echo -e "${RED}无法确定SSH服务名称，请手动重启！${NC}"
+        return 1
+    fi
+}
+
 # 显示主菜单
 show_menu() {
     clear
@@ -170,7 +184,6 @@ enable_root_login() {
 disable_root_login() {
     echo -e "\n${RED}=== 禁用ROOT密码登录 ===${NC}"
     echo -e "${YELLOW}警告：禁用后将无法直接使用ROOT密码登录系统！${NC}"
-    echo -e "${YELLOW}请确保已配置其他可用的SSH登录账户！${NC}"
     
     read -p "确定要禁用吗？(y/n): " confirm
     if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
@@ -179,34 +192,13 @@ disable_root_login() {
         return
     fi
 
-    # 备份原文件
-    cp /etc/ssh/sshd_config /etc/ssh/sshd_config.bak
+    sed -i 's/^#*PermitRootLogin.*/#PermitRootLogin no/g' /etc/ssh/sshd_config
     
-    # 修改配置
-    sed -i 's/^#*PermitRootLogin.*/PermitRootLogin no/' /etc/ssh/sshd_config
-    
-    # 验证修改
-    if grep -q "^PermitRootLogin no" /etc/ssh/sshd_config; then
-        echo -e "${GREEN}配置修改成功${NC}"
-        
-        # 检查配置语法
-        if sshd -t; then
-            if restart_ssh_service; then
-                echo -e "${GREEN}ROOT密码登录已禁用！${NC}"
-            else
-                echo -e "${RED}SSH服务重启失败！${NC}"
-                # 恢复备份
-                mv /etc/ssh/sshd_config.bak /etc/ssh/sshd_config
-            fi
-        else
-            echo -e "${RED}SSH配置语法错误，已恢复原配置${NC}"
-            mv /etc/ssh/sshd_config.bak /etc/ssh/sshd_config
-        fi
+    if restart_ssh_service; then
+        echo -e "${GREEN}ROOT密码登录已禁用！${NC}"
     else
-        echo -e "${RED}配置修改失败！${NC}"
-        mv /etc/ssh/sshd_config.bak /etc/ssh/sshd_config
+        echo -e "${RED}SSH服务重启失败！${NC}"
     fi
-    
     wait_key
 }
 
