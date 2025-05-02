@@ -123,10 +123,16 @@ enable_root_login() {
         return 1
     }
 
-    # 修改配置（兼容所有系统）
-    sed -i '/^\s*#\?\s*PermitRootLogin/c\PermitRootLogin yes' /etc/ssh/sshd_config
-    sed -i '/^\s*#\?\s*PasswordAuthentication/c\PasswordAuthentication yes' /etc/ssh/sshd_config
-    sed -i '/^\s*#\?\s*PubkeyAuthentication/c\PubkeyAuthentication yes' /etc/ssh/sshd_config
+    # 修改配置（避免重复，保持兼容）
+    for key in PermitRootLogin PasswordAuthentication PubkeyAuthentication; do
+        sed -i "/^\s*#\?\s*${key}/d" /etc/ssh/sshd_config  # 删除旧配置
+    done
+
+    {
+        echo "PermitRootLogin yes"
+        echo "PasswordAuthentication yes"
+        echo "PubkeyAuthentication yes"
+    } >> /etc/ssh/sshd_config  # 追加新配置
 
     # 重启服务（全兼容）
     echo -e "${YELLOW}正在重启SSH服务...${NC}"
@@ -143,8 +149,12 @@ enable_root_login() {
     fi
 
     echo -e "${GREEN}✔ 已启用ROOT登录${NC}"
-    echo -e "当前配置："
+    echo -e "当前配置（文件内容）："
     grep -E "PermitRootLogin|PasswordAuthentication|PubkeyAuthentication" /etc/ssh/sshd_config
+
+    echo -e "${GREEN}当前生效配置（sshd 实际加载）：${NC}"
+    sshd -T 2>/dev/null | grep -E "permitrootlogin|passwordauthentication|pubkeyauthentication"
+
     wait_key  # 等待用户按任意键继续
 }
 
