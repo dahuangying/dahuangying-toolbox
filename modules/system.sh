@@ -129,63 +129,101 @@ enable_root_login() {
             echo -e "${YELLOW}密码设置失败，请重试（剩余$((3-i))次）${NC}"
         fi
     done
-
-    # 3. 智能配置SSH（兼容所有系统）
-    echo -e "${BLUE}正在配置SSH...${NC}"
     
-    # 确定配置文件位置（兼容所有发行版）
-    SSHD_CONFIG=""
-    for conf in /etc/ssh/sshd_config /etc/sshd_config; do
-        [ -f "$conf" ] && SSHD_CONFIG="$conf" && break
-    done
-    [ -z "$SSHD_CONFIG" ] && { echo -e "${RED}找不到SSH配置文件！${NC}"; return 1; }
-
-    # 备份配置（带时间戳）
-    BACKUP_FILE="${SSHD_CONFIG}.bak_$(date +%s)"
-    cp "$SSHD_CONFIG" "$BACKUP_FILE" || { echo -e "${RED}配置备份失败！${NC}"; return 1; }
-
-    # 修改配置（兼容注释和不同写法）
-    sed -i '/^#*PermitRootLogin/c\PermitRootLogin yes' "$SSHD_CONFIG"
-    sed -i '/^#*PasswordAuthentication/c\PasswordAuthentication yes' "$SSHD_CONFIG"
-    sed -i '/^#*PubkeyAuthentication/c\PubkeyAuthentication yes' "$SSHD_CONFIG"
-
-    # 4. 处理云平台干扰（AWS/Aliyun等）
-    if [ -d /etc/cloud ]; then
-        echo -e "${YELLOW}>>> 禁用云平台覆盖配置${NC}"
-        mkdir -p /etc/cloud/cloud.cfg.d
-        echo -e "ssh_pwauth: 1\ndisable_root: false" > /etc/cloud/cloud.cfg.d/99-root.cfg
+# 3. 智能配置SSH（兼容所有系统）
+enable_root_login() {
+    clear
+    echo -e "${GREEN}=== 启用ROOT密码登录（全兼容版） ===${NC}"
+    
+    # 1. 检查root权限
+    if [ "$(id -u)" -ne 0 ]; then
+        echo -e "${RED}错误：此功能必须以root权限运行！${NC}"
+        return 1
     fi
+
+    # 2. 使用系统自带passwd命令设置密码（兼容所有Linux）
+    echo -e "${YELLOW}即将设置root密码，请按提示操作...${NC}"
+    if ! passwd root; then
+        echo -e "${RED}密码设置失败，请手动执行'passwd root'设置密码！${NC}"
+        return 1
+    fi
+
+    # 3. 智能定位SSH配置文件
+    local sshd_config=""
+    for conf in /etc/ssh/sshd_config /etc/sshd_config /usr/local/etc/ssh/sshd_config; do
+        if [ -f "$conf" ]; then
+            sshd_config="$conf"
+            break
+        fi
+    done
+
+    if [ -z "$sshd_config" ]; then
+        echo -e "${RED}错误：找不到SSH配置文件！${NC}"
+        return 1
+    fi
+
+    # 4. 备份配置（带时间戳）
+    local backup_file="${sshd_config}.bak_$(date +%Y%m%d%H%M%S)"
+    if ! cp "$sshd_config" "$backup_file"; then
+        echo -e "${RED}错误：配置文件备份失败！${NC}"
+        return 1
+    fi
+    echo -e "${GREEN}配置文件已备份到: ${backup_file}${NC}"
+
+    # 修改关键配置（兼容不同写法）
+    sed -i '/^#*PermitRootLogin/c\PermitRootLogin yes' "$sshd_config"
+    sed -i '/^#*PasswordAuthentication/c\PasswordAuthentication yes' "$sshd_config"
+    sed -i '/^#*PubkeyAuthentication/c\PubkeyAuthentication yes' "$sshd_config"
 
     # 5. 智能服务重启（全兼容方案）
-    echo -e "${YELLOW}正在重启SSH服务...${NC}"
-    if systemctl restart sshd 2>/dev/null || \
-       systemctl restart ssh 2>/dev/null || \
-       service sshd restart 2>/dev/null || \
-       service ssh restart 2>/dev/null; then
-        echo -e "${GREEN}✔ ROOT登录已启用${NC}"
-    else
-        echo -e "${RED}✖ 服务重启失败，尝试强制启动...${NC}"
-        pkill -9 sshd && /usr/sbin/sshd &
-        sleep 3
+    echo -e "${YELLOW}正在尝试重启SSH服务...${NC}"
+    local restarted=0
+    
+    # 尝试各种重启方式
+    if command -v systemctl >/dev/null; then
+        if systemctl restart sshd; then
+            restarted=1
+        elif systemctl restart ssh; then
+            restarted=1
+        fi
+    fi
+    
+    if [ "$restarted" -eq 0 ] && command -v service >/dev/null; then
+        if service sshd restart; then
+            restarted=1
+        elif service ssh restart; then
+            restarted=1
+        fi
+    fi
+    
+    if [ "$restarted" -eq 0 ] && [ -f "/etc/init.d/sshd" ]; then
+        if /etc/init.d/sshd restart; then
+            restarted=1
+        fi
+    fi
+    
+    if [ "$restarted" -eq 0 ] && [ -f "/etc/init.d/ssh" ]; then
+        if /etc/init.d/ssh restart; then
+            restarted=1
+        fi
     fi
 
-    # 6. 验证配置
-    echo -e "\n${GREEN}当前配置状态：${NC}"
-    if sshd -T 2>/dev/null | grep -E "permitrootlogin|passwordauthentication|PubkeyAuthentication"; then
-        echo -e "${GREEN}✔ 配置已生效${NC}"
+    # 6. 处理重启失败情况
+    if [ "$restarted" -eq 0 ]; then
+        echo -e "${RED}警告：无法自动重启SSH服务！${NC}"
+        echo -e "${YELLOW}请手动执行以下命令之一来重启SSH服务：${NC}"
+        echo "1. systemctl restart sshd"
+        echo "2. service sshd restart"
+        echo "3. /etc/init.d/sshd restart"
+        echo -e "\n然后使用命令测试连接：${GREEN}ssh root@你的服务器IP${NC}"
     else
-        echo -e "${YELLOW}⚠ 使用备用验证方式...${NC}"
-        grep -E "^PermitRootLogin|^PasswordAuthentication|^PubkeyAuthentication" "$SSHD_CONFIG"
+        echo -e "${GREEN}SSH服务已成功重启！${NC}"
+        echo -e "现在可以使用 ${GREEN}ssh root@你的服务器IP${NC} 登录"
     fi
 
-    # 7. 安全提醒
-    echo -e "\n${RED}⚠ 安全警告：${NC}"
-    echo "1. 此配置允许密码登录，建议完成后改为："
-    echo "   PermitRootLogin prohibit-password"
-    echo "2. 立即检查登录状态："
-    echo -e "${BLUE}   tail -f /var/log/auth.log${NC}"
-
-    wait_key
+    # 7. 显示验证命令
+    echo -e "\n${YELLOW}验证配置是否生效：${NC}"
+    echo "grep -E '^PermitRootLogin|^PasswordAuthentication' $sshd_config"
 }
 
 # 2. 禁用ROOT密码登录（增加确认）
