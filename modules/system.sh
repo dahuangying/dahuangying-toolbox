@@ -124,11 +124,14 @@ enable_root_login() {
     sed -i '/^\s*#\?\s*PasswordAuthentication/c\PasswordAuthentication yes' /etc/ssh/sshd_config
     sed -i '/^\s*#\?\s*PubkeyAuthentication/c\PubkeyAuthentication yes' /etc/ssh/sshd_config
 
-    # 尝试重启 SSH 服务（兼容 Ubuntu、CentOS）
-    if systemctl list-units --type=service | grep -qE "ssh\.service"; then
-        sudo systemctl restart ssh.service
-    elif systemctl list-units --type=service | grep -qE "sshd\.service"; then
-        sudo systemctl restart sshd.service
+    # 🔄 尝试重启 SSH 服务（兼容 Ubuntu、CentOS）
+    echo "🔄 正在尝试重启 SSH 服务..."
+    if systemctl restart ssh 2>/dev/null; then
+        echo "✅ 成功重启 ssh.service"
+    elif systemctl restart sshd 2>/dev/null; then
+        echo "✅ 成功重启 sshd.service"
+    elif service ssh restart 2>/dev/null; then
+        echo "✅ 成功使用 service 命令重启 ssh"
     else
         echo "❌ 无法确定 SSH 服务名，请手动重启 SSH 服务"
         return
