@@ -129,16 +129,18 @@ enable_root_login() {
     sed -i '/^\s*#\?\s*PubkeyAuthentication/c\PubkeyAuthentication yes' /etc/ssh/sshd_config
 
     # 修复 sshd_config.d/*.conf 中的 PasswordAuthentication no
+    # 在脚本开头定义（设为true时显示，false时静默）
+    VERBOSE=false
     if [ -d /etc/ssh/sshd_config.d ]; then
         for file in /etc/ssh/sshd_config.d/*.conf; do
             [ -f "$file" ] || continue
             if grep -qE "^\s*PasswordAuthentication\s+no" "$file"; then
-                echo -e "${YELLOW}检测到 $file 中禁用了密码登录，正在修改为允许...${NC}"
-                sed -i 's/^\s*PasswordAuthentication\s\+no/PasswordAuthentication yes/' "$file"
+                $VERBOSE && echo -e "${YELLOW}检测到 $file 中禁用了密码登录，正在修改为允许...${NC}"
+                sed -i 's/^\s*PasswordAuthentication\s\+no/PasswordAuthentication yes/' "$file" $($VERBOSE || echo ">/dev/null")
             fi
         done
     fi
-
+    
     # 重启 SSH 服务
     echo -e "${YELLOW}正在重启SSH服务...${NC}"
     if systemctl restart ssh 2>/dev/null || \
