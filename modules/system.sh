@@ -135,6 +135,7 @@ enable_root_login() {
     else
         echo "密码设置失败，请重试！"
     fi
+    wait_key
 }
 
 # 2. 禁用ROOT密码登录（增加确认）
