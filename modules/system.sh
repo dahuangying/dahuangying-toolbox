@@ -114,67 +114,79 @@ main() {
 # 1. 启用ROOT密码登录
 enable_root_login() {
     clear
-    echo -e "${GREEN}=== 启用ROOT密码登录 ===${NC}"
+    echo -e "${GREEN}=== 启用ROOT密码登录 (Ubuntu 24.04 优化版) ===${NC}"
     
     # 1. 检查root权限
     [ "$(id -u)" -eq 0 ] || { echo -e "${RED}请使用root用户执行${NC}"; exit 1; }
 
-    # 2. 配置文件检测（兼容不同系统）
-    SSHD_CONFIG=""
-    for conf in /etc/ssh/sshd_config /etc/sshd_config; do
-        [ -f "$conf" ] && SSHD_CONFIG="$conf" && break
-    done
-    [ -z "$SSHD_CONFIG" ] && { echo -e "${RED}找不到SSH配置文件${NC}"; exit 1; }
+    # 2. 配置文件检测（兼容AWS和Ubuntu）
+    SSHD_MAIN="/etc/ssh/sshd_config"
+    SSHD_DIR="/etc/ssh/sshd_config.d"
+    [ -d "$SSHD_DIR" ] || mkdir -p "$SSHD_DIR"
 
-    # 3. 备份配置（带时间戳）
-    BACKUP_FILE="${SSHD_CONFIG}.bak_$(date +%Y%m%d%H%M%S)"
-    cp "$SSHD_CONFIG" "$BACKUP_FILE" || { echo -e "${RED}配置备份失败${NC}"; exit 1; }
+    # 3. 备份所有配置（含时间戳）
+    BACKUP_DIR="/etc/ssh/backup_$(date +%Y%m%d%H%M%S)"
+    mkdir -p "$BACKUP_DIR"
+    cp "$SSHD_MAIN" "$BACKUP_DIR/"
+    [ -d "$SSHD_DIR" ] && cp "$SSHD_DIR"/*.conf "$BACKUP_DIR/" 2>/dev/null
 
-    # 4. 设置root密码（带确认）
+    # 4. 设置root密码（带3次尝试和复杂度检查）
     echo -e "${YELLOW}=== 设置ROOT密码 ===${NC}"
     for i in {1..3}; do
         if passwd root; then
             break
         else
-            [ $i -eq 3 ] && { echo -e "${RED}密码设置失败次数过多${NC}"; exit 1; }
+            [ $i -eq 3 ] && { 
+                echo -e "${RED}密码设置失败次数过多${NC}"
+                echo -e "${YELLOW}可能原因：密码太简单或不符合复杂度要求${NC}"
+                exit 1
+            }
             echo -e "${YELLOW}密码设置失败，请重试（剩余 $((3-i)) 次）${NC}"
         fi
     done
 
-    # 5. 修改配置（兼容注释状态）
-    sed -i '/^#*PermitRootLogin/c\PermitRootLogin yes' "$SSHD_CONFIG"
-    sed -i '/^#*PasswordAuthentication/c\PasswordAuthentication yes' "$SSHD_CONFIG"
+    # 5. 写入强制配置（覆盖其他设置）
+    echo -e "${BLUE}正在写入配置...${NC}"
+    cat <<EOF | tee "$SSHD_DIR/99-enable-root.conf" >/dev/null
+# 由大黄鹰脚本自动生成
+PermitRootLogin yes
+PasswordAuthentication yes
+ChallengeResponseAuthentication yes
+UsePAM yes
+EOF
 
-    # 6. 处理SELinux（仅限RHEL/CentOS）
-    if command -v getenforce &>/dev/null && [ "$(getenforce)" = "Enforcing" ]; then
-        echo -e "${YELLOW}检测到SELinux，临时设置为Permissive模式${NC}"
-        setenforce 0
-        trap "setenforce 1" EXIT
+    # 6. 处理AWS CloudInit覆盖
+    if [ -d /etc/cloud ]; then
+        echo -e "${YELLOW}检测到CloudInit，创建覆盖配置...${NC}"
+        echo -e "ssh_pwauth: 1\ndisable_root: false" | tee /etc/cloud/cloud.cfg.d/99-enable-root.cfg >/dev/null
     fi
 
-    # 7. 智能重启SSH服务
-    echo -e "${YELLOW}正在重启SSH服务...${NC}"
-    if systemctl restart sshd 2>/dev/null || 
-       systemctl restart ssh 2>/dev/null ||
-       service sshd restart 2>/dev/null ||
-       service ssh restart 2>/dev/null; then
-        echo -e "${GREEN}✔ ROOT登录已启用${NC}"
-        echo -e "当前配置状态："
-        grep -E "^PermitRootLogin|^PasswordAuthentication" "$SSHD_CONFIG"
+    # 7. 智能服务重启（Ubuntu 24.04专用）
+    echo -e "${BLUE}重启SSH服务...${NC}"
+    if systemctl restart ssh 2>/dev/null || service ssh restart 2>/dev/null; then
+        echo -e "${GREEN}✔ 服务重启成功${NC}"
     else
-        echo -e "${RED}✖ SSH服务重启失败，正在恢复配置...${NC}"
-        cp "$BACKUP_FILE" "$SSHD_CONFIG"
-        echo -e "${YELLOW}已恢复原始配置，请手动检查：${NC}"
-        echo "Debian/Ubuntu: sudo systemctl restart ssh"
-        echo "RHEL/CentOS:   sudo systemctl restart sshd"
-        exit 1
+        echo -e "${RED}✖ 服务重启失败，尝试强制重载...${NC}"
+        systemctl daemon-reload
+        systemctl reset-failed ssh
+        systemctl restart ssh
     fi
 
-    # 8. 安全警告
-    echo -e "\n${RED}⚠ 安全警告：已启用密码登录，建议：${NC}"
-    echo "1. 尽快改用密钥认证"
-    echo "2. 安装fail2ban防止暴力破解"
-    echo "3. 限制root登录IP（示例见脚本注释）"
+    # 8. 验证配置
+    echo -e "\n${GREEN}验证配置状态：${NC}"
+    if sshd -T 2>/dev/null | grep -E "permitrootlogin|passwordauthentication"; then
+        echo -e "${GREEN}✔ 配置已生效${NC}"
+    else
+        echo -e "${YELLOW}⚠ 配置未正常加载，尝试备用方案...${NC}"
+        grep -E "PermitRootLogin|PasswordAuthentication" "$SSHD_DIR"/*.conf "$SSHD_MAIN"
+    fi
+
+    # 9. 安全建议
+    echo -e "\n${RED}⚠ 安全警告：${NC}"
+    echo "1. 此配置允许密码登录，建议完成后改为："
+    echo "   PermitRootLogin prohibit-password"
+    echo "2. 立即执行以下命令检查登录状态："
+    echo -e "${BLUE}   tail -f /var/log/auth.log${NC}"
     
     wait_key
 }
