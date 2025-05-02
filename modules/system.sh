@@ -125,16 +125,18 @@ enable_root_login() {
     sed -i '/^\s*#\?\s*PubkeyAuthentication/c\PubkeyAuthentication yes' /etc/ssh/sshd_config
 
     #  尝试重启 SSH 服务（兼容 Ubuntu、CentOS）
-    echo  "${GREEN}  正在尝试重启 SSH 服务...${NC}"
+    echo -e "\n${YELLOW}🔄 正在重启SSH服务...${NC}"
     if systemctl restart ssh 2>/dev/null; then
-        echo "${GREEN}✔ 成功重启 ssh.service${NC}"
+        echo -e "   ${GREEN}✓ 成功重启 ssh.service (Ubuntu/Debian)${NC}"
     elif systemctl restart sshd 2>/dev/null; then
-        echo "${GREEN}✔ 成功重启 sshd.service${NC}"
+        echo -e "   ${GREEN}✓ 成功重启 sshd.service (CentOS/RHEL)${NC}"
     elif service ssh restart 2>/dev/null; then
-        echo "${GREEN}✔ 成功使用 service 命令重启 ssh${NC}"
+        echo -e "   ${GREEN}✓ 成功通过service命令重启${NC}"
     else
-        echo "${GREEN}❌ 无法确定 SSH 服务名，请手动重启 SSH 服务${NC}"
-        return
+        echo -e "   ${RED}✗ 服务重启失败，请手动执行："
+        echo -e "   Ubuntu/Debian: ${CYAN}sudo systemctl restart ssh${NC}"
+        echo -e "   CentOS/RHEL:   ${CYAN}sudo systemctl restart sshd${NC}"
+        return 1
     fi
 
     echo -e "${GREEN}✔ 已启用ROOT登录${NC}"
