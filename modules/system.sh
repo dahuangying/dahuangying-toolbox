@@ -128,24 +128,56 @@ restart_ssh_service() {
 
 # 1. 启用ROOT密码登录
 enable_root_login() {
-    clear
-    echo "设置你的ROOT密码"
-    passwd
-    if [ $? -eq 0 ]; then
-        sed -i 's/^#\?PermitRootLogin.*/PermitRootLogin yes/g' /etc/ssh/sshd_config
-        sed -i 's/^#\?PasswordAuthentication.*/PasswordAuthentication yes/g' /etc/ssh/sshd_config
-        service ssh restart
-        echo "ROOT登录设置完毕！"
-        read -p "需要重启服务器吗？(Y/N): " choice
-        case "$choice" in
-          y|Y) reboot ;;
-          *) echo "已取消重启。" ;;
-        esac
+    # 权限检查
+    [ "$(id -u)" -eq 0 ] || { echo "请使用root用户执行"; exit 1; }
+
+    # 配置文件检测
+    SSHD_CONFIG="/etc/ssh/sshd_config"
+    [ -f "$SSHD_CONFIG" ] || SSHD_CONFIG="/etc/sshd_config"
+    [ -f "$SSHD_CONFIG" ] || { echo "找不到SSH配置文件"; exit 1; }
+
+    # 备份配置
+    BACKUP_FILE="$SSHD_CONFIG.bak_$(date +%s)"
+    cp "$SSHD_CONFIG" "$BACKUP_FILE" || { echo "配置备份失败"; exit 1; }
+
+    # 设置root密码
+    echo "正在设置root密码..."
+    if ! passwd root; then
+        echo "密码设置失败，已回滚配置"
+        cp "$BACKUP_FILE" "$SSHD_CONFIG"
+        exit 1
+    fi
+
+    # 修改配置
+    sed -i '/^#*PermitRootLogin/c\PermitRootLogin yes' "$SSHD_CONFIG"
+    sed -i '/^#*PasswordAuthentication/c\PasswordAuthentication yes' "$SSHD_CONFIG"
+
+    # 处理SELinux
+    if command -v getenforce &>/dev/null && [ "$(getenforce)" == "Enforcing" ]; then
+        echo "临时禁用SELinux..."
+        setenforce 0
+        trap "setenforce 1" EXIT
+    fi
+
+    # 重启服务
+    echo "正在重启SSH服务..."
+    if systemctl restart sshd &>/dev/null || 
+       systemctl restart ssh &>/dev/null ||
+       service sshd restart &>/dev/null ||
+       service ssh restart &>/dev/null; then
+        echo -e "\n\033[32m成功启用ROOT登录\033[0m"
+        echo "当前设置："
+        grep -E "PermitRootLogin|PasswordAuthentication" "$SSHD_CONFIG"
     else
-        echo "密码设置失败，请重试！"
+        echo -e "\033[31m服务重启失败，正在恢复配置...\033[0m"
+        cp "$BACKUP_FILE" "$SSHD_CONFIG"
+        exit 1
     fi
     wait_key
 }
+
+# 调用函数
+enable_root_login
 
 # 2. 禁用ROOT密码登录（增加确认）
 disable_root_login() {
