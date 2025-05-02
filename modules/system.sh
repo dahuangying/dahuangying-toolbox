@@ -111,7 +111,6 @@ main() {
     done
 }
 
-
 # SSH服务管理
 restart_ssh_service() {
     if systemctl list-unit-files | grep -q 'sshd.service'; then
@@ -178,7 +177,6 @@ enable_root_login() {
 
 # 调用函数
 enable_root_login
-
 
 # 2. 禁用ROOT密码登录（增加确认）
 disable_root_login() {
