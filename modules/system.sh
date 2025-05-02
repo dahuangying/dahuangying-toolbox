@@ -114,80 +114,54 @@ main() {
 # 1. 启用ROOT密码登录
 enable_root_login() {
     clear
-    echo -e "${GREEN}=== 启用ROOT密码登录 (Ubuntu 24.04 优化版) ===${NC}"
+    echo -e "${GREEN}=== AWS EC2 专用ROOT登录修复 ===${NC}"
     
-    # 1. 检查root权限
-    [ "$(id -u)" -eq 0 ] || { echo -e "${RED}请使用root用户执行${NC}"; exit 1; }
+    # 1. 禁用EC2 Instance Connect干扰
+    echo -e "${YELLOW}禁用EC2 Instance Connect...${NC}"
+    sudo systemctl stop ec2-instance-connect
+    sudo systemctl disable ec2-instance-connect
+    sudo rm -f /usr/lib/systemd/system/ssh.service.d/ec2-instance-connect.conf
 
-    # 2. 配置文件检测（兼容AWS和Ubuntu）
-    SSHD_MAIN="/etc/ssh/sshd_config"
-    SSHD_DIR="/etc/ssh/sshd_config.d"
-    [ -d "$SSHD_DIR" ] || mkdir -p "$SSHD_DIR"
-
-    # 3. 备份所有配置（含时间戳）
-    BACKUP_DIR="/etc/ssh/backup_$(date +%Y%m%d%H%M%S)"
-    mkdir -p "$BACKUP_DIR"
-    cp "$SSHD_MAIN" "$BACKUP_DIR/"
-    [ -d "$SSHD_DIR" ] && cp "$SSHD_DIR"/*.conf "$BACKUP_DIR/" 2>/dev/null
-
-    # 4. 设置root密码（带3次尝试和复杂度检查）
-    echo -e "${YELLOW}=== 设置ROOT密码 ===${NC}"
-    for i in {1..3}; do
-        if passwd root; then
-            break
-        else
-            [ $i -eq 3 ] && { 
-                echo -e "${RED}密码设置失败次数过多${NC}"
-                echo -e "${YELLOW}可能原因：密码太简单或不符合复杂度要求${NC}"
-                exit 1
-            }
-            echo -e "${YELLOW}密码设置失败，请重试（剩余 $((3-i)) 次）${NC}"
-        fi
-    done
-
-    # 5. 写入强制配置（覆盖其他设置）
-    echo -e "${BLUE}正在写入配置...${NC}"
-    cat <<EOF | tee "$SSHD_DIR/99-enable-root.conf" >/dev/null
-# 由大黄鹰脚本自动生成
+    # 2. 强制写入配置（最高优先级）
+    echo -e "${BLUE}写入强制配置...${NC}"
+    sudo tee /etc/ssh/sshd_config.d/10-override.conf >/dev/null <<EOF
+# 优先级最高配置
+Port 22
 PermitRootLogin yes
 PasswordAuthentication yes
 ChallengeResponseAuthentication yes
 UsePAM yes
 EOF
 
-    # 6. 处理AWS CloudInit覆盖
-    if [ -d /etc/cloud ]; then
-        echo -e "${YELLOW}检测到CloudInit，创建覆盖配置...${NC}"
-        echo -e "ssh_pwauth: 1\ndisable_root: false" | tee /etc/cloud/cloud.cfg.d/99-enable-root.cfg >/dev/null
-    fi
+    # 3. 清理可能冲突的配置
+    sudo rm -f /etc/ssh/sshd_config.d/60-cloudimg-settings.conf
 
-    # 7. 智能服务重启（Ubuntu 24.04专用）
+    # 4. 重载系统配置
+    echo -e "${YELLOW}重置系统配置...${NC}"
+    sudo systemctl daemon-reload
+    sudo systemctl reset-failed ssh
+
+    # 5. 重启服务（带容错）
     echo -e "${BLUE}重启SSH服务...${NC}"
-    if systemctl restart ssh 2>/dev/null || service ssh restart 2>/dev/null; then
-        echo -e "${GREEN}✔ 服务重启成功${NC}"
-    else
-        echo -e "${RED}✖ 服务重启失败，尝试强制重载...${NC}"
-        systemctl daemon-reload
-        systemctl reset-failed ssh
-        systemctl restart ssh
+    if ! sudo systemctl restart ssh; then
+        echo -e "${RED}主服务重启失败，尝试备选方案...${NC}"
+        sudo /usr/sbin/sshd -t && sudo /usr/sbin/sshd -D &
     fi
 
-    # 8. 验证配置
-    echo -e "\n${GREEN}验证配置状态：${NC}"
-    if sshd -T 2>/dev/null | grep -E "permitrootlogin|passwordauthentication"; then
-        echo -e "${GREEN}✔ 配置已生效${NC}"
-    else
-        echo -e "${YELLOW}⚠ 配置未正常加载，尝试备用方案...${NC}"
-        grep -E "PermitRootLogin|PasswordAuthentication" "$SSHD_DIR"/*.conf "$SSHD_MAIN"
-    fi
+    # 6. 验证配置
+    echo -e "\n${GREEN}验证当前配置：${NC}"
+    sudo sshd -T | grep -E "permitrootlogin|passwordauthentication" || {
+        echo -e "${YELLOW}配置加载异常，直接检查文件...${NC}"
+        sudo grep -r "PermitRootLogin" /etc/ssh/
+    }
 
-    # 9. 安全建议
-    echo -e "\n${RED}⚠ 安全警告：${NC}"
-    echo "1. 此配置允许密码登录，建议完成后改为："
-    echo "   PermitRootLogin prohibit-password"
-    echo "2. 立即执行以下命令检查登录状态："
-    echo -e "${BLUE}   tail -f /var/log/auth.log${NC}"
-    
+    # 7. 安全建议
+    echo -e "\n${RED}⚠ 临时生效命令（无需重启）：${NC}"
+    echo "sudo kill -HUP $(pgrep -f 'sshd:')"
+    echo -e "\n${YELLOW}⚠ 请立即测试登录，完成后建议：${NC}"
+    echo "1. 恢复PAM限制：sudo pam-auth-update"
+    echo "2. 改回密钥认证：PermitRootLogin prohibit-password"
+
     wait_key
 }
 
