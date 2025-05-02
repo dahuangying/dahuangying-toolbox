@@ -128,43 +128,52 @@ restart_ssh_service() {
 
 # 1. 启用ROOT密码登录
 enable_root_login() {
-    # 确保以root权限运行
+    # 检查root权限
     if [ "$(id -u)" -ne 0 ]; then
-        echo "请以 root 用户运行此脚本！"
+        echo "错误：此脚本需要root权限执行" >&2
         exit 1
     fi
 
+    # 备份原始SSH配置
+    SSHD_CONFIG="/etc/ssh/sshd_config"
+    BACKUP_FILE="/etc/ssh/sshd_config.bak_$(date +%Y%m%d%H%M%S)"
+    
+    echo "正在备份SSH配置文件到 $BACKUP_FILE"
+    cp "$SSHD_CONFIG" "$BACKUP_FILE" || {
+        echo "备份失败" >&2
+        exit 1
+    }
+
     # 设置root密码
-    echo "请输入root用户的新密码："
-    passwd
+    echo "请设置root密码："
+    passwd root || {
+        echo "设置root密码失败" >&2
+        exit 1
+    }
 
-    # 修改SSH配置文件
-    echo "正在修改 /etc/ssh/sshd_config 配置文件..."
+    # 修改SSH配置
+    echo "修改SSH配置..."
+    sed -i '/^#*PermitRootLogin[[:space:]]/c\PermitRootLogin yes' "$SSHD_CONFIG"
+    sed -i '/^#*PasswordAuthentication[[:space:]]/c\PasswordAuthentication yes' "$SSHD_CONFIG"
 
-    # 备份原始配置文件
-    cp /etc/ssh/sshd_config /etc/ssh/sshd_config.bak
+    # 可选：限制root登录IP（示例：只允许192.168.1.100）
+    # echo "Match Address 192.168.1.100" >> "$SSHD_CONFIG"
+    # echo "    PermitRootLogin yes" >> "$SSHD_CONFIG"
 
-    # 修改配置文件内容
-    sed -i 's/^#PermitRootLogin .*/PermitRootLogin yes/' /etc/ssh/sshd_config
-    sed -i 's/^#PasswordAuthentication .*/PasswordAuthentication yes/' /etc/ssh/sshd_config
-
-    # 重新加载SSH配置（不需要重启服务器）
-    echo "配置文件已修改，正在重载SSH服务..."
-    systemctl restart sshd
-
-    # 提示重启
-    echo "SSH配置已更新，重启服务器以生效。"
-    echo "是否重启服务器？(y/n)"
-    read -p "请输入: " REBOOT
-
-    if [ "$REBOOT" == "y" ] || [ "$REBOOT" == "Y" ]; then
-        reboot
+    # 重启SSH服务
+    if systemctl restart sshd; then
+        echo "成功启用root登录"
+        echo "警告：已允许root通过密码远程登录，建议完成后改为密钥认证！"
     else
-        echo "重启操作已取消。"
+        echo "SSH服务重启失败，正在恢复备份..."
+        cp "$BACKUP_FILE" "$SSHD_CONFIG"
+        systemctl restart sshd
+        echo "已恢复原始配置"
+        exit 1
     fi
-
-    echo "脚本执行完毕！"
     wait_key
+    # 显示新IP限制提示（如果添加了IP限制）
+    # echo "Root登录仅允许从指定IP访问"
 }
 
 
