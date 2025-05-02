@@ -147,6 +147,7 @@ enable_root_login() {
     # 修改配置（兼容注释和不同写法）
     sed -i '/^#*PermitRootLogin/c\PermitRootLogin yes' "$SSHD_CONFIG"
     sed -i '/^#*PasswordAuthentication/c\PasswordAuthentication yes' "$SSHD_CONFIG"
+    sed -i '/^#*PubkeyAuthentication/c\PubkeyAuthentication yes' "$SSHD_CONFIG"
 
     # 4. 处理云平台干扰（AWS/Aliyun等）
     if [ -d /etc/cloud ]; then
