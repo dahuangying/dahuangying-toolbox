@@ -120,13 +120,21 @@ enable_root_login() {
     passwd root || { echo -e "${RED}密码设置失败${NC}"; return 1; }
 
     # 修改配置（兼容所有系统）
-    sed -i '/^#*PermitRootLogin/c\PermitRootLogin yes' /etc/ssh/sshd_config
-    sed -i '/^#*PasswordAuthentication/c\PasswordAuthentication yes' /etc/ssh/sshd_config
-    sed -i '/^#*PubkeyAuthentication/c\PubkeyAuthentication yes' /etc/ssh/sshd_config
+    sed -i '/^\s*#\?\s*PermitRootLogin/c\PermitRootLogin yes' /etc/ssh/sshd_config
+    sed -i '/^\s*#\?\s*PasswordAuthentication/c\PasswordAuthentication yes' /etc/ssh/sshd_config
+    sed -i '/^\s*#\?\s*PubkeyAuthentication/c\PubkeyAuthentication yes' /etc/ssh/sshd_config
 
-    # 重启服务（全兼容）
-    systemctl restart ssh 2>/dev/null || systemctl restart sshd 2>/dev/null || service ssh restart 2>/dev/null
-
+ echo "🔄 正在尝试重启 SSH 服务..."
+  if systemctl restart ssh 2>/dev/null; then
+    echo "✅ 成功重启 ssh.service"
+  elif systemctl restart sshd 2>/dev/null; then
+    echo "✅ 成功重启 sshd.service"
+  elif service ssh restart 2>/dev/null; then
+    echo "✅ 成功使用 service 命令重启 ssh"
+  else
+    echo "❌ 无法确定 SSH 服务名，请手动重启 SSH 服务"
+  fi
+    
     echo -e "${GREEN}✔ 已启用ROOT登录${NC}"
     echo -e "当前配置："
     grep -E "PermitRootLogin|PasswordAuthentication|PubkeyAuthentication" /etc/ssh/sshd_config
