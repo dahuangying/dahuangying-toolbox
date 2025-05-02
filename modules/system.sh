@@ -113,23 +113,28 @@ main() {
 
 # 1. 启用ROOT密码登录模式
 enable_root_login() {
-    clear
-    echo -e "${GREEN}=== 启用ROOT登录 ===${NC}"
-    
-    passwd root || { echo -e "${RED}密码设置失败${NC}"; return 1; }
-
-    # 处理云平台覆盖
-    [ -d /etc/cloud ] && echo -e "ssh_pwauth: 1\ndisable_root: false" > /etc/cloud/cloud.cfg.d/99-root.cfg
-
-    # 修改配置
-    sed -i '/^#*PermitRootLogin/c\PermitRootLogin yes' /etc/ssh/sshd_config
-    sed -i '/^#*PasswordAuthentication/c\PasswordAuthentication yes' /etc/ssh/sshd_config
-
-    # 重启服务
-    systemctl restart ssh 2>/dev/null || systemctl restart sshd 2>/dev/null || service ssh restart 2>/dev/null
-
-    echo -e "${GREEN}✔ 已启用ROOT登录${NC}"
-    wait_key
+    echo "开始设置ROOT密码"
+    passwd
+    if [ $? -eq 0 ]; then
+        # 修改 SSH 配置，启用 root 登录和密码认证
+        sed -i 's/^#\?PermitRootLogin.*/PermitRootLogin yes/g' /etc/ssh/sshd_config
+        sed -i 's/^#\?PasswordAuthentication.*/PasswordAuthentication yes/g' /etc/ssh/sshd_config
+        # 重启 SSH 服务
+        systemctl restart sshd
+        if [ $? -eq 0 ]; then
+            echo "ROOT登录设置完毕！"
+        else
+            echo "SSH 服务重启失败，请检查系统配置！"
+            return 1
+        fi
+        read -p "需要重启服务器吗？(Y/N): " choice
+        case "$choice" in
+          y|Y) reboot ;;
+          *) echo "已取消重启。" ;;
+        esac
+    else
+        echo "密码设置失败，请重试！"
+    fi
 }
 
 # 2. 禁用ROOT密码登录（增加确认）
