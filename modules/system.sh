@@ -117,11 +117,11 @@ enable_root_login() {
     echo -e "${GREEN}=== 启用ROOT密码登录模式 ===${NC}"
 
     # 设置 root 密码
-    passwd root || { 
+    if ! passwd root; then
         echo -e "${RED}密码设置失败${NC}" 
-        wait_key "按任意键继续...
+        wait_key
         return 1
-    }
+    fi
 
     # 修改主配置文件
     sed -i '/^\s*#\?\s*PermitRootLogin/c\PermitRootLogin yes' /etc/ssh/sshd_config
@@ -158,8 +158,10 @@ enable_root_login() {
     echo -e "当前配置文件中内容："
     grep -E "PermitRootLogin|PasswordAuthentication|PubkeyAuthentication" /etc/ssh/sshd_config
     echo -e "\n当前 sshd 实际加载配置："
-    sshd -T | grep -E "permitrootlogin|passwordauthentication|pubkeyauthentication"
-    wait_key "按任意键继续..."
+    sshd -T 2>/dev/null | grep -E "permitrootlogin|passwordauthentication|pubkeyauthentication" || \
+        echo -e "${YELLOW}警告：无法获取运行时配置，请确保sshd -T命令可用${NC}"
+    
+    wait_key
 }
 
 # 2. 禁用ROOT密码登录（增加确认）
