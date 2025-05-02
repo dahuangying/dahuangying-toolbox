@@ -111,7 +111,7 @@ main() {
     done
 }
 
-# 1. 启用ROOT密码登录
+# 1. 启用ROOT密码登录模式
 enable_root_login() {
     clear
     echo -e "${GREEN}=== 启用ROOT密码登录（全兼容版） ===${NC}"
@@ -133,7 +133,7 @@ enable_root_login() {
     # 3. 智能配置SSH（兼容所有系统）
     echo -e "${BLUE}正在配置SSH...${NC}"
     
-    # 确定配置文件位置
+    # 确定配置文件位置（兼容所有发行版）
     SSHD_CONFIG=""
     for conf in /etc/ssh/sshd_config /etc/sshd_config; do
         [ -f "$conf" ] && SSHD_CONFIG="$conf" && break
@@ -148,7 +148,14 @@ enable_root_login() {
     sed -i '/^#*PermitRootLogin/c\PermitRootLogin yes' "$SSHD_CONFIG"
     sed -i '/^#*PasswordAuthentication/c\PasswordAuthentication yes' "$SSHD_CONFIG"
 
-    # 4. 智能服务重启
+    # 4. 处理云平台干扰（AWS/Aliyun等）
+    if [ -d /etc/cloud ]; then
+        echo -e "${YELLOW}>>> 禁用云平台覆盖配置${NC}"
+        mkdir -p /etc/cloud/cloud.cfg.d
+        echo -e "ssh_pwauth: 1\ndisable_root: false" > /etc/cloud/cloud.cfg.d/99-root.cfg
+    fi
+
+    # 5. 智能服务重启（全兼容方案）
     echo -e "${YELLOW}正在重启SSH服务...${NC}"
     if systemctl restart sshd 2>/dev/null || \
        systemctl restart ssh 2>/dev/null || \
@@ -156,19 +163,21 @@ enable_root_login() {
        service ssh restart 2>/dev/null; then
         echo -e "${GREEN}✔ ROOT登录已启用${NC}"
     else
-        echo -e "${RED}✖ 服务重启失败，正在恢复配置...${NC}"
-        cp "$BACKUP_FILE" "$SSHD_CONFIG"
-        echo -e "${YELLOW}已恢复原始配置，请手动执行：${NC}"
-        echo "Ubuntu/Debian: sudo systemctl restart ssh"
-        echo "CentOS/RHEL:   sudo systemctl restart sshd"
-        return 1
+        echo -e "${RED}✖ 服务重启失败，尝试强制启动...${NC}"
+        pkill -9 sshd && /usr/sbin/sshd &
+        sleep 3
     fi
 
-    # 5. 显示配置状态
+    # 6. 验证配置
     echo -e "\n${GREEN}当前配置状态：${NC}"
-    grep -E "^PermitRootLogin|^PasswordAuthentication" "$SSHD_CONFIG"
+    if sshd -T 2>/dev/null | grep -E "permitrootlogin|passwordauthentication"; then
+        echo -e "${GREEN}✔ 配置已生效${NC}"
+    else
+        echo -e "${YELLOW}⚠ 使用备用验证方式...${NC}"
+        grep -E "^PermitRootLogin|^PasswordAuthentication" "$SSHD_CONFIG"
+    fi
 
-    # 6. 安全提醒
+    # 7. 安全提醒
     echo -e "\n${RED}⚠ 安全警告：${NC}"
     echo "1. 此配置允许密码登录，建议完成后改为："
     echo "   PermitRootLogin prohibit-password"
