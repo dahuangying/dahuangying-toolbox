@@ -121,7 +121,7 @@ enable_root_login() {
         echo -e "${RED}密码设置失败${NC}" 
         read -n 1 -s -r -p "按任意键继续..."  # 等待用户按任意键继续
         return 1
-
+     }
     # 修改配置（兼容所有系统）
     sed -i '/^\s*#\?\s*PermitRootLogin/c\PermitRootLogin yes' /etc/ssh/sshd_config
     sed -i '/^\s*#\?\s*PasswordAuthentication/c\PasswordAuthentication yes' /etc/ssh/sshd_config
