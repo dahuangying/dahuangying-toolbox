@@ -117,25 +117,6 @@ enable_root_login() {
     echo -e "${GREEN}=== 启用ROOT密码登录（全兼容版） ===${NC}"
     
     # 1. 检查root权限
-    [ "$(id -u)" -eq 0 ] || { echo -e "${RED}错误：此功能需要root权限！${NC}"; return 1; }
-
-    # 2. 设置root密码（带3次尝试）
-    echo -e "${YELLOW}请设置root密码：${NC}"
-    for i in {1..3}; do
-        if passwd root; then
-            break
-        else
-            [ $i -eq 3 ] && { echo -e "${RED}密码设置失败次数过多！${NC}"; return 1; }
-            echo -e "${YELLOW}密码设置失败，请重试（剩余$((3-i))次）${NC}"
-        fi
-    done
-    
-# 3. 智能配置SSH（兼容所有系统）
-enable_root_login() {
-    clear
-    echo -e "${GREEN}=== 启用ROOT密码登录（全兼容版） ===${NC}"
-    
-    # 1. 检查root权限
     if [ "$(id -u)" -ne 0 ]; then
         echo -e "${RED}错误：此功能必须以root权限运行！${NC}"
         return 1
