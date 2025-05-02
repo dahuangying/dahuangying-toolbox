@@ -128,80 +128,22 @@ restart_ssh_service() {
 
 # 1. 启用ROOT密码登录
 enable_root_login() {
-    # 检查root权限
-    if [ "$(id -u)" -ne 0 ]; then
-        echo -e "\033[31m错误：此脚本需要root权限执行\033[0m" >&2
-        exit 1
+    clear
+    echo "设置你的ROOT密码"
+    passwd
+    if [ $? -eq 0 ]; then
+        sed -i 's/^#\?PermitRootLogin.*/PermitRootLogin yes/g' /etc/ssh/sshd_config
+        sed -i 's/^#\?PasswordAuthentication.*/PasswordAuthentication yes/g' /etc/ssh/sshd_config
+        service ssh restart
+        echo "ROOT登录设置完毕！"
+        read -p "需要重启服务器吗？(Y/N): " choice
+        case "$choice" in
+          y|Y) reboot ;;
+          *) echo "已取消重启。" ;;
+        esac
+    else
+        echo "密码设置失败，请重试！"
     fi
-
-    # 定义变量
-    SSHD_CONFIG="/etc/ssh/sshd_config"
-    BACKUP_FILE="/etc/ssh/sshd_config.bak_$(date +%Y%m%d%H%M%S)"
-
-    # 1. 检查OpenSSH是否安装
-    if ! command -v sshd &>/dev/null && [ ! -f "$SSHD_CONFIG" ]; then
-        echo -e "\033[33m未检测到OpenSSH服务，正在尝试安装...\033[0m"
-        
-        if command -v apt-get &>/dev/null; then
-            apt-get update && apt-get install -y openssh-server
-        elif command -v yum &>/dev/null; then
-            yum install -y openssh-server
-        elif command -v dnf &>/dev/null; then
-            dnf install -y openssh-server
-        elif command -v pacman &>/dev/null; then
-            pacman -Sy --noconfirm openssh
-        else
-            echo -e "\033[31m无法识别包管理器，请手动安装openssh-server\033[0m" >&2
-            exit 1
-        fi
-    fi
-
-    # 2. 设置root密码
-    echo -e "\033[36m请设置root密码：\033[0m"
-    passwd root || {
-        echo -e "\033[31m设置root密码失败\033[0m" >&2
-        exit 1
-    }
-
-    # 3. 备份并修改配置
-    echo "正在备份SSH配置到 $BACKUP_FILE"
-    cp "$SSHD_CONFIG" "$BACKUP_FILE" || {
-        echo -e "\033[31m备份失败\033[0m" >&2
-        exit 1
-    }
-
-    sed -i '/^#*PermitRootLogin[[:space:]]/c\PermitRootLogin yes' "$SSHD_CONFIG"
-    sed -i '/^#*PasswordAuthentication[[:space:]]/c\PasswordAuthentication yes' "$SSHD_CONFIG"
-
-    # 4. 智能重启SSH服务
-    restart_ssh() {
-        # 尝试所有已知的服务名称和重启方式
-        for service_name in ssh sshd; do
-            if systemctl restart "$service_name" 2>/dev/null || 
-               service "$service_name" restart 2>/dev/null; then
-                echo -e "\033[32mSSH服务重启成功 (使用服务名: $service_name)\033[0m"
-                return 0
-            fi
-        done
-        return 1
-    }
-
-    if ! restart_ssh; then
-        echo -e "\033[31m无法重启SSH服务，正在恢复备份...\033[0m" >&2
-        cp "$BACKUP_FILE" "$SSHD_CONFIG"
-        echo -e "\033[33m已恢复原始配置，请手动尝试以下命令：\033[0m"
-        echo "Debian/Ubuntu: sudo systemctl restart ssh"
-        echo "RHEL/CentOS:   sudo systemctl restart sshd"
-        exit 1
-    fi
-
-    # 5. 安全建议
-    echo -e "\n\033[35m√ 已启用root登录，但请注意以下安全建议：\033[0m"
-    echo "1. 建议改用密钥认证："
-    echo "   - 设置 PermitRootLogin prohibit-password"
-    echo "   - 设置 PasswordAuthentication no"
-    echo "2. 建议安装fail2ban防止暴力破解"
-    echo "3. 或者限制root登录IP（示例配置已注释在脚本中）"
     wait_key
 }
 
