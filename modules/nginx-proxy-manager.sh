@@ -21,6 +21,15 @@ check_nginx_installed() {
     fi
 }
 
+# 检查 Docker 是否安装
+check_docker_installed() {
+    if command -v docker &> /dev/null; then
+        return 0  # Docker 已安装
+    else
+        return 1  # Docker 未安装
+    fi
+}
+
 # Nginx菜单
 show_menu() {
     echo -e "${GREEN}大黄鹰-Linux服务器运维工具箱菜单-Nginx${NC}"
@@ -37,10 +46,9 @@ show_menu() {
     echo "1. 安装"
     echo "2. 更新"
     echo "3. 卸载"
-    echo "5. 添加域名访问"
-    echo "6. 删除域名访问"
-    echo "7. 允许IP+端口访问"
-    echo "8. 阻止IP+端口访问"
+    echo "4. 安装 Docker 版"
+    echo "5. 更新 Docker 版"
+    echo "6. 卸载 Docker 版"
     echo "0. 退出"
     echo "========================"
     read -p "请输入选项: " option
@@ -48,10 +56,9 @@ show_menu() {
         1) install_nginx_proxy_manager ;;
         2) update_nginx_proxy_manager ;;
         3) uninstall_nginx_proxy_manager ;;
-        5) add_domain_access ;;
-        6) remove_domain_access ;;
-        7) allow_ip_port_access ;;
-        8) block_ip_port_access ;;
+        4) install_nginx_proxy_manager_docker ;;
+        5) update_nginx_proxy_manager_docker ;;
+        6) uninstall_nginx_proxy_manager_docker ;;
         0) exit 0 ;;
         *) echo "无效选项，请重新选择！" ; sleep 2 ; show_menu ;;
     esac
@@ -60,27 +67,157 @@ show_menu() {
 # 安装 Nginx Proxy Manager
 install_nginx_proxy_manager() {
     echo "正在安装 Nginx Proxy Manager..."
+    
+    # 更新系统
+    sudo apt update && sudo apt upgrade -y
+
+    # 安装依赖
+    sudo apt install -y curl ufw sudo nginx git nodejs build-essential
 
     # 设置防火墙
     read -p "请输入应用对外服务端口，回车默认使用81端口: " port
     port=${port:-81}
-    ufw allow $port
-    ufw reload
+    sudo ufw allow $port
+    sudo ufw reload
+
+    # 启动 Nginx 服务并设置自启动
+    sudo systemctl start nginx
+    sudo systemctl enable nginx
+
+    # 获取 Nginx Proxy Manager 源代码
+    sudo mkdir -p /opt/nginx-proxy-manager
+    cd /opt/nginx-proxy-manager
+    sudo git clone https://github.com/jc21/nginx-proxy-manager.git
+    cd nginx-proxy-manager
+
+    # 安装 Node.js 依赖
+    sudo npm install --production
+
+    # 配置 Nginx 反向代理
+    sudo cp /opt/nginx-proxy-manager/config/production.json.sample /opt/nginx-proxy-manager/config/production.json
+    sudo cat > /etc/nginx/sites-available/nginx-proxy-manager <<EOL
+server {
+    listen 80;
+    server_name _;
+
+    location / {
+        proxy_pass http://localhost:81/;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+    }
+}
+EOL
+
+    # 启用 Nginx 配置并重启服务
+    sudo ln -s /etc/nginx/sites-available/nginx-proxy-manager /etc/nginx/sites-enabled/
+    sudo systemctl restart nginx
+
+    # 启动 Nginx Proxy Manager
+    sudo npm run start
+
+    # 输出安装完成的提示
+    echo -e "${GREEN}安装完成，请访问地址：http://【你的服务器IP】:${port}${NC}"
+    echo -e "${GREEN}初始用户名: admin@example.com${NC}"
+    echo -e "${GREEN}初始密码: changeme${NC}"
+    pause
+    show_menu
+}
+
+# 更新 Nginx Proxy Manager
+update_nginx_proxy_manager() {
+    echo "正在更新 Nginx Proxy Manager..."
+    cd /opt/nginx-proxy-manager
+    sudo git pull origin master
+    sudo npm install --production
+    sudo systemctl restart nginx
+    echo "更新完成！"
+    pause
+    show_menu
+}
+
+# 卸载 Nginx Proxy Manager
+uninstall_nginx_proxy_manager() {
+    confirm_action
+    if [ $? -eq 0 ]; then
+        remove_service
+        remove_files
+        remove_nginx_config
+        remove_firewall_rules
+        echo -e "${GREEN}Nginx Proxy Manager 已成功卸载。${NC}"
+    else
+        echo -e "${GREEN}卸载操作已取消。${NC}"
+    fi
+}
+
+# 用户确认
+confirm_action() {
+    echo -e "${RED}你确定要卸载 Nginx Proxy Manager 吗？（y/n）${NC}"
+    read confirmation
+    if [[ $confirmation != "y" && $confirmation != "Y" ]]; then
+        echo -e "${GREEN}操作已取消。${NC}"
+        return 1
+    fi
+    return 0
+}
+
+# 停止并删除服务
+remove_service() {
+    echo -e "${GREEN}正在停止 Nginx Proxy Manager 服务...${NC}"
+    sudo pkill -f "npm run start"
+}
+
+# 删除文件和依赖
+remove_files() {
+    echo -e "${GREEN}正在删除 Nginx Proxy Manager 文件和依赖...${NC}"
+    sudo rm -rf /opt/nginx-proxy-manager
+    sudo apt remove --purge -y nodejs build-essential git
+    echo -e "${GREEN}文件和依赖已删除。${NC}"
+}
+
+# 删除 Nginx 配置
+remove_nginx_config() {
+    echo -e "${GREEN}正在删除 Nginx 配置...${NC}"
+    sudo rm -f /etc/nginx/sites-available/nginx-proxy-manager
+    sudo rm -f /etc/nginx/sites-enabled/nginx-proxy-manager
+    sudo systemctl restart nginx
+}
+
+# 清理防火墙规则
+remove_firewall_rules() {
+    echo -e "${GREEN}正在移除防火墙规则...${NC}"
+    sudo ufw status | grep -E '80|443|81' && sudo ufw delete allow 80 && sudo ufw delete allow 443 && sudo ufw delete allow 81
+    sudo ufw reload
+    echo -e "${GREEN}防火墙规则已移除。${NC}"
+}
+
+# 安装 Nginx Proxy Manager Docker版
+install_nginx_proxy_manager_docker() {
+    echo "正在安装 Nginx Proxy Manager Docker版..."
+
+    # 设置防火墙
+    read -p "请输入应用对外服务端口，回车默认使用81端口: " port
+    port=${port:-81}
+    sudo ufw allow $port
+    sudo ufw reload
 
     # 安装 Docker 和 Docker Compose
-    apt update && apt upgrade -y
-    apt install -y curl ufw sudo
-    curl -fsSL https://get.docker.com | bash
-    systemctl start docker
-    systemctl enable docker
+    if ! check_docker_installed; then
+        echo "正在安装 Docker 和 Docker Compose..."
+        sudo apt update && sudo apt upgrade -y
+        sudo apt install -y curl ufw sudo
+        curl -fsSL https://get.docker.com | sudo bash
+        sudo systemctl start docker
+        sudo systemctl enable docker
 
-    curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-    chmod +x /usr/local/bin/docker-compose
+        curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+        sudo chmod +x /usr/local/bin/docker-compose
+    fi
 
     # 创建目录并配置 Docker Compose
-    mkdir -p /opt/nginx-proxy-manager/data
-    mkdir -p /opt/nginx-proxy-manager/letsencrypt
-    cat > /opt/nginx-proxy-manager/docker-compose.yml <<EOL
+    sudo mkdir -p /opt/nginx-proxy-manager/data
+    sudo mkdir -p /opt/nginx-proxy-manager/letsencrypt
+    sudo cat > /opt/nginx-proxy-manager/docker-compose.yml <<EOL
 version: '3'
 
 services:
@@ -98,139 +235,41 @@ EOL
 
     # 启动服务
     cd /opt/nginx-proxy-manager
-    docker-compose up -d
+    sudo docker-compose up -d
 
     # 输出安装完成的提示
     echo -e "${GREEN}安装完成，请访问地址：http://【你的服务器IP】:${port}${NC}"
     echo -e "${GREEN}初始用户名: admin@example.com${NC}"
     echo -e "${GREEN}初始密码: changeme${NC}"
-    sleep 2
+    pause
     show_menu
 }
 
-# 更新 Nginx Proxy Manager
-update_nginx_proxy_manager() {
-    echo "正在更新 Nginx Proxy Manager..."
+# 更新 Nginx Proxy Manager Docker版
+update_nginx_proxy_manager_docker() {
+    echo "正在更新 Nginx Proxy Manager Docker版..."
     cd /opt/nginx-proxy-manager
-    docker-compose pull
-    docker-compose up -d
+    sudo docker-compose pull
+    sudo docker-compose up -d
     echo "更新完成！"
-    sleep 2
+    pause
     show_menu
 }
 
-# 卸载 Nginx Proxy Manager
-# 用户确认
-confirm_action() {
-    echo -e "${RED}你确定要卸载 Nginx Proxy Manager 吗？（y/n）${NC}"
-    read confirmation
-    if [[ $confirmation != "y" && $confirmation != "Y" ]]; then
-        echo -e "${GREEN}操作已取消。${NC}"
-        return 1
-    fi
-    return 0
-}
-
-# 停止并删除容器
-remove_container() {
-    container_id=$(docker ps -a -q --filter "name=nginx-proxy-manager")
-    if [ -n "$container_id" ]; then
-        echo -e "${GREEN}正在停止并删除容器...${NC}"
-        docker stop $container_id
-        docker rm $container_id
-    else
-        echo -e "${GREEN}未找到 Nginx Proxy Manager 容器，无需删除。${NC}"
-    fi
-}
-
-# 删除镜像
-remove_image() {
-    image_id=$(docker images -q "jc21/nginx-proxy-manager")
-    if [ -n "$image_id" ]; then
-        echo -e "${GREEN}正在删除镜像...${NC}"
-        docker rmi -f $image_id
-    else
-        echo -e "${GREEN}未找到 Nginx Proxy Manager 镜像，无需删除。${NC}"
-    fi
-}
-
-# 删除 Docker Compose 配置和数据
-remove_files() {
-    echo -e "${GREEN}正在删除 Docker Compose 配置和数据文件...${NC}"
-    rm -rf /opt/nginx-proxy-manager
-    echo -e "${GREEN}配置和数据文件已删除。${NC}"
-}
-
-# 清理防火墙规则
-remove_firewall_rules() {
-    echo -e "${GREEN}正在移除防火墙规则...${NC}"
-    ufw status | grep -E '80|443|81' && ufw delete allow 80 && ufw delete allow 443 && ufw delete allow 81
-    ufw reload
-    echo -e "${GREEN}防火墙规则已移除。${NC}"
-}
-
-# 卸载 Nginx Proxy Manager
-uninstall_nginx_proxy_manager() {
+# 卸载 Nginx Proxy Manager Docker版
+uninstall_nginx_proxy_manager_docker() {
     confirm_action
     if [ $? -eq 0 ]; then
-        remove_container
-        remove_image
-        remove_files
-        remove_firewall_rules
-        echo -e "${GREEN}Nginx Proxy Manager 已成功卸载。${NC}"
+        echo -e "${GREEN}正在停止并删除容器...${NC}"
+        cd /opt/nginx-proxy-manager
+        sudo docker-compose down
+        sudo rm -rf /opt/nginx-proxy-manager
+        sudo ufw delete allow 81
+        echo -e "${GREEN}Nginx Proxy Manager Docker版 已成功卸载。${NC}"
     else
         echo -e "${GREEN}卸载操作已取消。${NC}"
     fi
 }
 
-# 添加域名访问
-add_domain_access() {
-    read -p "请输入要添加的域名: " domain
-    echo "正在为 $domain 添加域名访问..."
-    echo "已为 $domain 添加域名访问。"
-    sleep 2
-    show_menu
-}
-
-# 删除域名访问
-remove_domain_access() {
-    read -p "请输入要删除的域名: " domain
-    echo "正在删除 $domain 的域名访问..."
-    echo "$domain 的域名访问已删除。"
-    sleep 2
-    show_menu
-}
-
-# 允许IP+端口访问
-allow_ip_port_access() {
-    read -p "请输入允许访问的 IP 地址: " ip
-    read -p "请输入允许访问的端口号: " port
-    echo "正在允许 $ip 访问端口 $port..."
-    ufw allow from $ip to any port $port
-    ufw reload
-    echo "$ip 现在可以访问端口 $port"
-    sleep 2
-    show_menu
-}
-
-# 阻止IP+端口访问
-block_ip_port_access() {
-    read -p "请输入要阻止的 IP 地址: " ip
-    read -p "请输入要阻止的端口号: " port
-    echo "正在阻止 $ip 访问端口 $port..."
-    ufw deny from $ip to any port $port
-    ufw reload
-    echo "$ip 已被阻止访问端口 $port"
-    sleep 2
-    show_menu
-}
-
-# 欢迎信息
-show_intro() {
-    echo -e "${GREEN}欢迎使用 Nginx Proxy Manager 反代脚本${NC}"
-}
-
-# 主程序入口
-while true; do
-    show_menu
-done
+# 运行主菜单
+show_menu
