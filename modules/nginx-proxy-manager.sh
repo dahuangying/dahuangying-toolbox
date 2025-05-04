@@ -63,6 +63,8 @@ install_nginx_proxy_manager() {
     read -p "请输入应用对外服务端口，回车默认使用81端口: " port
     port=${port:-81}
     ufw allow $port
+    ufw allow 80
+    ufw allow 443
     ufw reload
 
     # 更新系统
@@ -91,7 +93,7 @@ install_nginx_proxy_manager() {
     # 配置 Nginx Proxy Manager
     cp /opt/nginx-proxy-manager/config/production.json.sample /opt/nginx-proxy-manager/config/production.json
 
-    # 创建 Nginx 配置文件
+    # 配置 Nginx 为反向代理
     cat > /etc/nginx/sites-available/nginx-proxy-manager <<EOL
 server {
     listen 80;
@@ -106,10 +108,8 @@ server {
 }
 EOL
 
-    # 创建符号链接
+    # 启用 Nginx 配置并重启服务
     ln -s /etc/nginx/sites-available/nginx-proxy-manager /etc/nginx/sites-enabled/
-
-    # 重启 Nginx 服务
     systemctl restart nginx
 
     # 启动 Nginx Proxy Manager
@@ -190,82 +190,14 @@ remove_firewall_rules() {
     echo -e "${GREEN}防火墙规则已移除。${NC}"
 }
 
-# 安装 Nginx Proxy Manager Docker版
-install_nginx_proxy_manager_Docker() {
-    echo "正在安装 Nginx Proxy Manager..."
+# 欢迎信息
+show_intro() {
+    echo -e "${GREEN}欢迎使用 Nginx Proxy Manager 反代脚本${NC}"
+}
 
-    # 设置防火墙
-    read -p "请输入应用对外服务端口，回车默认使用81端口: " port
-    port=${port:-81}
-    ufw allow $port
-    ufw reload
-
-    # 安装 Docker 和 Docker Compose
-    apt update && apt upgrade -y
-    apt install -y curl ufw sudo
-    curl -fsSL https://get.docker.com | bash
-    systemctl start docker
-    systemctl enable docker
-
-    curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-    chmod +x /usr/local/bin/docker-compose
-
-    # 创建目录并配置 Docker Compose
-    mkdir -p /opt/nginx-proxy-manager/data
-    mkdir -p /opt/nginx-proxy-manager/letsencrypt
-    cat > /opt/nginx-proxy-manager/docker-compose.yml <<EOL
-version: '3'
-
-services:
-  app:
-    image: 'docker.io/jc21/nginx-proxy-manager:latest'
-    restart: unless-stopped
-    ports:
-      - "80:80"
-      - "$port:$port"
-      - "443:443"
-    volumes:
-      - ./data:/data
-      - ./letsencrypt:/etc/letsencrypt
-EOL
-
-    # 启动服务
-    cd /opt/nginx-proxy-manager
-    docker-compose up -d
-
-    # 输出安装完成的提示
-    echo -e "${GREEN}安装完成，请访问地址：http://【你的服务器IP】:${port}${NC}"
-    echo -e "${GREEN}初始用户名: admin@example.com${NC}"
-    echo -e "${GREEN}初始密码: changeme${NC}"
-    sleep 2
+# 主程序入口
+while true; do
     show_menu
-}
+done
 
-# 更新 Nginx Proxy Manager Docker版
-update_nginx_proxy_manager_Docker() {
-    echo "正在更新 Nginx Proxy Manager..."
-    cd /opt/nginx-proxy-manager
-    docker-compose pull
-    docker-compose up -d
-    echo "更新完成！"
-    sleep 2
-    show_menu
-}
-
-# 卸载 Nginx Proxy Manager Docker版
-uninstall_nginx_proxy_manager_Docker() {
-    confirm_action
-    if [ $? -eq 0 ]; then
-        echo -e "${GREEN}正在停止并移除容器...${NC}"
-        cd /opt/nginx-proxy-manager
-        docker-compose down
-        rm -rf /opt/nginx-proxy-manager
-        echo -e "${GREEN}Nginx Proxy Manager Docker 版已成功卸载。${NC}"
-    else
-        echo -e "${GREEN}卸载操作已取消。${NC}"
-    fi
-}
-
-# 执行主菜单
-show_menu
 
