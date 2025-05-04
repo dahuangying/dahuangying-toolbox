@@ -198,7 +198,7 @@ uninstall_nginx_proxy_manager() {
 }
 
 # 安装 Nginx Proxy Manager_Docker
-install_nginx_proxy_manager() {
+install_nginx_proxy_manager_Docker() {
     echo "正在安装 Nginx Proxy Manager..."
 
     # 设置防火墙
@@ -249,7 +249,7 @@ EOL
 }
 
 # 更新 Nginx Proxy Manager_Docker
-update_nginx_proxy_manager() {
+update_nginx_proxy_manager_Docker() {
     echo "正在更新 Nginx Proxy Manager..."
     cd /opt/nginx-proxy-manager
     docker-compose pull
@@ -260,6 +260,19 @@ update_nginx_proxy_manager() {
 }
 
 # 卸载 Nginx Proxy Manager
+uninstall_nginx_proxy_manager_Docker() {
+    confirm_action
+    if [ $? -eq 0 ]; then
+        remove_container
+        remove_image
+        remove_files
+        remove_firewall_rules
+        echo -e "${GREEN}Nginx Proxy Manager 已成功卸载。${NC}"
+    else
+        echo -e "${GREEN}卸载操作已取消。${NC}"
+    fi
+}
+
 # 用户确认
 confirm_action() {
     echo -e "${RED}你确定要卸载 Nginx Proxy Manager 吗？（y/n）${NC}"
@@ -309,20 +322,6 @@ remove_firewall_rules() {
     echo -e "${GREEN}防火墙规则已移除。${NC}"
 }
 
-# 卸载 Nginx Proxy Manager
-uninstall_nginx_proxy_manager_Docker() {
-    confirm_action
-    if [ $? -eq 0 ]; then
-        remove_container
-        remove_image
-        remove_files
-        remove_firewall_rules
-        echo -e "${GREEN}Nginx Proxy Manager 已成功卸载。${NC}"
-    else
-        echo -e "${GREEN}卸载操作已取消。${NC}"
-    fi
-}
-
 # 显示菜单
 show_menu() {
     clear
@@ -335,7 +334,7 @@ show_menu() {
     fi
     echo -e "${GREEN}==================================${NC}"
     echo -e "请选择操作："
-    echo "1. 安装a"
+    echo "1. 安装b"
     echo "2. 更新"
     echo "3. 卸载"
     echo "4. 安装Docker版"
