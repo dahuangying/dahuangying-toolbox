@@ -71,6 +71,30 @@ clean_firewall() {
     fi
 }
 
+# ------------------------ 修复函数 ------------------------
+fix_npm_installation() {
+    echo -e "${YELLOW}⚡ 正在修复npm依赖安装问题...${NC}"
+    
+    # 1. 配置npm中国镜像源
+    npm config set registry https://registry.npmmirror.com
+    
+    # 2. 安装编译依赖
+    if command -v apt &>/dev/null; then
+        apt install -y python3 make g++
+    elif command -v yum &>/dev/null; then
+        yum install -y python3 make gcc-c++
+    fi
+    
+    # 3. 清理npm缓存
+    npm cache clean --force
+    
+    # 4. 修复权限
+    mkdir -p /root/.npm/_logs
+    chown -R $(whoami) /root/.npm
+    
+    echo -e "${GREEN}✔ 修复措施已应用，重试安装...${NC}"
+}
+
 # ------------------------ 原生版管理 ------------------------
 install_native() {
     detect_system
@@ -116,6 +140,20 @@ EOF
     echo -e "${GREEN}✔ 原生版安装完成！访问 http://<IP>:${DEFAULT_PORT} ${NC}"
     echo -e "默认账号: ${YELLOW}admin@example.com${NC}"
     echo -e "默认密码: ${YELLOW}changeme${NC}"
+}
+
+# 修改后的npm安装流程
+    cd $NPM_DIR
+    if ! npm install --production; then
+        fix_npm_installation
+        # 重试安装
+        if ! npm install --production; then
+            echo -e "${RED}❌ 经过修复后仍然安装失败，请检查：${NC}"
+            echo "1. 网络连接是否正常"
+            echo "2. 尝试手动运行: cd $NPM_DIR && npm install"
+            exit 1
+        fi
+    fi
 }
 
 uninstall_native() {
