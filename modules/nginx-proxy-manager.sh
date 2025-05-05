@@ -37,10 +37,6 @@ show_menu() {
     echo "1. 安装"
     echo "2. 更新"
     echo "3. 卸载"
-    echo "5. 添加域名访问"
-    echo "6. 删除域名访问"
-    echo "7. 允许IP+端口访问"
-    echo "8. 阻止IP+端口访问"
     echo "0. 退出"
     echo "========================"
     read -p "请输入选项: " option
@@ -48,10 +44,6 @@ show_menu() {
         1) install_nginx_proxy_manager ;;
         2) update_nginx_proxy_manager ;;
         3) uninstall_nginx_proxy_manager ;;
-        5) add_domain_access ;;
-        6) remove_domain_access ;;
-        7) allow_ip_port_access ;;
-        8) block_ip_port_access ;;
         0) exit 0 ;;
         *) echo "无效选项，请重新选择！" ; sleep 2 ; show_menu ;;
     esac
@@ -181,48 +173,6 @@ remove_firewall_rules() {
     ufw reload
     echo -e "${GREEN}防火墙规则已移除。${NC}"
     pause
-}
-
-# 添加域名访问
-add_domain_access() {
-    read -p "请输入要添加的域名: " domain
-    echo "正在为 $domain 添加域名访问..."
-    echo "已为 $domain 添加域名访问。"
-    sleep 2
-    show_menu
-}
-
-# 删除域名访问
-remove_domain_access() {
-    read -p "请输入要删除的域名: " domain
-    echo "正在删除 $domain 的域名访问..."
-    echo "$domain 的域名访问已删除。"
-    sleep 2
-    show_menu
-}
-
-# 允许IP+端口访问
-allow_ip_port_access() {
-    read -p "请输入允许访问的 IP 地址: " ip
-    read -p "请输入允许访问的端口号: " port
-    echo "正在允许 $ip 访问端口 $port..."
-    ufw allow from $ip to any port $port
-    ufw reload
-    echo "$ip 现在可以访问端口 $port"
-    sleep 2
-    show_menu
-}
-
-# 阻止IP+端口访问
-block_ip_port_access() {
-    read -p "请输入要阻止的 IP 地址: " ip
-    read -p "请输入要阻止的端口号: " port
-    echo "正在阻止 $ip 访问端口 $port..."
-    ufw deny from $ip to any port $port
-    ufw reload
-    echo "$ip 已被阻止访问端口 $port"
-    sleep 2
-    show_menu
 }
 
 # 欢迎信息
