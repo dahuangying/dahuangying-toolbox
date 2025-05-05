@@ -120,6 +120,19 @@ update_nginx_proxy_manager() {
 }
 
 # 卸载 Nginx Proxy Manager
+uninstall_nginx_proxy_manager() {
+    confirm_action
+    if [ $? -eq 0 ]; then
+        remove_container
+        remove_image
+        remove_files
+        remove_firewall_rules
+        echo -e "${GREEN}Nginx Proxy Manager 已成功卸载。${NC}"
+    else
+        echo -e "${GREEN}卸载操作已取消。${NC}"
+    fi
+}
+
 # 用户确认
 confirm_action() {
     echo -e "${RED}你确定要卸载 Nginx Proxy Manager 吗？（y/n）${NC}"
@@ -167,20 +180,7 @@ remove_firewall_rules() {
     ufw status | grep -E '80|443|81' && ufw delete allow 80 && ufw delete allow 443 && ufw delete allow 81
     ufw reload
     echo -e "${GREEN}防火墙规则已移除。${NC}"
-}
-
-# 卸载 Nginx Proxy Manager
-uninstall_nginx_proxy_manager() {
-    confirm_action
-    if [ $? -eq 0 ]; then
-        remove_container
-        remove_image
-        remove_files
-        remove_firewall_rules
-        echo -e "${GREEN}Nginx Proxy Manager 已成功卸载。${NC}"
-    else
-        echo -e "${GREEN}卸载操作已取消。${NC}"
-    fi
+    pause
 }
 
 # 添加域名访问
@@ -189,7 +189,7 @@ add_domain_access() {
     echo "正在为 $domain 添加域名访问..."
     echo "已为 $domain 添加域名访问。"
     sleep 2
-    pause
+    show_menu
 }
 
 # 删除域名访问
