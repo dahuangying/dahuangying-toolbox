@@ -116,7 +116,7 @@ update_nginx_proxy_manager() {
     docker-compose up -d
     echo "更新完成！"
     sleep 2
-    show_menu
+    pause
 }
 
 # 卸载 Nginx Proxy Manager
