@@ -105,7 +105,7 @@ EOL
     echo -e "${GREEN}初始用户名: admin@example.com${NC}"
     echo -e "${GREEN}初始密码: changeme${NC}"
     sleep 2
-    show_menu
+    pause
 }
 
 # 更新 Nginx Proxy Manager
@@ -189,7 +189,7 @@ add_domain_access() {
     echo "正在为 $domain 添加域名访问..."
     echo "已为 $domain 添加域名访问。"
     sleep 2
-    show_menu
+    pause
 }
 
 # 删除域名访问
