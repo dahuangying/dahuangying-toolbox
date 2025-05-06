@@ -40,7 +40,7 @@ bbr_plus_acceleration() {
 # 4. X-UI面板
 install_xui_panel() {
     echo -e "${GREEN}安装X-UI面板...${NC}"
-    bash <(curl -Ls https://raw.githubusercontent.com/vaxilu/x-ui/master/install.sh)
+    bash <(curl -Ls https://raw.githubusercontent.com/FranzKafkaYu/x-ui/master/install.sh)
     pause
 }
 
