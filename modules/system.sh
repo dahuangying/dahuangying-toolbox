@@ -460,11 +460,12 @@ file_permission_settings() {
     while true; do
         clear
         echo -e "${GREEN}=== 文件权限设置 ===${NC}"
-        echo -e "1. rwxr-xr-x (755)"
-        echo -e "2. rw-r--r-- (644)"
-        echo -e "3. rwx------ (700)"
-        echo -e "4. r-xr-xr-x (555)"
-        echo -e "5. r-------- (400)"
+	echo -e "1. drwxr-xr-x (777)"
+        echo -e "2. rwxr-xr-x (755)"
+	echo -e "3. rwx------ (700)"
+        echo -e "4. rw-r--r-- (644)"
+        echo -e "5. r-xr-xr-x (555)"
+        echo -e "6. r-------- (400)"
         echo -e "0. 返回主菜单"
         
         if ! safe_input "请选择权限模式" "choice"; then
@@ -472,11 +473,12 @@ file_permission_settings() {
         fi
 
         case $choice in
-            1) perm=755; desc="rwxr-xr-x (755)"; ;;
-            2) perm=644; desc="rw-r--r-- (644)"; ;;
-            3) perm=700; desc="rwx------ (700)"; ;;
-            4) perm=555; desc="r-xr-xr-x (555)"; ;;
-            5) perm=400; desc="r-------- (400)"; ;;
+	    1) perm=777; desc="drwxr-xr-x (777)"; ;;
+            2) perm=755; desc="rwxr-xr-x (755)"; ;;
+	    3) perm=700; desc="rwx------ (700)"; ;;
+            4) perm=644; desc="rw-r--r-- (644)"; ;;
+            5) perm=555; desc="r-xr-xr-x (555)"; ;;
+            6) perm=400; desc="r-------- (400)"; ;;
             0) return ;;
             *) echo -e "${RED}无效选择！${NC}"; sleep 1; continue ;;
         esac
