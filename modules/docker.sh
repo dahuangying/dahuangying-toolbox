@@ -164,22 +164,51 @@ install_update_docker() {
 
     echo -e "${CYAN}正在检测系统环境，准备安装/更新 Docker...${NC}"
 
-# ========== 新增：检测当前 Docker 版本并判断是否需要更新 ==========
-# 修复：内核版本比较（添加默认值防止空值错误）
-local kernel_major=$(echo $kernel_version | cut -d'.' -f1)
-local kernel_minor=$(echo $kernel_version | cut -d'.' -f2)
-local min_major=$(echo $min_kernel | cut -d'.' -f1)
-local min_minor=$(echo $min_kernel | cut -d'.' -f2)
+    # ========== 步骤1：检测系统信息 ==========
+    local DISTRO=""
+    local DISTRO_VERSION=""
+    local ARCH=$(uname -m)
+    local kernel_version=$(uname -r | cut -d'.' -f1-2 | sed 's/-//g')
+    local min_kernel="4.19"  # 官方版最低推荐内核版本
 
-# 给变量设置默认值 0
-kernel_major=${kernel_major:-0}
-kernel_minor=${kernel_minor:-0}
-min_major=${min_major:-0}
-min_minor=${min_minor:-0}
+    # 检测发行版
+    if [[ -f /etc/os-release ]]; then
+        . /etc/os-release
+        DISTRO=$ID
+        # 提取发行版主版本号
+        if [[ "$DISTRO" == "ubuntu" ]]; then
+            DISTRO_VERSION=$(lsb_release -rs 2>/dev/null | cut -d'.' -f1)
+        elif [[ "$DISTRO" == "debian" ]]; then
+            DISTRO_VERSION=$(grep -oP 'VERSION_ID="\K[^"]+' /etc/os-release | cut -d'.' -f1)
+        elif [[ "$DISTRO" == "centos" || "$DISTRO" == "rhel" ]]; then
+            DISTRO_VERSION=$(grep -oP 'VERSION_ID="\K[^"]+' /etc/os-release | cut -d'.' -f1)
+        else
+            echo -e "${RED}不支持的操作系统：$DISTRO${NC}"
+            pause
+            show_menu
+            return 1
+        fi
+    else
+        echo -e "${RED}无法检测系统发行版${NC}"
+        pause
+        show_menu
+        return 1
+    fi
 
-# 内核版本过低 → 用系统版
-if [ "$kernel_major" -lt "$min_major" ] || { [ "$kernel_major" -eq "$min_major" ] && [ "$kernel_minor" -lt "$min_minor" ]; }; then
-    use_official=0
+    # 适配架构
+    case $ARCH in
+        x86_64) ARCH="amd64" ;;
+        aarch64) ARCH="arm64" ;;
+        armv7l) ARCH="armhf" ;;
+        *) echo -e "${YELLOW}警告：不识别的架构 $ARCH，使用默认 amd64${NC}"; ARCH="amd64" ;;
+    esac
+
+    # ========== 新增：检测当前 Docker 版本并判断是否需要更新 ==========
+    local current_docker_version=""
+    local current_compose_version=""
+    local need_update=false
+    local latest_docker_version=""
+    local latest_compose_version=""
     
     # 获取最新版本（通过 GitHub API）
     get_latest_versions() {
@@ -234,6 +263,18 @@ if [ "$kernel_major" -lt "$min_major" ] || { [ "$kernel_major" -eq "$min_major" 
         echo -e "${YELLOW}未检测到 Docker，将执行全新安装${NC}"
         need_update=true
     fi
+
+    # 修复：内核版本比较（添加默认值防止空值错误）
+    local kernel_major=$(echo $kernel_version | cut -d'.' -f1)
+    local kernel_minor=$(echo $kernel_version | cut -d'.' -f2)
+    local min_major=$(echo $min_kernel | cut -d'.' -f1)
+    local min_minor=$(echo $min_kernel | cut -d'.' -f2)
+
+    # 给变量设置默认值 0
+    kernel_major=${kernel_major:-0}
+    kernel_minor=${kernel_minor:-0}
+    min_major=${min_major:-0}
+    min_minor=${min_minor:-0}
 
     # ========== 步骤2：添加 Docker GPG 密钥（通用函数，全自动覆盖） ==========
     add_docker_gpg_key() {
