@@ -289,12 +289,19 @@ add_docker_gpg_key() {
         return 0
     }
 
-    # ========== 步骤3：智能选择安装版本 ==========
+# ========== 步骤3：智能选择安装版本 ==========
     install_docker_smart() {
         # 判断是否满足官方版安装条件
         local use_official=1
+        
+        # 修复：内核版本比较（使用 awk 替代 sort -V，因为 sort -V 在某些系统不可用）
+        local kernel_major=$(echo $kernel_version | cut -d'.' -f1)
+        local kernel_minor=$(echo $kernel_version | cut -d'.' -f2)
+        local min_major=$(echo $min_kernel | cut -d'.' -f1)
+        local min_minor=$(echo $min_kernel | cut -d'.' -f2)
+        
         # 内核版本过低 → 用系统版
-        if [[ $(echo -e "$kernel_version\n$min_kernel" | sort -V | head -1) != "$min_kernel" ]]; then
+        if [ "$kernel_major" -lt "$min_major" ] || { [ "$kernel_major" -eq "$min_major" ] && [ "$kernel_minor" -lt "$min_minor" ]; }; then
             use_official=0
         # Ubuntu < 20.04 / CentOS < 8 / Debian < 10 → 用系统版
         elif [[ "$DISTRO" == "ubuntu" && "$DISTRO_VERSION" -lt 20 ]]; then
@@ -358,16 +365,25 @@ add_docker_gpg_key() {
             echo -e "${YELLOW}已将用户 $SUDO_USER 添加到 docker 组，重新登录后生效${NC}"
         fi
 
-        # 验证安装
+        # 修复：验证安装（更智能的 Compose 版本检测）
         echo -e "${YELLOW}▶ 验证安装结果...${NC}"
         if docker --version &>/dev/null; then
             echo -e "${GREEN}✅ Docker 安装/更新完成！${NC}"
             echo -e "${GREEN}Docker 版本：$(docker --version | awk '{print $3}' | sed 's/,//')${NC}"
-            # 兼容 Compose 版本显示
-            if command -v docker-compose &>/dev/null; then
-                echo -e "${GREEN}Docker Compose 版本：$(docker-compose --version | awk '{print $3}' | sed 's/,//')${NC}"
-            elif docker compose version &>/dev/null; then
-                echo -e "${GREEN}Docker Compose 版本：$(docker compose version --short)${NC}"
+            
+            # 修复：先检测 Docker Compose 插件（新版）
+            if docker compose version &>/dev/null; then
+                echo -e "${GREEN}Docker Compose 版本：$(docker compose version --short 2>/dev/null || docker compose version | awk '{print $4}')${NC}"
+            # 其次检测独立 docker-compose（旧版）
+            elif command -v docker-compose &>/dev/null; then
+                if docker-compose --version &>/dev/null; then
+                    echo -e "${GREEN}Docker Compose 版本：$(docker-compose --version | awk '{print $3}' | sed 's/,//')${NC}"
+                else
+                    echo -e "${RED}Docker Compose 文件存在但无法执行，可能已损坏${NC}"
+                    echo -e "${YELLOW}建议重新运行安装或手动修复${NC}"
+                fi
+            else
+                echo -e "${YELLOW}Docker Compose 未安装${NC}"
             fi
         else
             echo -e "${RED}❌ Docker 安装失败${NC}"
