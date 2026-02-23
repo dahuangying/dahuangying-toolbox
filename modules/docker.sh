@@ -28,12 +28,9 @@ check_docker_permission() {
     # 如果不是 root，自动用 sudo 重新运行
     if [ "$EUID" -ne 0 ]; then
         echo -e "${YELLOW}正在使用 sudo 权限进入 Docker 管理菜单...${NC}"
-        exec sudo $0
+        exec sudo bash modules/docker.sh
         exit 0
     fi
-    
-    # 已经是 root，显示 Docker 管理菜单
-    show_docker_menu
 }
 
 # ========== 优化9：Docker 版本兼容性检查 ==========
