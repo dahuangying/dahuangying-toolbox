@@ -154,7 +154,7 @@ show_docker_status() {
     show_menu
 }
 
-# 2. 安装或更新 Docker 环境（优化：动态适配系统版本）
+# 2. 安装或更新 Docker 环境（优化：动态适配系统版本，带更新检测）
 install_update_docker() {
     # 检查是否为 root 权限
     if [[ $EUID -ne 0 ]]; then
@@ -205,44 +205,75 @@ install_update_docker() {
         *) echo -e "${YELLOW}警告：不识别的架构 $ARCH，使用默认 amd64${NC}"; ARCH="amd64" ;;
     esac
 
-# ========== 步骤2：添加 Docker GPG 密钥（通用函数，全自动覆盖） ==========
-add_docker_gpg_key() {
-    echo -e "${YELLOW}▶ 添加 Docker 官方 GPG 密钥...${NC}"
-    local gpg_key_url=""
-    local gpg_keyring_path="/etc/apt/trusted.gpg.d/docker.gpg"
-    local rpm_gpg_path="/etc/pki/rpm-gpg/RPM-GPG-KEY-docker"
-
-    if [[ "$DISTRO" == "ubuntu" || "$DISTRO" == "debian" ]]; then
-        gpg_key_url="https://download.docker.com/linux/$DISTRO/gpg"
-        # 安装必要工具
-        apt-get install -y ca-certificates curl gnupg -y 2>/dev/null || true
-        # 创建密钥存储目录
-        mkdir -p /etc/apt/trusted.gpg.d 2>/dev/null || true
+    # ========== 新增：检测当前 Docker 版本 ==========
+    local current_docker_version=""
+    local current_compose_version=""
+    local need_update=false
+    
+    if command -v docker &>/dev/null; then
+        current_docker_version=$(docker --version 2>/dev/null | awk '{print $3}' | sed 's/,//')
+        echo -e "${GREEN}当前 Docker 版本：${current_docker_version}${NC}"
         
-        # ========== 全自动覆盖逻辑（修复版） ==========
-        if [[ -f "$gpg_keyring_path" ]]; then
-            echo -e "${YELLOW}▶ 文件 ${RED}$gpg_keyring_path${YELLOW} 已存在，自动覆盖...${NC}"
-            # 先删除旧文件
-            rm -f "$gpg_keyring_path" 2>/dev/null || true
+        # 检测 Compose 版本
+        if docker compose version &>/dev/null; then
+            current_compose_version=$(docker compose version --short 2>/dev/null)
+            echo -e "${GREEN}当前 Docker Compose 版本：${current_compose_version}${NC}"
+        elif command -v docker-compose &>/dev/null; then
+            current_compose_version=$(docker-compose --version 2>/dev/null | awk '{print $3}' | sed 's/,//')
+            echo -e "${GREEN}当前 Docker Compose 版本：${current_compose_version}${NC}"
         fi
-        # 使用重定向而不是 -o 参数，避免提示
-        curl -fsSL "$gpg_key_url" | gpg --dearmor > "$gpg_keyring_path" 2>/dev/null || true
-        # ========== 全自动覆盖逻辑结束 ==========
-
-        chmod 644 "$gpg_keyring_path" 2>/dev/null || true
-    elif [[ "$DISTRO" == "centos" || "$DISTRO" == "rhel" ]]; then
-        gpg_key_url="https://download.docker.com/linux/centos/gpg"
         
-        # ========== 全自动覆盖逻辑 ==========
-        if [[ -f "$rpm_gpg_path" ]]; then
-            echo -e "${YELLOW}▶ 文件 ${RED}$rpm_gpg_path${YELLOW} 已存在，自动覆盖...${NC}"
+        # 询问是否需要更新
+        if ! confirm_action "Docker 已安装，是否检查并更新到最新版？"; then
+            echo -e "${YELLOW}已取消更新操作${NC}"
+            pause
+            show_menu
+            return 0
         fi
-        curl -fsSL "$gpg_key_url" > "$rpm_gpg_path" 2>/dev/null || true
-        rpm --import "$rpm_gpg_path" 2>/dev/null || true
-        # ========== 全自动覆盖逻辑结束 ==========
+        need_update=true
+    else
+        echo -e "${YELLOW}当前未安装 Docker，将执行全新安装${NC}"
+        need_update=true
     fi
-    echo -e "${GREEN}✅ Docker 官方 GPG 密钥添加完成${NC}"
-}
+
+    # ========== 步骤2：添加 Docker GPG 密钥（通用函数，全自动覆盖） ==========
+    add_docker_gpg_key() {
+        echo -e "${YELLOW}▶ 添加 Docker 官方 GPG 密钥...${NC}"
+        local gpg_key_url=""
+        local gpg_keyring_path="/etc/apt/trusted.gpg.d/docker.gpg"
+        local rpm_gpg_path="/etc/pki/rpm-gpg/RPM-GPG-KEY-docker"
+
+        if [[ "$DISTRO" == "ubuntu" || "$DISTRO" == "debian" ]]; then
+            gpg_key_url="https://download.docker.com/linux/$DISTRO/gpg"
+            # 安装必要工具
+            apt-get install -y ca-certificates curl gnupg -y 2>/dev/null || true
+            # 创建密钥存储目录
+            mkdir -p /etc/apt/trusted.gpg.d 2>/dev/null || true
+            
+            # ========== 全自动覆盖逻辑（修复版） ==========
+            if [[ -f "$gpg_keyring_path" ]]; then
+                echo -e "${YELLOW}▶ 文件 ${RED}$gpg_keyring_path${YELLOW} 已存在，自动覆盖...${NC}"
+                # 先删除旧文件
+                rm -f "$gpg_keyring_path" 2>/dev/null || true
+            fi
+            # 使用重定向而不是 -o 参数，避免提示
+            curl -fsSL "$gpg_key_url" | gpg --dearmor > "$gpg_keyring_path" 2>/dev/null || true
+            # ========== 全自动覆盖逻辑结束 ==========
+
+            chmod 644 "$gpg_keyring_path" 2>/dev/null || true
+        elif [[ "$DISTRO" == "centos" || "$DISTRO" == "rhel" ]]; then
+            gpg_key_url="https://download.docker.com/linux/centos/gpg"
+            
+            # ========== 全自动覆盖逻辑 ==========
+            if [[ -f "$rpm_gpg_path" ]]; then
+                echo -e "${YELLOW}▶ 文件 ${RED}$rpm_gpg_path${YELLOW} 已存在，自动覆盖...${NC}"
+            fi
+            curl -fsSL "$gpg_key_url" > "$rpm_gpg_path" 2>/dev/null || true
+            rpm --import "$rpm_gpg_path" 2>/dev/null || true
+            # ========== 全自动覆盖逻辑结束 ==========
+        fi
+        echo -e "${GREEN}✅ Docker 官方 GPG 密钥添加完成${NC}"
+    }
 
     # ========== 新增：下载 Docker Compose 的函数（多源支持） ==========
     download_docker_compose() {
@@ -289,7 +320,7 @@ add_docker_gpg_key() {
         return 0
     }
 
-# ========== 步骤3：智能选择安装版本 ==========
+    # ========== 步骤3：智能选择安装版本 ==========
     install_docker_smart() {
         # 判断是否满足官方版安装条件
         local use_official=1
@@ -368,8 +399,14 @@ add_docker_gpg_key() {
         # 修复：验证安装（更智能的 Compose 版本检测，并添加权限检测）
         echo -e "${YELLOW}▶ 验证安装结果...${NC}"
         if docker --version &>/dev/null; then
+            local new_version=$(docker --version | awk '{print $3}' | sed 's/,//')
             echo -e "${GREEN}✅ Docker 安装/更新完成！${NC}"
-            echo -e "${GREEN}Docker 版本：$(docker --version | awk '{print $3}' | sed 's/,//')${NC}"
+            echo -e "${GREEN}Docker 版本：${new_version}${NC}"
+            
+            # 如果是从旧版本更新过来的，显示版本变化
+            if [[ -n "$current_docker_version" && "$current_docker_version" != "$new_version" ]]; then
+                echo -e "${GREEN}  版本变化：${current_docker_version} → ${new_version}${NC}"
+            fi
             
             # ========== 新增：检测 docker 组权限是否生效 ==========
             # 尝试不用 sudo 运行 docker ps，检查权限
@@ -388,11 +425,19 @@ add_docker_gpg_key() {
             
             # 修复：先检测 Docker Compose 插件（新版）
             if docker compose version &>/dev/null; then
-                echo -e "${GREEN}Docker Compose 版本：$(docker compose version --short 2>/dev/null || docker compose version | awk '{print $4}')${NC}"
+                local new_compose_version=$(docker compose version --short 2>/dev/null || docker compose version | awk '{print $4}')
+                echo -e "${GREEN}Docker Compose 版本：${new_compose_version}${NC}"
+                if [[ -n "$current_compose_version" && "$current_compose_version" != "$new_compose_version" ]]; then
+                    echo -e "${GREEN}  版本变化：${current_compose_version} → ${new_compose_version}${NC}"
+                fi
             # 其次检测独立 docker-compose（旧版）
             elif command -v docker-compose &>/dev/null; then
                 if docker-compose --version &>/dev/null; then
-                    echo -e "${GREEN}Docker Compose 版本：$(docker-compose --version | awk '{print $3}' | sed 's/,//')${NC}"
+                    local new_compose_version=$(docker-compose --version | awk '{print $3}' | sed 's/,//')
+                    echo -e "${GREEN}Docker Compose 版本：${new_compose_version}${NC}"
+                    if [[ -n "$current_compose_version" && "$current_compose_version" != "$new_compose_version" ]]; then
+                        echo -e "${GREEN}  版本变化：${current_compose_version} → ${new_compose_version}${NC}"
+                    fi
                 else
                     echo -e "${RED}Docker Compose 文件存在但无法执行，可能已损坏${NC}"
                     echo -e "${YELLOW}建议重新运行安装或手动修复${NC}"
@@ -410,8 +455,8 @@ add_docker_gpg_key() {
 
     pause
     show_menu
-
 }
+
 # 3.更新Docker容器管理
 update_menu() {
     while true; do
@@ -1103,4 +1148,3 @@ pause() {
 # 启动脚本（增加权限检查）
 check_docker_permission
 show_menu
- 
