@@ -23,16 +23,17 @@ confirm_action() {
     [[ "$choice" =~ ^[Yy]$ ]] && return 0 || return 1
 }
 
-# ========== 优化3：Docker 权限检查 ==========
+# ========== Docker 权限检查（进入 Docker 菜单时自动授权） ==========
 check_docker_permission() {
-    if ! docker info &>/dev/null; then
-        echo -e "${RED}错误：当前用户无 Docker 操作权限${NC}"
-        echo -e "${YELLOW}尝试解决方案：${NC}"
-        echo "1. 使用 sudo 运行脚本"
-        echo "2. 将当前用户添加到 docker 组：sudo usermod -aG docker $USER"
-        echo "3. 重新登录或执行 newgrp docker 使组权限生效"
-        exit 1
+    # 如果不是 root，自动用 sudo 重新运行
+    if [ "$EUID" -ne 0 ]; then
+        echo -e "${YELLOW}正在使用 sudo 权限进入 Docker 管理菜单...${NC}"
+        exec sudo $0
+        exit 0
     fi
+    
+    # 已经是 root，显示 Docker 管理菜单
+    show_docker_menu
 }
 
 # ========== 优化9：Docker 版本兼容性检查 ==========
