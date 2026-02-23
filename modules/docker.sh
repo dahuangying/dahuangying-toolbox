@@ -205,25 +205,85 @@ install_update_docker() {
         *) echo -e "${YELLOW}警告：不识别的架构 $ARCH，使用默认 amd64${NC}"; ARCH="amd64" ;;
     esac
 
-    # ========== 步骤2：添加 Docker GPG 密钥（通用函数） ==========
+    # ========== 步骤2：添加 Docker GPG 密钥（通用函数，全自动覆盖） ==========
     add_docker_gpg_key() {
         echo -e "${YELLOW}▶ 添加 Docker 官方 GPG 密钥...${NC}"
         local gpg_key_url=""
+        local gpg_keyring_path="/etc/apt/trusted.gpg.d/docker.gpg"
+        local rpm_gpg_path="/etc/pki/rpm-gpg/RPM-GPG-KEY-docker"
+
         if [[ "$DISTRO" == "ubuntu" || "$DISTRO" == "debian" ]]; then
             gpg_key_url="https://download.docker.com/linux/$DISTRO/gpg"
             # 安装必要工具
             apt-get install -y ca-certificates curl gnupg -y 2>/dev/null || true
             # 创建密钥存储目录
             mkdir -p /etc/apt/trusted.gpg.d 2>/dev/null || true
-            # 下载并导入 GPG 密钥
-            curl -fsSL "$gpg_key_url" | gpg --dearmor -o /etc/apt/trusted.gpg.d/docker.gpg 2>/dev/null || true
+            
+            # ========== 全自动覆盖逻辑 ==========
+            if [[ -f "$gpg_keyring_path" ]]; then
+                echo -e "${YELLOW}▶ 文件 ${RED}$gpg_keyring_path${YELLOW} 已存在，自动覆盖...${NC}"
+            fi
+            curl -fsSL "$gpg_key_url" | gpg --dearmor -o "$gpg_keyring_path" 2>/dev/null || true
+            # ========== 全自动覆盖逻辑结束 ==========
+
             chmod 644 /etc/apt/trusted.gpg.d/docker.gpg 2>/dev/null || true
         elif [[ "$DISTRO" == "centos" || "$DISTRO" == "rhel" ]]; then
             gpg_key_url="https://download.docker.com/linux/centos/gpg"
-            curl -fsSL "$gpg_key_url" > /etc/pki/rpm-gpg/RPM-GPG-KEY-docker 2>/dev/null || true
-            rpm --import /etc/pki/rpm-gpg/RPM-GPG-KEY-docker 2>/dev/null || true
+            
+            # ========== 全自动覆盖逻辑 ==========
+            if [[ -f "$rpm_gpg_path" ]]; then
+                echo -e "${YELLOW}▶ 文件 ${RED}$rpm_gpg_path${YELLOW} 已存在，自动覆盖...${NC}"
+            fi
+            curl -fsSL "$gpg_key_url" > "$rpm_gpg_path" 2>/dev/null || true
+            rpm --import "$rpm_gpg_path" 2>/dev/null || true
+            # ========== 全自动覆盖逻辑结束 ==========
         fi
         echo -e "${GREEN}✅ Docker 官方 GPG 密钥添加完成${NC}"
+    }
+
+    # ========== 新增：下载 Docker Compose 的函数（多源支持） ==========
+    download_docker_compose() {
+        local compose_version="1.29.2"
+        local compose_dest="/usr/local/bin/docker-compose"
+        local os_type=$(uname -s)
+        local arch_type=$(uname -m)
+        
+        echo -e "${YELLOW}▶ 下载 Docker Compose v${compose_version}...${NC}"
+        
+        # 定义下载源列表（优先使用 GitHub，失败时使用阿里云镜像）
+        local sources=(
+            "https://github.com/docker/compose/releases/download/${compose_version}/docker-compose-${os_type}-${arch_type}"
+            "https://mirrors.aliyun.com/docker-toolbox/linux/compose/${compose_version}/docker-compose-${os_type}-${arch_type}"
+        )
+        
+        local download_success=false
+        local source_index=1
+        
+        for source in "${sources[@]}"; do
+            echo -e "${CYAN}  尝试源 $source_index: ${source}${NC}"
+            
+            if curl -L --connect-timeout 10 --max-time 60 -f "$source" -o "$compose_dest" 2>/dev/null; then
+                chmod +x "$compose_dest"
+                if [[ -x "$compose_dest" ]] && $compose_dest --version &>/dev/null; then
+                    echo -e "${GREEN}  ✅ 从源 $source_index 下载成功${NC}"
+                    download_success=true
+                    break
+                else
+                    echo -e "${YELLOW}  ⚠ 下载文件可能损坏，尝试下一个源${NC}"
+                    rm -f "$compose_dest" 2>/dev/null || true
+                fi
+            else
+                echo -e "${YELLOW}  ⚠ 源 $source_index 下载失败${NC}"
+            fi
+            source_index=$((source_index + 1))
+        done
+        
+        if [ "$download_success" = false ]; then
+            echo -e "${RED}  ❌ 所有源均下载失败，请手动安装 Docker Compose${NC}"
+            return 1
+        fi
+        
+        return 0
     }
 
     # ========== 步骤3：智能选择安装版本 ==========
@@ -277,11 +337,12 @@ install_update_docker() {
             if [[ "$DISTRO" == "ubuntu" || "$DISTRO" == "debian" ]]; then
                 apt-get update -y
                 apt-get install -y docker.io -y
-                # 安装兼容版 Compose
-                curl -L "https://github.com/docker/compose/releases/download/1.29.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-                chmod +x /usr/local/bin/docker-compose
+                # 使用多源函数下载 Compose
+                download_docker_compose
             elif [[ "$DISTRO" == "centos" || "$DISTRO" == "rhel" ]]; then
                 yum install -y docker -y
+                # CentOS/RHEL 也使用多源下载 Compose
+                download_docker_compose
             fi
         fi
 
