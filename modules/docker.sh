@@ -154,24 +154,165 @@ show_docker_status() {
     show_menu
 }
 
-# 2. 安装或更新 Docker 环境
+# 2. 安装或更新 Docker 环境（优化：动态适配系统版本）
 install_update_docker() {
-    echo "正在安装或更新 Docker..."
+    # 检查是否为 root 权限
+    if [[ $EUID -ne 0 ]]; then
+        echo -e "${RED}错误：安装/更新 Docker 需要 root 权限，请使用 sudo 运行脚本${NC}"
+        pause
+        show_menu
+        return 1
+    fi
 
-    # 更新系统
-    sudo apt-get update -y
+    echo -e "${CYAN}正在检测系统环境，准备安装/更新 Docker...${NC}"
 
-    # 安装 Docker
-    sudo apt-get install -y docker.io
+    # ========== 步骤1：检测系统信息 ==========
+    local DISTRO=""
+    local DISTRO_VERSION=""
+    local ARCH=$(uname -m)
+    local kernel_version=$(uname -r | cut -d'.' -f1-2 | sed 's/-//g')
+    local min_kernel="4.19"  # 官方版最低推荐内核版本
 
-    # 启动 Docker 服务
-    sudo systemctl enable --now docker
+    # 检测发行版
+    if [[ -f /etc/os-release ]]; then
+        . /etc/os-release
+        DISTRO=$ID
+        # 提取发行版主版本号
+        if [[ "$DISTRO" == "ubuntu" ]]; then
+            DISTRO_VERSION=$(lsb_release -rs 2>/dev/null | cut -d'.' -f1)
+        elif [[ "$DISTRO" == "debian" ]]; then
+            DISTRO_VERSION=$(grep -oP 'VERSION_ID="\K[^"]+' /etc/os-release | cut -d'.' -f1)
+        elif [[ "$DISTRO" == "centos" || "$DISTRO" == "rhel" ]]; then
+            DISTRO_VERSION=$(grep -oP 'VERSION_ID="\K[^"]+' /etc/os-release | cut -d'.' -f1)
+        else
+            echo -e "${RED}不支持的操作系统：$DISTRO${NC}"
+            pause
+            show_menu
+            return 1
+        fi
+    else
+        echo -e "${RED}无法检测系统发行版${NC}"
+        pause
+        show_menu
+        return 1
+    fi
 
-    # 安装 Docker Compose
-    sudo curl -L "https://github.com/docker/compose/releases/download/2.35.1/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-    sudo chmod +x /usr/local/bin/docker-compose
+    # 适配架构
+    case $ARCH in
+        x86_64) ARCH="amd64" ;;
+        aarch64) ARCH="arm64" ;;
+        armv7l) ARCH="armhf" ;;
+        *) echo -e "${YELLOW}警告：不识别的架构 $ARCH，使用默认 amd64${NC}"; ARCH="amd64" ;;
+    esac
 
-    echo -e "${GREEN}Docker 和 Docker Compose 安装/更新完成！${NC}"
+    # ========== 步骤2：添加 Docker GPG 密钥（通用函数） ==========
+    add_docker_gpg_key() {
+        echo -e "${YELLOW}▶ 添加 Docker 官方 GPG 密钥...${NC}"
+        local gpg_key_url=""
+        if [[ "$DISTRO" == "ubuntu" || "$DISTRO" == "debian" ]]; then
+            gpg_key_url="https://download.docker.com/linux/$DISTRO/gpg"
+            # 安装必要工具
+            apt-get install -y ca-certificates curl gnupg -y 2>/dev/null || true
+            # 创建密钥存储目录
+            mkdir -p /etc/apt/trusted.gpg.d 2>/dev/null || true
+            # 下载并导入 GPG 密钥
+            curl -fsSL "$gpg_key_url" | gpg --dearmor -o /etc/apt/trusted.gpg.d/docker.gpg 2>/dev/null || true
+            chmod 644 /etc/apt/trusted.gpg.d/docker.gpg 2>/dev/null || true
+        elif [[ "$DISTRO" == "centos" || "$DISTRO" == "rhel" ]]; then
+            gpg_key_url="https://download.docker.com/linux/centos/gpg"
+            curl -fsSL "$gpg_key_url" > /etc/pki/rpm-gpg/RPM-GPG-KEY-docker 2>/dev/null || true
+            rpm --import /etc/pki/rpm-gpg/RPM-GPG-KEY-docker 2>/dev/null || true
+        fi
+        echo -e "${GREEN}✅ Docker 官方 GPG 密钥添加完成${NC}"
+    }
+
+    # ========== 步骤3：智能选择安装版本 ==========
+    install_docker_smart() {
+        # 判断是否满足官方版安装条件
+        local use_official=1
+        # 内核版本过低 → 用系统版
+        if [[ $(echo -e "$kernel_version\n$min_kernel" | sort -V | head -1) != "$min_kernel" ]]; then
+            use_official=0
+        # Ubuntu < 20.04 / CentOS < 8 / Debian < 10 → 用系统版
+        elif [[ "$DISTRO" == "ubuntu" && "$DISTRO_VERSION" -lt 20 ]]; then
+            use_official=0
+        elif [[ "$DISTRO" == "centos" && "$DISTRO_VERSION" -lt 8 ]]; then
+            use_official=0
+        elif [[ "$DISTRO" == "debian" && "$DISTRO_VERSION" -lt 10 ]]; then
+            use_official=0
+        fi
+
+        # 方案1：安装官方版（docker-ce）
+        if [[ $use_official -eq 1 ]]; then
+            echo -e "${CYAN}▶ 系统环境适配，安装 Docker 官方最新版${NC}"
+            echo -e "${YELLOW}  - 内核版本：$kernel_version (≥ $min_kernel)${NC}"
+            echo -e "${YELLOW}  - 系统版本：$DISTRO $DISTRO_VERSION${NC}"
+
+            # 卸载旧版本
+            if [[ "$DISTRO" == "ubuntu" || "$DISTRO" == "debian" ]]; then
+                apt-get remove -y docker docker-engine docker.io containerd runc 2>/dev/null || true
+                apt-get update -y
+                # 添加官方源
+                add_docker_gpg_key
+                echo "deb [arch=$ARCH signed-by=/etc/apt/trusted.gpg.d/docker.gpg] https://download.docker.com/linux/$DISTRO $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
+                # 安装官方版（锁定大版本 29.x）
+                apt-get update -y
+                apt-get install -y docker-ce=29.* docker-ce-cli=29.* containerd.io docker-buildx-plugin docker-compose-plugin 2>/dev/null || \
+                apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin -y
+            elif [[ "$DISTRO" == "centos" || "$DISTRO" == "rhel" ]]; then
+                yum remove -y docker docker-client docker-client-latest docker-common docker-latest docker-latest-logrotate docker-logrotate docker-engine 2>/dev/null || true
+                # 添加官方源
+                add_docker_gpg_key
+                yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+                # 安装官方版
+                yum install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin -y
+            fi
+
+        # 方案2：安装系统自带版（docker.io）
+        else
+            echo -e "${YELLOW}▶ 系统版本/内核过低，安装系统自带版 Docker${NC}"
+            echo -e "${YELLOW}  - 内核版本：$kernel_version (< $min_kernel)${NC}"
+            echo -e "${YELLOW}  - 系统版本：$DISTRO $DISTRO_VERSION${NC}"
+            
+            if [[ "$DISTRO" == "ubuntu" || "$DISTRO" == "debian" ]]; then
+                apt-get update -y
+                apt-get install -y docker.io -y
+                # 安装兼容版 Compose
+                curl -L "https://github.com/docker/compose/releases/download/1.29.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+                chmod +x /usr/local/bin/docker-compose
+            elif [[ "$DISTRO" == "centos" || "$DISTRO" == "rhel" ]]; then
+                yum install -y docker -y
+            fi
+        fi
+
+        # 启动 Docker 服务
+        echo -e "${YELLOW}▶ 启动 Docker 服务...${NC}"
+        systemctl enable --now docker 2>/dev/null || true
+        # 添加用户到 docker 组
+        if [[ -n "$SUDO_USER" && "$SUDO_USER" != "root" ]]; then
+            usermod -aG docker $SUDO_USER 2>/dev/null || true
+            echo -e "${YELLOW}已将用户 $SUDO_USER 添加到 docker 组，重新登录后生效${NC}"
+        fi
+
+        # 验证安装
+        echo -e "${YELLOW}▶ 验证安装结果...${NC}"
+        if docker --version &>/dev/null; then
+            echo -e "${GREEN}✅ Docker 安装/更新完成！${NC}"
+            echo -e "${GREEN}Docker 版本：$(docker --version | awk '{print $3}' | sed 's/,//')${NC}"
+            # 兼容 Compose 版本显示
+            if command -v docker-compose &>/dev/null; then
+                echo -e "${GREEN}Docker Compose 版本：$(docker-compose --version | awk '{print $3}' | sed 's/,//')${NC}"
+            elif docker compose version &>/dev/null; then
+                echo -e "${GREEN}Docker Compose 版本：$(docker compose version --short)${NC}"
+            fi
+        else
+            echo -e "${RED}❌ Docker 安装失败${NC}"
+        fi
+    }
+
+    # 执行智能安装
+    install_docker_smart
+
     pause
     show_menu
 }
