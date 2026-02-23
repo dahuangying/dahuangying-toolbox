@@ -1102,3 +1102,4 @@ pause() {
 # 启动脚本（增加权限检查）
 check_docker_permission
 show_menu
+ 
