@@ -205,41 +205,44 @@ install_update_docker() {
         *) echo -e "${YELLOW}警告：不识别的架构 $ARCH，使用默认 amd64${NC}"; ARCH="amd64" ;;
     esac
 
-    # ========== 步骤2：添加 Docker GPG 密钥（通用函数，全自动覆盖） ==========
-    add_docker_gpg_key() {
-        echo -e "${YELLOW}▶ 添加 Docker 官方 GPG 密钥...${NC}"
-        local gpg_key_url=""
-        local gpg_keyring_path="/etc/apt/trusted.gpg.d/docker.gpg"
-        local rpm_gpg_path="/etc/pki/rpm-gpg/RPM-GPG-KEY-docker"
+# ========== 步骤2：添加 Docker GPG 密钥（通用函数，全自动覆盖） ==========
+add_docker_gpg_key() {
+    echo -e "${YELLOW}▶ 添加 Docker 官方 GPG 密钥...${NC}"
+    local gpg_key_url=""
+    local gpg_keyring_path="/etc/apt/trusted.gpg.d/docker.gpg"
+    local rpm_gpg_path="/etc/pki/rpm-gpg/RPM-GPG-KEY-docker"
 
-        if [[ "$DISTRO" == "ubuntu" || "$DISTRO" == "debian" ]]; then
-            gpg_key_url="https://download.docker.com/linux/$DISTRO/gpg"
-            # 安装必要工具
-            apt-get install -y ca-certificates curl gnupg -y 2>/dev/null || true
-            # 创建密钥存储目录
-            mkdir -p /etc/apt/trusted.gpg.d 2>/dev/null || true
-            
-            # ========== 全自动覆盖逻辑 ==========
-            if [[ -f "$gpg_keyring_path" ]]; then
-                echo -e "${YELLOW}▶ 文件 ${RED}$gpg_keyring_path${YELLOW} 已存在，自动覆盖...${NC}"
-            fi
-            curl -fsSL "$gpg_key_url" | gpg --dearmor -o "$gpg_keyring_path" 2>/dev/null || true
-            # ========== 全自动覆盖逻辑结束 ==========
-
-            chmod 644 /etc/apt/trusted.gpg.d/docker.gpg 2>/dev/null || true
-        elif [[ "$DISTRO" == "centos" || "$DISTRO" == "rhel" ]]; then
-            gpg_key_url="https://download.docker.com/linux/centos/gpg"
-            
-            # ========== 全自动覆盖逻辑 ==========
-            if [[ -f "$rpm_gpg_path" ]]; then
-                echo -e "${YELLOW}▶ 文件 ${RED}$rpm_gpg_path${YELLOW} 已存在，自动覆盖...${NC}"
-            fi
-            curl -fsSL "$gpg_key_url" > "$rpm_gpg_path" 2>/dev/null || true
-            rpm --import "$rpm_gpg_path" 2>/dev/null || true
-            # ========== 全自动覆盖逻辑结束 ==========
+    if [[ "$DISTRO" == "ubuntu" || "$DISTRO" == "debian" ]]; then
+        gpg_key_url="https://download.docker.com/linux/$DISTRO/gpg"
+        # 安装必要工具
+        apt-get install -y ca-certificates curl gnupg -y 2>/dev/null || true
+        # 创建密钥存储目录
+        mkdir -p /etc/apt/trusted.gpg.d 2>/dev/null || true
+        
+        # ========== 全自动覆盖逻辑（修复版） ==========
+        if [[ -f "$gpg_keyring_path" ]]; then
+            echo -e "${YELLOW}▶ 文件 ${RED}$gpg_keyring_path${YELLOW} 已存在，自动覆盖...${NC}"
+            # 先删除旧文件
+            rm -f "$gpg_keyring_path" 2>/dev/null || true
         fi
-        echo -e "${GREEN}✅ Docker 官方 GPG 密钥添加完成${NC}"
-    }
+        # 使用重定向而不是 -o 参数，避免提示
+        curl -fsSL "$gpg_key_url" | gpg --dearmor > "$gpg_keyring_path" 2>/dev/null || true
+        # ========== 全自动覆盖逻辑结束 ==========
+
+        chmod 644 "$gpg_keyring_path" 2>/dev/null || true
+    elif [[ "$DISTRO" == "centos" || "$DISTRO" == "rhel" ]]; then
+        gpg_key_url="https://download.docker.com/linux/centos/gpg"
+        
+        # ========== 全自动覆盖逻辑 ==========
+        if [[ -f "$rpm_gpg_path" ]]; then
+            echo -e "${YELLOW}▶ 文件 ${RED}$rpm_gpg_path${YELLOW} 已存在，自动覆盖...${NC}"
+        fi
+        curl -fsSL "$gpg_key_url" > "$rpm_gpg_path" 2>/dev/null || true
+        rpm --import "$rpm_gpg_path" 2>/dev/null || true
+        # ========== 全自动覆盖逻辑结束 ==========
+    fi
+    echo -e "${GREEN}✅ Docker 官方 GPG 密钥添加完成${NC}"
+}
 
     # ========== 新增：下载 Docker Compose 的函数（多源支持） ==========
     download_docker_compose() {
