@@ -205,7 +205,7 @@ install_update_docker() {
         *) echo -e "${YELLOW}警告：不识别的架构 $ARCH，使用默认 amd64${NC}"; ARCH="amd64" ;;
     esac
 
-    # ========== 新增：检测当前 Docker 版本并判断是否需要更新 ==========
+# ========== 新增：检测当前 Docker 版本并判断是否需要更新 ==========
     local current_docker_version=""
     local current_compose_version=""
     local need_update=false
@@ -216,16 +216,22 @@ install_update_docker() {
     get_latest_versions() {
         echo -e "${YELLOW}▶ 检查最新版本...${NC}"
         # 获取最新 Docker 版本（从 GitHub API）
-        latest_docker_version=$(curl -s https://api.github.com/repos/moby/moby/releases/latest 2>/dev/null | grep -oP '"tag_name": "\K(.*?)(?=")' | sed 's/^v//')
+        latest_docker_version=$(curl -s https://api.github.com/repos/moby/moby/releases/latest 2>/dev/null | grep -oP '"tag_name": "\K(.*?)(?=")')
         # 如果 API 失败，使用默认值
         if [[ -z "$latest_docker_version" ]]; then
-            latest_docker_version="29.2.1"  # 当前已知最新版
+            latest_docker_version="29.2.1"
+        else
+            # 移除可能的 'v' 或 'docker-' 前缀
+            latest_docker_version=$(echo "$latest_docker_version" | sed -E 's/^(v|docker-v)//g')
         fi
         
         # 获取最新 Compose 版本
-        latest_compose_version=$(curl -s https://api.github.com/repos/docker/compose/releases/latest 2>/dev/null | grep -oP '"tag_name": "\K(.*?)(?=")' | sed 's/^v//')
+        latest_compose_version=$(curl -s https://api.github.com/repos/docker/compose/releases/latest 2>/dev/null | grep -oP '"tag_name": "\K(.*?)(?=")')
         if [[ -z "$latest_compose_version" ]]; then
-            latest_compose_version="5.0.2"  # 当前已知最新版
+            latest_compose_version="5.0.2"
+        else
+            # 移除可能的 'v' 前缀
+            latest_compose_version=$(echo "$latest_compose_version" | sed 's/^v//g')
         fi
     }
     
