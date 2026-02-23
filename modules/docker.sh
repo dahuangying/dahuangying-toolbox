@@ -365,11 +365,26 @@ add_docker_gpg_key() {
             echo -e "${YELLOW}已将用户 $SUDO_USER 添加到 docker 组，重新登录后生效${NC}"
         fi
 
-        # 修复：验证安装（更智能的 Compose 版本检测）
+        # 修复：验证安装（更智能的 Compose 版本检测，并添加权限检测）
         echo -e "${YELLOW}▶ 验证安装结果...${NC}"
         if docker --version &>/dev/null; then
             echo -e "${GREEN}✅ Docker 安装/更新完成！${NC}"
             echo -e "${GREEN}Docker 版本：$(docker --version | awk '{print $3}' | sed 's/,//')${NC}"
+            
+            # ========== 新增：检测 docker 组权限是否生效 ==========
+            # 尝试不用 sudo 运行 docker ps，检查权限
+            if ! docker ps &>/dev/null; then
+                echo -e "${YELLOW}⚠ 检测到 docker 组权限未在当前会话生效${NC}"
+                echo -e "${YELLOW}   这是因为组权限需要在新的登录会话中才能生效${NC}"
+                echo -e "${YELLOW}   请选择以下任一方式激活权限：${NC}"
+                echo -e "  ${CYAN}1. 运行: newgrp docker${NC}  (立即在当前会话生效)"
+                echo -e "  ${CYAN}2. 退出并重新 SSH 登录${NC}   (永久生效)"
+                echo -e ""
+                echo -e "${YELLOW}   验证命令: ${CYAN}docker ps${NC}"
+            else
+                echo -e "${GREEN}✅ docker 组权限已生效，可以直接使用 docker 命令${NC}"
+            fi
+            # ========== 新增结束 ==========
             
             # 修复：先检测 Docker Compose 插件（新版）
             if docker compose version &>/dev/null; then
@@ -395,7 +410,6 @@ add_docker_gpg_key() {
 
     pause
     show_menu
-}
 
 # 3.更新Docker容器管理
 update_menu() {
