@@ -166,45 +166,6 @@ install_update_docker() {
 
     echo -e "${CYAN}正在检测系统环境，准备安装/更新 Docker...${NC}"
 
-    # ========== 步骤1：检测系统信息 ==========
-    local DISTRO=""
-    local DISTRO_VERSION=""
-    local ARCH=$(uname -m)
-    local kernel_version=$(uname -r | cut -d'.' -f1-2 | sed 's/-//g')
-    local min_kernel="4.19"  # 官方版最低推荐内核版本
-
-    # 检测发行版
-    if [[ -f /etc/os-release ]]; then
-        . /etc/os-release
-        DISTRO=$ID
-        # 提取发行版主版本号
-        if [[ "$DISTRO" == "ubuntu" ]]; then
-            DISTRO_VERSION=$(lsb_release -rs 2>/dev/null | cut -d'.' -f1)
-        elif [[ "$DISTRO" == "debian" ]]; then
-            DISTRO_VERSION=$(grep -oP 'VERSION_ID="\K[^"]+' /etc/os-release | cut -d'.' -f1)
-        elif [[ "$DISTRO" == "centos" || "$DISTRO" == "rhel" ]]; then
-            DISTRO_VERSION=$(grep -oP 'VERSION_ID="\K[^"]+' /etc/os-release | cut -d'.' -f1)
-        else
-            echo -e "${RED}不支持的操作系统：$DISTRO${NC}"
-            pause
-            show_menu
-            return 1
-        fi
-    else
-        echo -e "${RED}无法检测系统发行版${NC}"
-        pause
-        show_menu
-        return 1
-    fi
-
-    # 适配架构
-    case $ARCH in
-        x86_64) ARCH="amd64" ;;
-        aarch64) ARCH="arm64" ;;
-        armv7l) ARCH="armhf" ;;
-        *) echo -e "${YELLOW}警告：不识别的架构 $ARCH，使用默认 amd64${NC}"; ARCH="amd64" ;;
-    esac
-
 # ========== 新增：检测当前 Docker 版本并判断是否需要更新 ==========
     local current_docker_version=""
     local current_compose_version=""
@@ -214,10 +175,8 @@ install_update_docker() {
     
     # 获取最新版本（通过 GitHub API）
     get_latest_versions() {
-        echo -e "${YELLOW}▶ 检查最新版本...${NC}"
         # 获取最新 Docker 版本（从 GitHub API）
         latest_docker_version=$(curl -s https://api.github.com/repos/moby/moby/releases/latest 2>/dev/null | grep -oP '"tag_name": "\K(.*?)(?=")')
-        # 如果 API 失败，使用默认值
         if [[ -z "$latest_docker_version" ]]; then
             latest_docker_version="29.2.1"
         else
@@ -237,36 +196,26 @@ install_update_docker() {
     
     if command -v docker &>/dev/null; then
         current_docker_version=$(docker --version 2>/dev/null | awk '{print $3}' | sed 's/,//')
-        echo -e "${GREEN}当前 Docker 版本：${current_docker_version}${NC}"
-        
-        # 检测 Compose 版本
-        if docker compose version &>/dev/null; then
-            current_compose_version=$(docker compose version --short 2>/dev/null)
-            echo -e "${GREEN}当前 Docker Compose 版本：${current_compose_version}${NC}"
-        elif command -v docker-compose &>/dev/null; then
-            current_compose_version=$(docker-compose --version 2>/dev/null | awk '{print $3}' | sed 's/,//')
-            echo -e "${GREEN}当前 Docker Compose 版本：${current_compose_version}${NC}"
-        fi
+        current_compose_version=$(docker compose version --short 2>/dev/null 2>/dev/null || echo "未知")
         
         # 获取最新版本
         get_latest_versions
-        echo -e "${GREEN}最新 Docker 版本：${latest_docker_version}${NC}"
-        echo -e "${GREEN}最新 Docker Compose 版本：${latest_compose_version}${NC}"
         
         # 判断是否需要更新
         if [[ "$current_docker_version" != "$latest_docker_version" ]] || [[ "$current_compose_version" != "$latest_compose_version" ]]; then
-            echo -e "${YELLOW}⚠ 检测到有新版本可用${NC}"
-            if confirm_action "是否更新到最新版？"; then
+            echo -e "${YELLOW}当前版本: Docker ${current_docker_version} / Compose ${current_compose_version}${NC}"
+            echo -e "${GREEN}最新版本: Docker ${latest_docker_version} / Compose ${latest_compose_version}${NC}"
+            if confirm_action "检测到新版本，是否更新？"; then
                 need_update=true
             else
-                echo -e "${YELLOW}已取消更新操作${NC}"
+                echo -e "${YELLOW}已取消更新${NC}"
                 pause
                 show_menu
                 return 0
             fi
         else
-            echo -e "${GREEN}✅ 当前已是最新版本，无需更新${NC}"
-            if ! confirm_action "已是最新版本，是否重新安装？"; then
+            echo -e "${GREEN}当前 Docker ${current_docker_version} / Compose ${current_compose_version} 已是最新版${NC}"
+            if ! confirm_action "是否重新安装？"; then
                 pause
                 show_menu
                 return 0
@@ -274,7 +223,7 @@ install_update_docker() {
             need_update=true
         fi
     else
-        echo -e "${YELLOW}当前未安装 Docker，将执行全新安装${NC}"
+        echo -e "${YELLOW}未检测到 Docker，将执行全新安装${NC}"
         need_update=true
     fi
 
