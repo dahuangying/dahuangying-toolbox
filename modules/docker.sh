@@ -165,11 +165,21 @@ install_update_docker() {
     echo -e "${CYAN}正在检测系统环境，准备安装/更新 Docker...${NC}"
 
 # ========== 新增：检测当前 Docker 版本并判断是否需要更新 ==========
-    local current_docker_version=""
-    local current_compose_version=""
-    local need_update=false
-    local latest_docker_version=""
-    local latest_compose_version=""
+# 修复：内核版本比较（添加默认值防止空值错误）
+local kernel_major=$(echo $kernel_version | cut -d'.' -f1)
+local kernel_minor=$(echo $kernel_version | cut -d'.' -f2)
+local min_major=$(echo $min_kernel | cut -d'.' -f1)
+local min_minor=$(echo $min_kernel | cut -d'.' -f2)
+
+# 给变量设置默认值 0
+kernel_major=${kernel_major:-0}
+kernel_minor=${kernel_minor:-0}
+min_major=${min_major:-0}
+min_minor=${min_minor:-0}
+
+# 内核版本过低 → 用系统版
+if [ "$kernel_major" -lt "$min_major" ] || { [ "$kernel_major" -eq "$min_major" ] && [ "$kernel_minor" -lt "$min_minor" ]; }; then
+    use_official=0
     
     # 获取最新版本（通过 GitHub API）
     get_latest_versions() {
@@ -379,11 +389,6 @@ install_update_docker() {
         # 启动 Docker 服务
         echo -e "${YELLOW}▶ 启动 Docker 服务...${NC}"
         systemctl enable --now docker 2>/dev/null || true
-        # 添加用户到 docker 组
-        if [[ -n "$SUDO_USER" && "$SUDO_USER" != "root" ]]; then
-            usermod -aG docker $SUDO_USER 2>/dev/null || true
-            echo -e "${YELLOW}已将用户 $SUDO_USER 添加到 docker 组，重新登录后生效${NC}"
-        fi
 
         # 修复：验证安装（更智能的 Compose 版本检测，并添加权限检测）
         echo -e "${YELLOW}▶ 验证安装结果...${NC}"
@@ -396,21 +401,6 @@ install_update_docker() {
             if [[ -n "$current_docker_version" && "$current_docker_version" != "$new_version" ]]; then
                 echo -e "${GREEN}  版本变化：${current_docker_version} → ${new_version}${NC}"
             fi
-            
-            # ========== 新增：检测 docker 组权限是否生效 ==========
-            # 尝试不用 sudo 运行 docker ps，检查权限
-            if ! docker ps &>/dev/null; then
-                echo -e "${YELLOW}⚠ 检测到 docker 组权限未在当前会话生效${NC}"
-                echo -e "${YELLOW}   这是因为组权限需要在新的登录会话中才能生效${NC}"
-                echo -e "${YELLOW}   请选择以下任一方式激活权限：${NC}"
-                echo -e "  ${CYAN}1. 运行: newgrp docker${NC}  (立即在当前会话生效)"
-                echo -e "  ${CYAN}2. 退出并重新 SSH 登录${NC}   (永久生效)"
-                echo -e ""
-                echo -e "${YELLOW}   验证命令: ${CYAN}docker ps${NC}"
-            else
-                echo -e "${GREEN}✅ docker 组权限已生效，可以直接使用 docker 命令${NC}"
-            fi
-            # ========== 新增结束 ==========
             
             # 修复：先检测 Docker Compose 插件（新版）
             if docker compose version &>/dev/null; then
