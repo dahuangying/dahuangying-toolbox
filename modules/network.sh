@@ -93,9 +93,9 @@ install_nezajiankong_cron() {
     pause
 }
 
-# 12. Halo和WordPress博客
+# 12. dpanel可视化管理面板
 install_dpanel_panel() {
-    echo -e "${GREEN}安装 Halo 和 WordPress博客${NC}"
+    echo -e "${GREEN}安装 dpanel可视化管理面板 ${NC}"
     curl -sSL https://dpanel.cc/quick.sh -o quick.sh && sudo bash quick.sh
     pause
 }
