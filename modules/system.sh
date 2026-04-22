@@ -70,7 +70,7 @@ show_menu() {
     echo -e "7. 开放指定端口"
     echo -e "8. 关闭指定端口"
     echo -e "${BLUE}---------------------------------------${NC}"
-    echo -e "9. 文件权限设置"
+    echo -e "9.  文件权限设置"
     echo -e "10. 重置文件权限为默认"
     echo -e "${BLUE}---------------------------------------${NC}"
 	echo -e "11. 查看防火墙状态"
@@ -464,7 +464,7 @@ file_permission_settings() {
         echo -e "2. rwxr-xr-x (755)"
 	    echo -e "3. rwx------ (700)"
         echo -e "4. rw-r--r-- (644)"
-		echo -e "5. -rw------- (600)"
+		echo -e "5. rw------- (600)"
         echo -e "6. r-xr-xr-x (555)"
         echo -e "7. r-------- (400)"
         echo -e "0. 返回主菜单"
@@ -478,7 +478,7 @@ file_permission_settings() {
             2) perm=755; desc="rwxr-xr-x (755)"; ;;
 	        3) perm=700; desc="rwx------ (700)"; ;;
             4) perm=644; desc="rw-r--r-- (644)"; ;;
-			5) perm=600; desc="-rw------- (600)"; ;;
+			5) perm=600; desc="rw------- (600)"; ;;
             6) perm=555; desc="r-xr-xr-x (555)"; ;;
             7) perm=400; desc="r-------- (400)"; ;;
             0) return ;;
