@@ -31,7 +31,7 @@ show_base_menu() {
     echo "3. 启用ROOT密码登录模式"
     echo "4. 禁用ROOT密码登录"
     echo "5. 修改ROOT密码"
-    echo ""
+    echo "6. swap虚拟内存管理"
     echo "0. 返回主工具箱"
     echo -e "${GREEN}=============================================${NC}"
     read -p "请输入选项编号: " choice
@@ -41,6 +41,7 @@ show_base_menu() {
         3) enable_root_login ;;
         4) disable_root_login ;;
         5) change_root_password ;;
+        6) swap_sub_menu ;;		
         0) exit 0 ;;
         *) 
             echo -e "${RED}无效输入，请重试！${NC}"
@@ -161,6 +162,95 @@ change_root_password() {
         echo -e "${YELLOW}已取消密码修改${NC}"
     fi
     wait_key
+}
+
+# 6 swap虚拟内存管理
+# 子菜单
+swap_sub_menu() {
+    while true; do
+        clear
+        echo "======== 虚拟内存管理子菜单 ========"
+        echo "1. 查询虚拟内存状态"
+        echo "2. 创建自定义虚拟内存"
+        echo "3. 卸载并清空虚拟内存"
+        echo "0. 返回上级主菜单"
+        echo -n "请输入选项："
+        read opt
+        case $opt in
+            1) swap_query ;;
+            2) swap_create ;;
+            3) swap_remove ;;
+            0) return ;;
+            *) echo "无效选项";sleep 1 ;;
+        esac
+    done
+
+# 查看虚拟内存状态
+swap_query() {
+    clear
+    echo "=== 当前虚拟内存状态 ==="
+    swapon --show
+    echo -e "\n系统内存信息："
+    free -h
+    echo -e "\n当前 swappiness 阈值：$(sysctl -n vm.swappiness)"
+    wait_key
+}
+
+# 创建虚拟内存
+swap_create() {
+    clear
+    echo "=== 创建虚拟内存 ==="
+    echo "示例格式：1G  2G  4G  8G"
+    echo -n "请输入虚拟内存大小："
+    read swap_size
+
+    if [ -z "$swap_size" ]; then
+        echo "未输入大小，已取消"
+        wait_key
+        return
+    fi
+
+    read -p "确认创建 $swap_size 虚拟内存？(y/n)：" confirm
+    if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
+        echo "已取消"
+        wait_key
+        return
+    fi
+
+    # 你原版命令 完整补上
+    fallocate -l $swap_size /swapfile
+    chmod 600 /swapfile
+    mkswap /swapfile
+    swapon /swapfile
+    echo '/swapfile none swap sw 0 0' >> /etc/fstab
+    echo 'vm.swappiness=10' >> /etc/sysctl.conf
+    sysctl -p
+
+    echo -e "\n创建完成！"
+    swapon --show
+    wait_key
+}
+
+# 卸载虚拟内存 - 卸载清理 {
+    clear
+    echo "=== 彻底卸载虚拟内存 所有配置还原 ==="
+    read -p "确定删除所有swap文件及配置？(y/n)：" confirm
+    if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
+        echo "已取消"
+        wait_key
+        return
+    fi
+
+    swapoff /swapfile 2>/dev/null
+    rm -f /swapfile
+    sed -i '/\/swapfile/d' /etc/fstab
+    sed -i '/vm.swappiness=10/d' /etc/sysctl.conf
+    sysctl -p
+
+    echo "全部清理完成，恢复系统默认"
+    wait_key
+}
+
 }
 
 # ==============================
