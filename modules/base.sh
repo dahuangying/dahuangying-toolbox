@@ -31,7 +31,8 @@ show_base_menu() {
     echo "3. 启用ROOT密码登录模式"
     echo "4. 禁用ROOT密码登录"
     echo "5. 修改ROOT密码"
-    echo "6. swap虚拟内存管理"
+    echo "6. SWAP虚拟内存管理"
+    echo "7. Linux普通用户管理"	
     echo "0. 退出"
     echo -e "${GREEN}=============================================${NC}"
     read -p "请输入选项编号: " choice
@@ -41,7 +42,8 @@ show_base_menu() {
         3) enable_root_login ;;
         4) disable_root_login ;;
         5) change_root_password ;;
-        6) swap_sub_menu ;;		
+        6) swap_sub_menu ;;
+        7) user_sub_menu ;;		
         0) exit 0 ;;
         *) 
             echo -e "${RED}无效输入，请重试！${NC}"
@@ -253,7 +255,101 @@ swap_remove() {
     wait_key
 }
 
+# 7. Linux 通用普通用户管理
+user_sub_menu() {
+    while true; do
+        clear
+        echo "======== Linux 通用普通用户管理子菜单 ========"
+        echo "1. 查询系统所有普通用户"
+        echo "2. 创建普通用户"
+        echo "3. 删除普通用户(连带家目录)"
+        echo "0. 返回上级主菜单"
+        echo -n "请输入选项："
+        read opt
+        case $opt in
+            1) user_query ;;
+            2) user_create ;;
+            3) user_delete ;;
+            0) break ;;
+            *) echo "无效选项"; sleep 1 ;;
+        esac
+    done
+}
 
+# 查询普通用户（通用所有Linux）
+user_query() {
+    clear
+    echo "=== 当前系统普通用户列表 ==="
+    awk -F: '$3>=1000 && $3!=65534 {print $1}' /etc/passwd
+    wait_key
+}
+
+# 创建普通用户（通用所有Linux）
+user_create() {
+    clear
+    echo "=== 创建 Linux 普通用户 ==="
+    echo "提示：直接回车使用默认用户名：user01"
+    echo -n "请输入用户名："
+    read username
+
+    if [ -z "$username" ]; then
+        username="user01"
+    fi
+
+    if id -u "$username" >/dev/null 2>&1; then
+        echo -e "\n用户 $username 已存在！"
+        wait_key
+        return
+    fi
+
+    read -p "确认创建用户 $username ? (y/n)：" confirm
+    if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
+        echo "已取消"
+        wait_key
+        return
+    fi
+
+    # 通用创建命令，全系统兼容
+    useradd -m -s /bin/bash "$username"
+    echo -e "\n请设置 $username 的密码："
+    passwd "$username"
+
+    echo -e "\n用户创建完成！"
+    wait_key
+}
+
+# 删除普通用户（通用所有Linux + 删家目录）
+user_delete() {
+    clear
+    echo "=== 删除 Linux 普通用户 ==="
+    echo "当前普通用户："
+    awk -F: '$3>=1000 && $3!=65534 {print $1}' /etc/passwd
+    echo -n "请输入要删除的用户名："
+    read username
+
+    if [ -z "$username" ]; then
+        echo "未输入用户名，已取消"
+        wait_key
+        return
+    fi
+
+    if ! id -u "$username" >/dev/null 2>&1; then
+        echo -e "\n用户不存在！"
+        wait_key
+        return
+    fi
+
+    read -p "警告：删除用户及家目录，确认继续？(y/n)：" confirm
+    if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
+        echo "已取消"
+        wait_key
+        return
+    fi
+
+    userdel -r "$username"
+    echo -e "\n用户 $username 已彻底删除！"
+    wait_key
+}
 
 # ==============================
 # 程序入口
