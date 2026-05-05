@@ -311,8 +311,14 @@ user_create() {
 
     # 通用创建命令，全系统兼容
     useradd -m -s /bin/bash "$username"
-    echo -e "\n请设置 $username 的密码："
-    passwd "$username"
+
+    echo -e "\n提示：直接回车 = 不设置密码"
+    read -p "是否设置用户密码？(y/n)：" set_pwd
+    if [[ "$set_pwd" == "y" || "$set_pwd" == "Y" ]]; then
+        passwd "$username"
+    else
+        echo -e "\n已跳过密码设置"
+    fi
 
     echo -e "\n用户创建完成！"
     wait_key
