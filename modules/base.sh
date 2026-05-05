@@ -215,13 +215,15 @@ swap_create() {
         return
     fi
 
-    fallocate -l $swap_size /swapfile
-    chmod 600 /swapfile
-    mkswap /swapfile
-    swapon /swapfile
-    echo '/swapfile none swap sw 0 0' >> /etc/fstab
-    echo 'vm.swappiness=10' >> /etc/sysctl.conf
-    sysctl -p
+# ↓↓↓↓↓ 你要的 6 步命令 100% 原样执行 ↓↓↓↓↓
+fallocate -l $swap_size /swapfile
+chmod 600 /swapfile
+mkswap /swapfile
+swapon /swapfile
+echo '/swapfile none swap sw 0 0' >> /etc/fstab
+echo 'vm.swappiness=10' >> /etc/sysctl.conf
+sysctl -p
+# ↑↑↑↑↑ 你要的 6 步命令 100% 原样执行 ↑↑↑↑↑
 
     echo -e "\n创建完成！"
     swapon --show
