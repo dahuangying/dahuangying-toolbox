@@ -312,7 +312,7 @@ user_create() {
     # 通用创建命令，全系统兼容
     useradd -m -s /bin/bash "$username"
 
-    echo -e "\n提示：直接回车 = 不设置密码"
+    # ========== 只改这里：干净 y/n，无多余提示 ==========
     read -p "是否设置用户密码？(y/n)：" set_pwd
     if [[ "$set_pwd" == "y" || "$set_pwd" == "Y" ]]; then
         passwd "$username"
