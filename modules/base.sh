@@ -22,7 +22,7 @@ pause() {
 show_base_menu() {
     clear
     echo -e "${GREEN}=============================================${NC}"
-    echo -e "${GREEN}      大黄鹰工具箱 - 系统基础功能${NC}"
+    echo -e "${GREEN} 大黄鹰-Linux服务器运维工具箱菜单 - 系统基础功能${NC}"
     echo -e "${GREEN}=============================================${NC}"
     echo -e "${YELLOW}请选择需要执行的操作：${NC}"
     echo ""
