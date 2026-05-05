@@ -28,7 +28,7 @@ show_menu() {
     echo "5. 系统工具"	
     echo "6. 应用市场"
     echo "7. Docker 管理"
-    echo "8. 卸载大黄鹰脚本"
+    echo "8. 卸载程序"
     echo "0. 退出"
     read -p "请输入选项编号: " choice
     case $choice in
@@ -396,7 +396,7 @@ system_cleanup() {
 # 8.完整卸载工具箱（菜单8 使用）
 full_uninstall() {
     # 第一步：确认
-    echo -e "${GREEN}确定要卸载整个工具箱吗？（y/n）${NC}"
+    echo -e "${GREEN}确定要卸载大黄鹰运维工具箱吗？（y/n）${NC}"
     read confirmation
     if [[ "$confirmation" != "y" && "$confirmation" != "Y" ]]; then
         echo -e "${GREEN}已取消卸载${NC}"
@@ -412,7 +412,7 @@ full_uninstall() {
     rm -f main.sh
 
     # 完成提示
-    echo -e "${GREEN}✅ 大黄鹰工具箱已完全卸载完成！${NC}"
+    echo -e "${GREEN}✅ 大黄鹰运维工具箱已完全卸载完成！${NC}"
     exit 0
 }
 
