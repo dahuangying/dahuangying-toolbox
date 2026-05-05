@@ -164,8 +164,7 @@ change_root_password() {
     wait_key
 }
 
-# 6 swap虚拟内存管理
-# 子菜单
+# 6.swap虚拟内存管理
 swap_sub_menu() {
     while true; do
         clear
@@ -180,12 +179,12 @@ swap_sub_menu() {
             1) swap_query ;;
             2) swap_create ;;
             3) swap_remove ;;
-            0) return ;;
-            *) echo "无效选项";sleep 1 ;;
+            0) break ;;
+            *) echo "无效选项"; sleep 1 ;;
         esac
     done
+}
 
-# 查看虚拟内存状态
 swap_query() {
     clear
     echo "=== 当前虚拟内存状态 ==="
@@ -196,7 +195,6 @@ swap_query() {
     wait_key
 }
 
-# 创建虚拟内存
 swap_create() {
     clear
     echo "=== 创建虚拟内存 ==="
@@ -217,7 +215,6 @@ swap_create() {
         return
     fi
 
-    # 你原版命令 完整补上
     fallocate -l $swap_size /swapfile
     chmod 600 /swapfile
     mkswap /swapfile
@@ -231,7 +228,7 @@ swap_create() {
     wait_key
 }
 
-# 卸载虚拟内存 - 卸载清理 {
+swap_remove() {
     clear
     echo "=== 彻底卸载虚拟内存 所有配置还原 ==="
     read -p "确定删除所有swap文件及配置？(y/n)：" confirm
@@ -250,6 +247,8 @@ swap_create() {
     echo "全部清理完成，恢复系统默认"
     wait_key
 }
+
+
 
 # ==============================
 # 程序入口
