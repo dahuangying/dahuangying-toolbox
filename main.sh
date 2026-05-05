@@ -54,15 +54,7 @@ show_menu() {
             bash modules/docker.sh
             ;;
         8)
-            echo "确定要删除所有模块和主程序吗？（y/n）"
-            read confirmation
-            if [[ $confirmation == "y" || $confirmation == "Y" ]]; then
-                delete_all_modules
-                delete_main_script
-                exit 0
-            else
-                echo "取消删除操作。"
-            fi
+            full_uninstall
             ;;
         0)
             echo "感谢使用大黄鹰-Linux服务器运维工具箱！"
