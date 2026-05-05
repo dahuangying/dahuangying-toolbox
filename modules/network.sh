@@ -70,7 +70,7 @@ GREEN='\033[0;32m'
 NC='\033[0m' # No Color
 
 # 函数：显示菜单
-show_menu() {
+show_1Panel_menu() {
     clear
     
     # 检查是否已安装 1Panel
@@ -119,7 +119,7 @@ install_panel() {
     echo "您可以通过 1pctl user-info 查看面板信息"
     echo -e "\e[32m操作完成，按任意键继续...\e[0m"
     read -n 1 -s
-    show_menu
+    show_1Panel_menu
 }
 
 # 函数：查看面板信息
@@ -128,7 +128,7 @@ view_panel_info() {
     1pctl user-info
     echo -e "\e[32m操作完成，按任意键继续...\e[0m"
     read -n 1 -s
-    show_menu
+    show_1Panel_menu
 }
 
 # 函数：修改密码
@@ -138,7 +138,7 @@ update_password() {
     1pctl update password
     echo -e "\e[32m操作完成，按任意键继续...\e[0m"
     read -n 1 -s
-    show_menu
+    show_1Panel_menu
 }
 
 # 函数：卸载 1Panel
@@ -180,11 +180,11 @@ uninstall_panel() {
     fi
     echo -e "\e[32m操作完成，按任意键继续...\e[0m"
     read -n 1 -s
-    show_menu
+    show_1Panel_menu
 }
 
 # 启动1Panel菜单
-show_menu
+show_1Panel_menu
 
 pause
 }
@@ -333,7 +333,7 @@ EOL
     }
 
     # Nginx子菜单
-    show_menu() {
+    show_nginx_menu() {
         while true; do
             clear
             echo -e "${GREEN}大黄鹰-Linux服务器运维工具箱菜单-Nginx${NC}"
@@ -361,7 +361,7 @@ EOL
     }
 
     # 启动Nginx子菜单
-    show_menu
+    show_nginx_menu
     pause
 }
 
