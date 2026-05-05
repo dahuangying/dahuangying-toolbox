@@ -137,7 +137,12 @@ disable_root_login() {
 
     sed -i 's/^#*PermitRootLogin.*/#PermitRootLogin no/g' /etc/ssh/sshd_config
     
-    if restart_ssh_service; then
+    # 直接在这里重启SSH，不依赖任何外部函数
+    echo -e "${YELLOW}正在重启SSH服务...${NC}"
+    if systemctl restart ssh 2>/dev/null || \
+       systemctl restart sshd 2>/dev/null || \
+       service ssh restart 2>/dev/null || \
+       service sshd restart 2>/dev/null; then
         echo -e "${GREEN}ROOT密码登录已禁用！${NC}"
     else
         echo -e "${RED}SSH服务重启失败！${NC}"
