@@ -185,8 +185,6 @@ uninstall_panel() {
 
 # 启动1Panel菜单
 show_1Panel_menu
-
-pause
 }
 
 # 8. NginxProxyManager 可视化面板
@@ -362,7 +360,6 @@ EOL
 
     # 启动Nginx子菜单
     show_nginx_menu
-    pause
 }
 
 # 9. AList网盘
