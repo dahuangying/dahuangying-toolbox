@@ -33,6 +33,15 @@ safe_input() {
     return 0
 }
 
+# 安全确认函数
+confirm_action() {
+    local action=$1
+    local target=$2
+    echo -e "${RED}警告：即将执行 ${action} 操作目标：${YELLOW}${target}${NC}"
+    read -p "确认执行？(y/n): " choice
+    [[ "$choice" =~ ^[Yy]$ ]] && return 0 || return 1
+}
+
 # 等待任意键继续
 wait_key() {
     echo -e "\n${GREEN}操作完成，按任意键继续...${NC}"
@@ -57,35 +66,31 @@ restart_ssh_service() {
 show_menu() {
     clear
     echo -e "${GREEN}====================================================${NC}"
-    echo -e "${GREEN}大黄鹰-Linux服务器运维工具箱菜单 - 系统基础${NC}"
+    echo -e "${GREEN}大黄鹰-Linux服务器运维工具箱菜单 - 系统工具${NC}"
     echo -e "欢迎使用本脚本，请根据菜单选择操作："
     echo -e "${GREEN}====================================================${NC}"
-    echo -e "1. 启用ROOT密码登录模式"
-    echo -e "2. 禁用ROOT密码登录模式"
-    echo -e "3. 修改ROOT登录密码"
+    echo -e "1.  文件权限设置"
+    echo -e "2.  重置文件权限为默认"
+    echo -e "${BLUE}---------------------------------------${NC}"		
+	echo -e "3 . 重启服务器"
     echo -e "${BLUE}---------------------------------------${NC}"
     echo -e "4. 查看端口占用状态"
     echo -e "5. 开放所有端口（关键端口不开放）"
     echo -e "6. 关闭所有端口（保留 22.80.443）"
     echo -e "7. 开放指定端口"
     echo -e "8. 关闭指定端口"
+    echo -e "${BLUE}---------------------------------------${NC}"	
+	echo -e "9.  查看防火墙状态"
+    echo -e "10. 关闭防火墙"
+    echo -e "11. 开启防火墙"
+    echo -e "12. 禁止防火墙开机自启"
+    echo -e "13. 恢复防火墙开机自启"
     echo -e "${BLUE}---------------------------------------${NC}"
-    echo -e "9.  文件权限设置"
-    echo -e "10. 重置文件权限为默认"
-    echo -e "${BLUE}---------------------------------------${NC}"
-	echo -e "11. 查看防火墙状态"
-    echo -e "12. 关闭防火墙"
-    echo -e "13. 开启防火墙"
-    echo -e "14. 禁止防火墙开机自启"
-    echo -e "15. 恢复防火墙开机自启"
-    echo -e "${BLUE}---------------------------------------${NC}"
-	echo -e "16. 重启服务器"
-    echo -e "${BLUE}---------------------------------------${NC}"
-    echo -e "17. 创建目录"
-    echo -e "18. 创建文件"
-    echo -e "19. 删除目录/文件"
-    echo -e "20. 编辑文件"
-    echo -e "21. 查找文件/目录"
+    echo -e "14. 创建目录"
+    echo -e "15. 创建文件"
+    echo -e "16. 删除目录/文件"
+    echo -e "17. 编辑文件"
+    echo -e "18. 查找文件/目录"
     echo -e "${BLUE}---------------------------------------${NC}"
     echo -e "0. 退出"
     echo -n "请输入选项数字: "
@@ -98,121 +103,142 @@ main() {
         show_menu
         read option
         case $option in
-            1) enable_root_login ;;
-            2) disable_root_login ;;
-            3) change_root_password ;;
-            4) show_port_status ;;
-            5) open_all_ports ;;
-            6) close_all_ports ;;
-            7) open_specific_port ;;
-            8) close_specific_port ;;
-            9) file_permission_settings ;;
-            10) reset_file_permissions ;;
-			11) show_firewall_status ;;
-            12) stop_firewall ;;
-            13) start_firewall ;;
-            14) disable_firewall_autostart ;;
-            15) enable_firewall_autostart ;;
-			16) reboot_server ;; 
-            17) create_directory ;;
-            18) create_file ;;
-            19) delete_target ;;
-            20) edit_file ;;
-            21) search_files ;;
+             1) file_permission_settings ;;
+             2) reset_file_permissions ;;
+			 3) reboot_server ;; 				
+             4) show_port_status ;;
+             5) open_all_ports ;;
+             6) close_all_ports ;;
+             7) open_specific_port ;;
+             8) close_specific_port ;;
+			 9) show_firewall_status ;;
+            10) stop_firewall ;;
+            11) start_firewall ;;
+            12) disable_firewall_autostart ;;
+            13) enable_firewall_autostart ;;
+            14) create_directory ;;
+            15) create_file ;;
+            16) delete_target ;;
+            17) edit_file ;;
+            18) search_files ;;
             0) echo -e "${GREEN}脚本已退出${NC}"; exit 0 ;;
             *) echo -e "${RED}无效选项！${NC}"; sleep 1 ;;
         esac
     done
 }
 
-# 1. 启用ROOT密码登录模式
-enable_root_login() {
-    clear
-    echo -e "${GREEN}=== 启用ROOT密码登录模式 ===${NC}"
+# 1. 文件权限设置
+file_permission_settings() {
+    while true; do
+        clear
+        echo -e "${GREEN}=== 文件权限设置 ===${NC}"
+	    echo -e "1. drwxr-xr-x (777)"
+        echo -e "2. rwxr-xr-x (755)"
+	    echo -e "3. rwx------ (700)"
+        echo -e "4. rw-r--r-- (644)"
+		echo -e "5. rw------- (600)"
+        echo -e "6. r-xr-xr-x (555)"
+        echo -e "7. r-------- (400)"
+        echo -e "0. 返回主菜单"
+        
+        if ! safe_input "请选择权限模式" "choice"; then
+            return
+        fi
 
-    # 设置 root 密码
-    if ! passwd root; then
-        echo -e "${RED}密码设置失败${NC}" 
-        wait_key
-        return 1
-    fi
+        case $choice in
+	        1) perm=777; desc="drwxr-xr-x (777)"; ;;
+            2) perm=755; desc="rwxr-xr-x (755)"; ;;
+	        3) perm=700; desc="rwx------ (700)"; ;;
+            4) perm=644; desc="rw-r--r-- (644)"; ;;
+			5) perm=600; desc="rw------- (600)"; ;;
+            6) perm=555; desc="r-xr-xr-x (555)"; ;;
+            7) perm=400; desc="r-------- (400)"; ;;
+            0) return ;;
+            *) echo -e "${RED}无效选择！${NC}"; sleep 1; continue ;;
+        esac
 
-    # 修改主配置文件
-    sed -i '/^\s*#\?\s*PermitRootLogin/c\PermitRootLogin yes' /etc/ssh/sshd_config
-    sed -i '/^\s*#\?\s*PasswordAuthentication/c\PasswordAuthentication yes' /etc/ssh/sshd_config
-    sed -i '/^\s*#\?\s*PubkeyAuthentication/c\PubkeyAuthentication yes' /etc/ssh/sshd_config
+        if ! safe_input "请输入文件/目录路径" "path"; then
+            continue
+        fi
 
-    # 修复 sshd_config.d/*.conf 中的 PasswordAuthentication no
-    # 在脚本开头定义（设为true时显示，false时静默）
-    VERBOSE=false
-    if [ -d /etc/ssh/sshd_config.d ]; then
-        for file in /etc/ssh/sshd_config.d/*.conf; do
-            [ -f "$file" ] || continue
-            if grep -qE "^\s*PasswordAuthentication\s+no" "$file"; then
-                $VERBOSE && echo -e "${YELLOW}检测到 $file 中禁用了密码登录，正在修改为允许...${NC}"
-                sed -i 's/^\s*PasswordAuthentication\s\+no/PasswordAuthentication yes/' "$file" $($VERBOSE || echo ">/dev/null")
+        if [ ! -e "$path" ]; then
+            echo -e "${RED}路径不存在！${NC}"
+            sleep 1
+            continue
+        fi
+
+        echo -e "即将设置: ${YELLOW}$path${NC} -> ${BLUE}$desc${NC}"
+        if ! safe_input "确认修改？(y/n)" "confirm"; then
+            continue
+        fi
+
+        if [ "$confirm" = "y" ]; then
+            if [ -d "$path" ]; then
+                find "$path" -type d -exec chmod $perm {} \; 2>/dev/null
+                find "$path" -type f -exec chmod $perm {} \; 2>/dev/null
+            else
+                chmod $perm "$path"
             fi
-        done
-    fi
-    
-    # 重启 SSH 服务
-    echo -e "${YELLOW}正在重启SSH服务...${NC}"
-    if systemctl restart ssh 2>/dev/null || \
-       systemctl restart sshd 2>/dev/null || \
-       service ssh restart 2>/dev/null || \
-       service sshd restart 2>/dev/null; then
-        echo -e "${GREEN}服务重启成功${NC}"
-    else
-        echo -e "${RED}服务重启失败，请手动执行以下命令：${NC}"
-        echo "Ubuntu/Debian: systemctl restart ssh"
-        echo "CentOS/RHEL:   systemctl restart sshd"
-        return 1
-    fi
-
-    # 输出当前有效配置
-    echo -e "${GREEN}✔ 已启用ROOT登录${NC}"
-    echo -e "当前配置文件中内容："
-    grep -E "PermitRootLogin|PasswordAuthentication|PubkeyAuthentication" /etc/ssh/sshd_config
-    echo -e "\n当前 sshd 实际加载配置："
-    sshd -T 2>/dev/null | grep -E "permitrootlogin|passwordauthentication|pubkeyauthentication" || \
-        echo -e "${YELLOW}警告：无法获取运行时配置，请确保sshd -T命令可用${NC}"
-    
-    wait_key
+            echo -e "${GREEN}权限设置成功！${NC}"
+        else
+            echo -e "${YELLOW}已取消操作${NC}"
+        fi
+        wait_key
+    done
 }
 
-# 2. 禁用ROOT密码登录（增加确认）
-disable_root_login() {
-    echo -e "\n${RED}=== 禁用ROOT密码登录 ===${NC}"
-    echo -e "${YELLOW}警告：禁用后将无法直接使用ROOT密码登录系统！${NC}"
+# 2. 重置文件权限
+reset_file_permissions() {
+    echo -e "\n${YELLOW}=== 重置文件权限 ===${NC}"
+    if ! safe_input "输入要重置的路径" "path"; then
+        echo -e "${YELLOW}已取消操作${NC}"
+        wait_key
+        return
+    fi
     
-    read -p "确定要禁用吗？(y/n): " confirm
-    if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
+    [ ! -e "$path" ] && echo -e "${RED}路径不存在！${NC}" && wait_key && return
+    
+    echo -e "${RED}警告：这将递归重置所有权限！${NC}"
+    if ! safe_input "确认重置？(y/n)" "confirm"; then
         echo -e "${YELLOW}已取消操作${NC}"
         wait_key
         return
     fi
 
-    sed -i 's/^#*PermitRootLogin.*/#PermitRootLogin no/g' /etc/ssh/sshd_config
-    
-    if restart_ssh_service; then
-        echo -e "${GREEN}ROOT密码登录已禁用！${NC}"
-    else
-        echo -e "${RED}SSH服务重启失败！${NC}"
+    if [ "$confirm" = "y" ]; then
+        if [ -d "$path" ]; then
+            find "$path" -type d -exec chmod 755 {} \; 2>/dev/null
+            find "$path" -type f -exec chmod 644 {} \; 2>/dev/null
+        else
+            chmod 644 "$path"
+        fi
+        echo -e "${GREEN}权限已重置为默认！${NC}"
     fi
     wait_key
 }
 
-# 3. 修改ROOT密码
-change_root_password() {
-    echo -e "\n${YELLOW}=== 修改ROOT密码 ===${NC}"
-    echo -e "${BLUE}（直接回车取消操作）${NC}"
-    passwd root
-    if [ $? -eq 0 ]; then
-        echo -e "${GREEN}密码修改成功！${NC}"
-    else
-        echo -e "${YELLOW}已取消密码修改${NC}"
+# 3. 重启服务器函数
+reboot_server() {
+    echo -e "\n${RED}=== 重启服务器 ===${NC}"
+    echo -e "${YELLOW}警告：这将导致服务器立即重启！${NC}"
+    
+    # 确认操作
+    read -p "确定要重启服务器吗？(y/n): " confirm
+    if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
+        echo -e "${YELLOW}已取消重启操作${NC}"
+        wait_key
+        return
     fi
-    wait_key
+
+    # 倒计时提示
+    for i in {5..1}; do
+        echo -ne "${RED}服务器将在 ${i} 秒后重启...${NC}\033[0K\r"
+        sleep 1
+    done
+
+    # 执行重启
+    echo -e "\n${GREEN}正在重启服务器...${NC}"
+    shutdown -r now
 }
 
 # 4. 查看端口状态
@@ -455,96 +481,6 @@ close_specific_port() {
     wait_key
 }
 
-# 9. 文件权限设置
-file_permission_settings() {
-    while true; do
-        clear
-        echo -e "${GREEN}=== 文件权限设置 ===${NC}"
-	    echo -e "1. drwxr-xr-x (777)"
-        echo -e "2. rwxr-xr-x (755)"
-	    echo -e "3. rwx------ (700)"
-        echo -e "4. rw-r--r-- (644)"
-		echo -e "5. rw------- (600)"
-        echo -e "6. r-xr-xr-x (555)"
-        echo -e "7. r-------- (400)"
-        echo -e "0. 返回主菜单"
-        
-        if ! safe_input "请选择权限模式" "choice"; then
-            return
-        fi
-
-        case $choice in
-	        1) perm=777; desc="drwxr-xr-x (777)"; ;;
-            2) perm=755; desc="rwxr-xr-x (755)"; ;;
-	        3) perm=700; desc="rwx------ (700)"; ;;
-            4) perm=644; desc="rw-r--r-- (644)"; ;;
-			5) perm=600; desc="rw------- (600)"; ;;
-            6) perm=555; desc="r-xr-xr-x (555)"; ;;
-            7) perm=400; desc="r-------- (400)"; ;;
-            0) return ;;
-            *) echo -e "${RED}无效选择！${NC}"; sleep 1; continue ;;
-        esac
-
-        if ! safe_input "请输入文件/目录路径" "path"; then
-            continue
-        fi
-
-        if [ ! -e "$path" ]; then
-            echo -e "${RED}路径不存在！${NC}"
-            sleep 1
-            continue
-        fi
-
-        echo -e "即将设置: ${YELLOW}$path${NC} -> ${BLUE}$desc${NC}"
-        if ! safe_input "确认修改？(y/n)" "confirm"; then
-            continue
-        fi
-
-        if [ "$confirm" = "y" ]; then
-            if [ -d "$path" ]; then
-                find "$path" -type d -exec chmod $perm {} \; 2>/dev/null
-                find "$path" -type f -exec chmod $perm {} \; 2>/dev/null
-            else
-                chmod $perm "$path"
-            fi
-            echo -e "${GREEN}权限设置成功！${NC}"
-        else
-            echo -e "${YELLOW}已取消操作${NC}"
-        fi
-        wait_key
-    done
-}
-
-# 10. 重置文件权限
-reset_file_permissions() {
-    echo -e "\n${YELLOW}=== 重置文件权限 ===${NC}"
-    if ! safe_input "输入要重置的路径" "path"; then
-        echo -e "${YELLOW}已取消操作${NC}"
-        wait_key
-        return
-    fi
-    
-    [ ! -e "$path" ] && echo -e "${RED}路径不存在！${NC}" && wait_key && return
-    
-    echo -e "${RED}警告：这将递归重置所有权限！${NC}"
-    if ! safe_input "确认重置？(y/n)" "confirm"; then
-        echo -e "${YELLOW}已取消操作${NC}"
-        wait_key
-        return
-    fi
-
-    if [ "$confirm" = "y" ]; then
-        if [ -d "$path" ]; then
-            find "$path" -type d -exec chmod 755 {} \; 2>/dev/null
-            find "$path" -type f -exec chmod 644 {} \; 2>/dev/null
-        else
-            chmod 644 "$path"
-        fi
-        echo -e "${GREEN}权限已重置为默认！${NC}"
-    fi
-    wait_key
-}
-
 #  检测防火墙类型
 detect_firewall() {
     if command -v ufw >/dev/null; then
@@ -558,7 +494,7 @@ detect_firewall() {
     fi
 }
 
-# 11. 防火墙状态查看
+# 9. 防火墙状态查看
 show_firewall_status() {
     echo -e "\n${YELLOW}=== 防火墙状态 ===${NC}"
     case $(detect_firewall) in
@@ -579,7 +515,7 @@ show_firewall_status() {
     wait_key
 }
 
-# 12. 关闭防火墙
+# 10. 关闭防火墙
 stop_firewall() {
     echo -e "\n${RED}=== 关闭防火墙 ===${NC}"
     case $(detect_firewall) in
@@ -604,7 +540,7 @@ stop_firewall() {
     wait_key
 }
 
-# 13. 开启防火墙
+# 11. 开启防火墙
 start_firewall() {
     echo -e "\n${GREEN}=== 开启防火墙（默认开放 22 端口） ===${NC}"
     
@@ -665,7 +601,7 @@ start_firewall() {
     wait_key
 }
 
-# 14. 禁止防火墙开机自启
+# 12. 禁止防火墙开机自启
 disable_firewall_autostart() {
     echo -e "\n${YELLOW}=== 禁用防火墙开机自启 ===${NC}"
     case $(detect_firewall) in
@@ -688,7 +624,7 @@ disable_firewall_autostart() {
     wait_key
 }
 
-# 15. 恢复防火墙开机自启
+# 13. 恢复防火墙开机自启
 enable_firewall_autostart() {
     echo -e "\n${GREEN}=== 启用防火墙开机自启 ===${NC}"
     case $(detect_firewall) in
@@ -711,40 +647,7 @@ enable_firewall_autostart() {
     wait_key
 }
 
-# 16. 重启服务器函数
-reboot_server() {
-    echo -e "\n${RED}=== 重启服务器 ===${NC}"
-    echo -e "${YELLOW}警告：这将导致服务器立即重启！${NC}"
-    
-    # 确认操作
-    read -p "确定要重启服务器吗？(y/n): " confirm
-    if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
-        echo -e "${YELLOW}已取消重启操作${NC}"
-        wait_key
-        return
-    fi
-
-    # 倒计时提示
-    for i in {5..1}; do
-        echo -ne "${RED}服务器将在 ${i} 秒后重启...${NC}\033[0K\r"
-        sleep 1
-    done
-
-    # 执行重启
-    echo -e "\n${GREEN}正在重启服务器...${NC}"
-    shutdown -r now
-}
-
-# 安全确认函数
-confirm_action() {
-    local action=$1
-    local target=$2
-    echo -e "${RED}警告：即将执行 ${action} 操作目标：${YELLOW}${target}${NC}"
-    read -p "确认执行？(y/n): " choice
-    [[ "$choice" =~ ^[Yy]$ ]] && return 0 || return 1
-}
-
-# 17. 创建目录
+# 14. 创建目录
 create_directory() {
     read -p "输入要创建的目录路径及目录名: " dirpath
     if [ -z "$dirpath" ]; then
@@ -765,7 +668,7 @@ create_directory() {
     wait_key
 }
 
-# 18. 创建文件
+# 15. 创建文件
 create_file() {
     read -p "输入要创建的文件路径及文件名: " filepath
     if [ -z "$filepath" ]; then
@@ -786,7 +689,7 @@ create_file() {
     wait_key
 }
 
-# 19. 删除目录/文件
+# 16. 删除目录/文件
 delete_target() {
     read -p "输入要删除的目录或文件的路径: " target
     if [ -z "$target" ]; then
@@ -811,7 +714,7 @@ delete_target() {
     wait_key
 }
 
-# 20. 编辑文件
+# 17. 编辑文件
 edit_file() {
     read -p "输入要编辑的文件路径:（编辑模式：Vim：按 ESC → 输入 :wq → 回车  Nano：按 Ctrl+O 保存 → Ctrl+X 退出 ） " filepath
     if [ -z "$filepath" ]; then
@@ -841,7 +744,7 @@ edit_file() {
     wait_key
 }
 
-# 21. 查找文件/目录
+# 18. 查找文件/目录
 search_files() {
     read -p "输入查找路径（默认当前目录）: " searchpath
     read -p "输入查找名称（支持通配符）: " pattern
