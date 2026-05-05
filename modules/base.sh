@@ -18,21 +18,6 @@ wait_key() {
     pause
 }
 
-# SSH重启函数
-restart_ssh_service() {
-    echo -e "${YELLOW}正在重启SSH服务...${NC}"
-    if systemctl restart ssh 2>/dev/null || \
-       systemctl restart sshd 2>/dev/null || \
-       service ssh restart 2>/dev/null || \
-       service sshd restart 2>/dev/null; then
-        echo -e "${GREEN}服务重启成功${NC}"
-        return 0
-    else
-        echo -e "${RED}服务重启失败${NC}"
-        return 1
-    fi
-}
-
 # 系统工具功能菜单
 show_base_menu() {
     clear
@@ -113,6 +98,19 @@ enable_root_login() {
         done
     fi
     
+    # 重启 SSH 服务
+    echo -e "${YELLOW}正在重启SSH服务...${NC}"
+    if systemctl restart ssh 2>/dev/null || \
+       systemctl restart sshd 2>/dev/null || \
+       service ssh restart 2>/dev/null || \
+       service sshd restart 2>/dev/null; then
+        echo -e "${GREEN}服务重启成功${NC}"
+    else
+        echo -e "${RED}服务重启失败，请手动执行以下命令：${NC}"
+        echo "Ubuntu/Debian: systemctl restart ssh"
+        echo "CentOS/RHEL:   systemctl restart sshd"
+        return 1
+    fi
 
     # 输出当前有效配置
     echo -e "${GREEN}✔ 已启用ROOT登录${NC}"
@@ -124,6 +122,7 @@ enable_root_login() {
     
     wait_key
 }
+
 # 4. 禁用ROOT密码登录（增加确认）
 disable_root_login() {
     echo -e "\n${RED}=== 禁用ROOT密码登录 ===${NC}"
