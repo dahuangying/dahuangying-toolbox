@@ -160,6 +160,24 @@ system_update() {
     local REBOOT_REQUIRED_FILE="/var/run/reboot-required"
 
     echo -e "\n${GREEN}=== 系统更新开始 ===${NC}"
+	
+	    # ====================== 【新增：检查是否需要更新】 ======================
+    echo -e "${YELLOW}正在检查系统更新状态...${NC}"
+    if [ -f /etc/os-release ]; then
+        source /etc/os-release
+        case $ID in
+            debian|ubuntu) apt update -qq >/dev/null 2>&1 && COUNT=$(apt list --upgradable 2>/dev/null | grep -v "Listing" | wc -l) ;;
+            centos|rhel) yum check-update -q >/dev/null 2>&1; COUNT=$? ;;
+        esac
+    fi
+    [ -z "$COUNT" ] && COUNT=1
+    if [ "$COUNT" -le 0 ] || [ "$COUNT" -eq 1 ]; then
+        echo -e "${GREEN}系统已是最新版本，无需更新！${NC}"
+        pause
+        return 0
+    fi
+    echo -e "${GREEN}检测到可更新包，开始执行更新...${NC}"
+    # ====================== 【新增结束】 ======================
 
     # 系统检测
     if [ -f /etc/os-release ]; then
