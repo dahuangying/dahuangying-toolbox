@@ -32,7 +32,7 @@ show_base_menu() {
     echo "4. 禁用ROOT密码登录"
     echo "5. 修改ROOT密码"
     echo "6. swap虚拟内存管理"
-    echo "0. 返回主工具箱"
+    echo "0. 退出"
     echo -e "${GREEN}=============================================${NC}"
     read -p "请输入选项编号: " choice
     case $choice in
@@ -184,7 +184,7 @@ swap_sub_menu() {
         esac
     done
 }
-
+# 查询虚拟内存状态
 swap_query() {
     clear
     echo "=== 当前虚拟内存状态 ==="
@@ -194,7 +194,7 @@ swap_query() {
     echo -e "\n当前 swappiness 阈值：$(sysctl -n vm.swappiness)"
     wait_key
 }
-
+# 创建虚拟内存
 swap_create() {
     clear
     echo "=== 创建虚拟内存 ==="
@@ -207,6 +207,9 @@ swap_create() {
         wait_key
         return
     fi
+
+    # 就只加这一行，自动补G，其它全不动
+    swap_size=${swap_size}G
 
     read -p "确认创建 $swap_size 虚拟内存？(y/n)：" confirm
     if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
@@ -229,7 +232,7 @@ sysctl -p
     swapon --show
     wait_key
 }
-
+# 删除虚拟内存
 swap_remove() {
     clear
     echo "=== 彻底卸载虚拟内存 所有配置还原 ==="
