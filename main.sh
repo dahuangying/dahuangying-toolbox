@@ -24,10 +24,10 @@ show_menu() {
     echo "1. 系统信息查询"
     echo "2. 系统更新"
     echo "3. 系统清理"
-    echo "4. 系统工具"
-    echo "5. 应用脚本"
-    echo "6. Docker 管理"
-    echo "7. 卸载模块"
+    echo "4. 系统基础"
+    echo "5. 系统工具"	
+    echo "6. 应用市场"
+    echo "7. Docker 管理"
     echo "8. 卸载大黄鹰脚本"
     echo "0. 退出"
     read -p "请输入选项编号: " choice
@@ -45,15 +45,13 @@ show_menu() {
             bash modules/system.sh
             ;;
         5)
+            bash modules/base.sh
+            ;;		
+        6)
             bash modules/network.sh
             ;;
-        6)
-            bash modules/docker.sh
-            ;;
         7)
-            echo "请输入模块名删除（例如：system.sh）："
-            read module_name
-            delete_module $module_name
+            bash modules/docker.sh
             ;;
         8)
             echo "确定要删除所有模块和主程序吗？（y/n）"
@@ -402,100 +400,28 @@ system_cleanup() {
     pause
 }
 
-# 删除模块
-delete_module() {
-    echo -e "${GREEN}正在删除模块：$1${NC}"
-    if [ -f "modules/$1" ]; then
-        rm -f "modules/$1"
-        echo -e "${GREEN}模块 $1 已删除。${NC}"
-    else
-        echo -e "${GREEN}模块 $1 不存在。${NC}"
-    fi
-}
 
-# 删除所有模块
-delete_all_modules() {
-    echo -e "${GREEN}正在删除所有模块...${NC}"
-    rm -rf modules/*
-    echo -e "${GREEN}所有模块已删除。${NC}"
-}
-
-# 删除主程序
-delete_main_script() {
-    echo -e "${GREEN}正在删除主程序 main.sh...${NC}"
-    rm -f main.sh
-    echo -e "${GREEN}主程序已删除！${NC}"
-    echo -e "${GREEN}请手动删除此工具箱文件夹。${NC}"
-}
-
-# 删除工具箱目录
-delete_toolbox() {
-    echo -e "${GREEN}正在删除整个工具箱目录...${NC}"
-    rm -rf /path/to/dahuangying-toolbox  # 替换为你工具箱的实际路径
-    echo -e "${GREEN}工具箱已删除。${NC}"
-}
-
-# 删除所有内容
+# 8.完整卸载工具箱（菜单8 使用）
 full_uninstall() {
-    echo -e "${GREEN}确定要删除所有模块和主程序吗？（y/n）${NC}"
+    # 第一步：确认
+    echo -e "${GREEN}确定要卸载整个工具箱吗？（y/n）${NC}"
     read confirmation
-    if [[ $confirmation == "y" || $confirmation == "Y" ]]; then
-        delete_all_modules
-        delete_main_script
-        delete_toolbox
-        echo -e "${GREEN}所有内容已删除。${NC}"
-        exit 0
-    else
-        echo -e "${GREEN}取消删除操作。${NC}"
+    if [[ "$confirmation" != "y" && "$confirmation" != "Y" ]]; then
+        echo -e "${GREEN}已取消卸载${NC}"
+        return
     fi
-}
 
-# 删除模块
-delete_module() {
-    echo -e "${GREEN}正在删除模块：$1${NC}"
-    if [ -f "modules/$1" ]; then
-        rm -f "modules/$1"
-        echo -e "${GREEN}模块 $1 已删除。${NC}"
-    else
-        echo -e "${GREEN}模块 $1 不存在。${NC}"
-    fi
-}
-
-# 删除所有模块
-delete_all_modules() {
-    echo -e "${GREEN}正在删除所有模块...${NC}"
-    rm -rf modules/*
-    echo -e "${GREEN}所有模块已删除。${NC}"
-}
-
-# 删除主程序
-delete_main_script() {
-    echo -e "${GREEN}正在删除主程序 main.sh...${NC}"
+    # 第二步：删除 modules 目录（连目录带文件全删）
+    echo -e "${GREEN}正在卸载所有模块...${NC}"
+    rm -rf modules
+    
+    # 删除主程序
+    echo -e "${GREEN}正在删除主程序...${NC}"
     rm -f main.sh
-    echo -e "${GREEN}主程序已删除！${NC}"
-    echo -e "${GREEN}请手动删除此工具箱文件夹。${NC}"
-}
 
-# 删除工具箱目录
-delete_toolbox() {
-    echo -e "${GREEN}正在删除整个工具箱目录...${NC}"
-    rm -rf /path/to/dahuangying-toolbox  # 替换为你工具箱的实际路径
-    echo -e "${GREEN}工具箱已删除。${NC}"
-}
-
-# 删除所有内容
-full_uninstall() {
-    echo -e "${GREEN}确定要删除所有模块和主程序吗？（y/n）${NC}"
-    read confirmation
-    if [[ $confirmation == "y" || $confirmation == "Y" ]]; then
-        delete_all_modules
-        delete_main_script
-        delete_toolbox
-        echo -e "${GREEN}所有内容已删除。${NC}"
-        exit 0
-    else
-        echo -e "${GREEN}取消删除操作。${NC}"
-    fi
+    # 完成提示
+    echo -e "${GREEN}✅ 大黄鹰工具箱已完全卸载完成！${NC}"
+    exit 0
 }
 
 # 模块静默拉取下载
@@ -531,8 +457,7 @@ mkdir -p "$MODULES_DIR"
 download_module "system.sh" "https://raw.githubusercontent.com/dahuangying/dahuangying-toolbox/main/modules/system.sh"
 download_module "docker.sh" "https://raw.githubusercontent.com/dahuangying/dahuangying-toolbox/main/modules/docker.sh"
 download_module "network.sh" "https://raw.githubusercontent.com/dahuangying/dahuangying-toolbox/main/modules/network.sh"
-download_module "nginx-proxy-manager.sh" "https://raw.githubusercontent.com/dahuangying/dahuangying-toolbox/main/modules/nginx-proxy-manager.sh"
-download_module "1Panel.sh" "https://raw.githubusercontent.com/dahuangying/dahuangying-toolbox/main/modules/1Panel.sh"
+download_module "base.sh" "https://raw.githubusercontent.com/dahuangying/dahuangying-toolbox/main/modules/base.sh"
 
 # 为下载的模块赋予执行权限
 chmod +x "$MODULES_DIR"/*
