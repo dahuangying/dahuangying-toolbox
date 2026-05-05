@@ -355,7 +355,7 @@ install_dpanel_panel() {
 
 # 主菜单
 show_menu() {
-    echo -e "${GREEN}大黄鹰-Linux服务器运维工具箱菜单-应用脚本${NC}"
+    echo -e "${GREEN}大黄鹰-Linux服务器运维工具箱菜单-应用市场${NC}"
     echo -e "欢迎使用本脚本，请根据菜单选择操作："
     echo -e "${GREEN}==================================${NC}"
     echo "1. 开启自带BBR加速"
