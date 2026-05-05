@@ -123,7 +123,7 @@ enable_root_login() {
         echo -e "${YELLOW}警告：无法获取运行时配置，请确保sshd -T命令可用${NC}"
     
     wait_key
-
+}
 # 4. 禁用ROOT密码登录（增加确认）
 disable_root_login() {
     echo -e "\n${RED}=== 禁用ROOT密码登录 ===${NC}"
