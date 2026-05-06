@@ -309,12 +309,12 @@ system_cleanup() {
         source /etc/os-release
         case $ID in
             debian|ubuntu)
-                echo -e "${CYAN}◆ Debian系清理${NC}"
+                echo -e "${CYAN}◆ ${PRETTY_NAME} 系统清理${NC}"
                 sudo apt autoremove --purge -y
                 sudo apt clean
                 ;;
             centos|rhel)
-                echo -e "${CYAN}◆ RHEL系清理${NC}"
+                echo -e "${CYAN}◆ ${PRETTY_NAME} 系统清理${NC}"
                 if command -v dnf >/dev/null; then
                     sudo dnf autoremove -y
                     sudo dnf clean all
