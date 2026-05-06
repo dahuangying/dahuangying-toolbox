@@ -322,7 +322,6 @@ system_cleanup() {
                     sudo yum autoremove -y
                     sudo yum clean all
                 fi
-                safe_clean "/var/cache/yum" && sudo rm -rf /var/cache/yum/*
                 ;;
         esac
     fi
