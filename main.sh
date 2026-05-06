@@ -310,9 +310,8 @@ system_cleanup() {
         case $ID in
             debian|ubuntu)
                 echo -e "${CYAN}◆ Debian系清理${NC}"
-                sudo apt-get autoremove --purge -y
-                sudo apt-get clean
-                safe_clean "/var/lib/apt/lists/" && sudo rm -rf /var/lib/apt/lists/*
+                sudo apt autoremove --purge -y
+                sudo apt clean
                 ;;
             centos|rhel)
                 echo -e "${CYAN}◆ RHEL系清理${NC}"
